@@ -1,17 +1,21 @@
 'use client';
-// PRD 화면 3+4: RFP 완성 및 다운로드 + 상담신청/파트너 받아보기
-// AIDP B2C DNA — 풀스크린 섹션, 마이크로인터랙션, gradient CTA
+
+// PRD 화면 3+4: RFP 완성 및 다운로드 + 상담신청/팈트너 받아보기
+// AIDP B2C DNA — 풀스크린 세션, 마이크로인터랙션, gradient CTA
+// + sessionId를 통한 Supabase 세션 업데이트
+
 import { useState } from 'react';
 import { RFPData } from '@/types/rfp';
 
 interface RFPCompleteProps {
   rfpData: RFPData;
   email: string;
+  sessionId?: string;
 }
 
 type Phase = 'contact' | 'result' | 'consultation' | 'done';
 
-export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
+export default function RFPComplete({ rfpData, email, sessionId }: RFPCompleteProps) {
   const [phase, setPhase] = useState<Phase>('contact');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,7 +41,7 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
       const res = await fetch('/api/generate-rfp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rfpData }),
+        body: JSON.stringify({ rfpData, sessionId }),
       });
       const data = await res.json();
       setRfpDocument(data.rfpDocument || '');
@@ -56,8 +60,13 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ctaType, name, email, phone, company,
-          preferredTime, budgetRange,
+          ctaType,
+          name,
+          email,
+          phone,
+          company,
+          preferredTime,
+          budgetRange,
           rfpSummary: rfpData.overview,
         }),
       });
@@ -106,7 +115,7 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
     e.currentTarget.style.boxShadow = 'none';
   };
 
-  // ━━ Phase: Contact collection ━━
+  // Phase: Contact collection
   if (phase === 'contact') {
     return (
       <div className="bg-mesh" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-1)' }}>
@@ -138,48 +147,17 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
             </div>
 
             <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="이름 *"
-                required
-                style={inputStyle}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="연락처 (전화번호) *"
-                required
-                style={inputStyle}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              />
-              <input
-                type="text"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="회사명 (선택)"
-                style={inputStyle}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              />
-              <button
-                type="submit"
-                disabled={loading || !name || !phone}
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="이름 *" required style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur} />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="연락처 (전화번호) *" required style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur} />
+              <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="회사명 (선택)" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur} />
+
+              <button type="submit" disabled={loading || !name || !phone}
                 style={{
-                  width: '100%',
-                  height: 'var(--btn-height)',
-                  borderRadius: 'var(--btn-radius)',
-                  border: 'none',
+                  width: '100%', height: 'var(--btn-height)',
+                  borderRadius: 'var(--btn-radius)', border: 'none',
                   background: (!name || !phone) ? 'var(--surface-2)' : 'var(--color-primary)',
                   color: (!name || !phone) ? 'var(--text-quaternary)' : 'white',
-                  fontWeight: 600,
-                  fontSize: 16,
-                  fontFamily: 'var(--font-kr)',
+                  fontWeight: 600, fontSize: 16, fontFamily: 'var(--font-kr)',
                   cursor: loading ? 'wait' : 'pointer',
                   opacity: loading ? 0.6 : 1,
                   boxShadow: (name && phone) ? '0 2px 8px rgba(var(--color-primary-rgb), 0.25)' : 'none',
@@ -196,7 +174,7 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
     );
   }
 
-  // ━━ Phase: Result + CTA ━━
+  // Phase: Result + CTA
   if (phase === 'result' || phase === 'consultation') {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--surface-1)' }}>
@@ -209,28 +187,18 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
             boxShadow: 'var(--shadow-md)',
             marginBottom: 'var(--space-lg)',
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 'var(--space-xl)',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-xl)' }}>
               <h2 style={{ font: 'var(--text-title)', letterSpacing: 'var(--letter-tight)', color: 'var(--text-primary)' }}>
                 완성된 RFP
               </h2>
-              <button
-                onClick={handleDownload}
+              <button onClick={handleDownload}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 16px', borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--border-strong)',
-                  background: 'var(--surface-0)',
-                  color: 'var(--text-secondary)',
-                  fontSize: 14, fontWeight: 500,
-                  fontFamily: 'var(--font-kr)',
-                  cursor: 'pointer',
-                  transition: 'all var(--duration-fast) var(--ease-out)',
+                  background: 'var(--surface-0)', color: 'var(--text-secondary)',
+                  fontSize: 14, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                  cursor: 'pointer', transition: 'all var(--duration-fast) var(--ease-out)',
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-0)'; }}
@@ -242,12 +210,7 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
               </button>
             </div>
 
-            <div style={{
-              fontSize: 15,
-              lineHeight: 1.8,
-              color: 'var(--text-secondary)',
-              whiteSpace: 'pre-wrap',
-            }}>
+            <div style={{ fontSize: 15, lineHeight: 1.8, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
               {rfpDocument}
             </div>
 
@@ -267,39 +230,25 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
           {/* CTA Section */}
           {!consultationSubmitted && (
             <div className="animate-fade-in-up" style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 'var(--space-md)',
-              marginBottom: 'var(--space-lg)',
+              display: 'grid', gridTemplateColumns: '1fr 1fr',
+              gap: 'var(--space-md)', marginBottom: 'var(--space-lg)',
               animationDelay: '0.15s',
             }}>
               {/* Primary CTA */}
               <div style={{
                 background: 'linear-gradient(135deg, var(--color-primary), #1E40AF)',
-                borderRadius: 'var(--card-radius)',
-                padding: 'var(--space-xl)',
-                color: 'white',
+                borderRadius: 'var(--card-radius)', padding: 'var(--space-xl)', color: 'white',
               }}>
                 <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 'var(--space-sm)' }}>무료 상담신청</h3>
                 <p style={{ fontSize: 14, opacity: 0.8, lineHeight: 1.5, marginBottom: 'var(--space-lg)' }}>
-                  이 RFP를 전문가와 함께 검토하고 싶으신가요? 24시간 내에 연락드리겠습니다.
+                  이 RFP를 전문가와 함께 검토하고 싶운신가요? 24시간 내에 연락드리겠습니다.
                 </p>
 
                 {phase === 'consultation' ? (
                   <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                    <select
-                      value={preferredTime}
-                      onChange={(e) => setPreferredTime(e.target.value)}
-                      style={{
-                        ...inputStyle,
-                        height: 40,
-                        fontSize: 14,
-                        borderColor: 'rgba(255,255,255,0.2)',
-                        background: 'rgba(255,255,255,0.1)',
-                        color: 'white',
-                      }}
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
+                    <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)}
+                      style={{ ...inputStyle, height: 40, fontSize: 14, borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                      onFocus={handleInputFocus} onBlur={handleInputBlur}
                     >
                       <option value="" style={{ color: 'var(--text-primary)' }}>상담 희망 시간 (선택)</option>
                       <option value="morning" style={{ color: 'var(--text-primary)' }}>오전 (10:00-12:00)</option>
@@ -307,19 +256,9 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
                       <option value="evening" style={{ color: 'var(--text-primary)' }}>저녁 (18:00-20:00)</option>
                       <option value="anytime" style={{ color: 'var(--text-primary)' }}>무관</option>
                     </select>
-                    <select
-                      value={budgetRange}
-                      onChange={(e) => setBudgetRange(e.target.value)}
-                      style={{
-                        ...inputStyle,
-                        height: 40,
-                        fontSize: 14,
-                        borderColor: 'rgba(255,255,255,0.2)',
-                        background: 'rgba(255,255,255,0.1)',
-                        color: 'white',
-                      }}
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
+                    <select value={budgetRange} onChange={(e) => setBudgetRange(e.target.value)}
+                      style={{ ...inputStyle, height: 40, fontSize: 14, borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                      onFocus={handleInputFocus} onBlur={handleInputBlur}
                     >
                       <option value="" style={{ color: 'var(--text-primary)' }}>예상 예산 규모 (선택)</option>
                       <option value="under10m" style={{ color: 'var(--text-primary)' }}>1천만원 미만</option>
@@ -329,37 +268,25 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
                       <option value="over100m" style={{ color: 'var(--text-primary)' }}>1억 이상</option>
                       <option value="undecided" style={{ color: 'var(--text-primary)' }}>미정</option>
                     </select>
-                    <button
-                      onClick={() => handleConsultation('consultation')}
-                      disabled={loading}
+                    <button onClick={() => handleConsultation('consultation')} disabled={loading}
                       style={{
-                        width: '100%', height: 44,
-                        borderRadius: 'var(--radius-md)',
-                        border: 'none',
-                        background: 'white',
-                        color: 'var(--color-primary)',
-                        fontWeight: 600, fontSize: 15,
-                        fontFamily: 'var(--font-kr)',
-                        cursor: 'pointer',
-                        transition: 'all var(--duration-fast) var(--ease-out)',
+                        width: '100%', height: 44, borderRadius: 'var(--radius-md)',
+                        border: 'none', background: 'white', color: 'var(--color-primary)',
+                        fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-kr)',
+                        cursor: 'pointer', transition: 'all var(--duration-fast) var(--ease-out)',
                       }}
                     >
                       {loading ? '접수 중...' : '상담 신청하기'}
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setPhase('consultation')}
+                  <button onClick={() => setPhase('consultation')}
                     style={{
-                      width: '100%', height: 48,
-                      borderRadius: 'var(--radius-md)',
+                      width: '100%', height: 48, borderRadius: 'var(--radius-md)',
                       border: '2px solid rgba(255,255,255,0.3)',
-                      background: 'rgba(255,255,255,0.1)',
-                      color: 'white',
-                      fontWeight: 600, fontSize: 15,
-                      fontFamily: 'var(--font-kr)',
-                      cursor: 'pointer',
-                      backdropFilter: 'blur(8px)',
+                      background: 'rgba(255,255,255,0.1)', color: 'white',
+                      fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-kr)',
+                      cursor: 'pointer', backdropFilter: 'blur(8px)',
                       transition: 'all var(--duration-fast) var(--ease-out)',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
@@ -374,35 +301,22 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
               <div style={{
                 background: 'var(--surface-0)',
                 border: '1.5px solid var(--border-strong)',
-                borderRadius: 'var(--card-radius)',
-                padding: 'var(--space-xl)',
+                borderRadius: 'var(--card-radius)', padding: 'var(--space-xl)',
               }}>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 'var(--space-sm)' }}>맞춤 파트너 받아보기</h3>
                 <p style={{ fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.5, marginBottom: 'var(--space-lg)' }}>
                   이 RFP에 맞는 검증된 개발 파트너 3사를 추천받으세요.
                 </p>
-                <button
-                  onClick={() => handleConsultation('partner')}
-                  disabled={loading}
+                <button onClick={() => handleConsultation('partner')} disabled={loading}
                   style={{
-                    width: '100%', height: 48,
-                    borderRadius: 'var(--radius-md)',
+                    width: '100%', height: 48, borderRadius: 'var(--radius-md)',
                     border: '1.5px solid var(--color-primary)',
-                    background: 'var(--color-primary-alpha)',
-                    color: 'var(--color-primary)',
-                    fontWeight: 600, fontSize: 15,
-                    fontFamily: 'var(--font-kr)',
-                    cursor: 'pointer',
-                    transition: 'all var(--duration-fast) var(--ease-out)',
+                    background: 'var(--color-primary-alpha)', color: 'var(--color-primary)',
+                    fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-kr)',
+                    cursor: 'pointer', transition: 'all var(--duration-fast) var(--ease-out)',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--color-primary)';
-                    e.currentTarget.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--color-primary-alpha)';
-                    e.currentTarget.style.color = 'var(--color-primary)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-primary)'; e.currentTarget.style.color = 'white'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary-alpha)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
                 >
                   맞춤 파트너 받아보기 →
                 </button>
@@ -414,7 +328,7 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
     );
   }
 
-  // ━━ Phase: Done ━━
+  // Phase: Done
   return (
     <div className="bg-mesh" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-1)' }}>
       <div className="animate-fade-in-up" style={{ maxWidth: 420, width: '100%', padding: '0 var(--page-padding-mobile)' }}>
@@ -425,7 +339,6 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
           boxShadow: 'var(--shadow-lg)',
           textAlign: 'center',
         }}>
-          {/* Success animation */}
           <div className="animate-bounce-in" style={{
             width: 80, height: 80, borderRadius: '50%',
             background: 'linear-gradient(135deg, rgba(52, 199, 89, 0.1), rgba(52, 199, 89, 0.05))',
@@ -438,17 +351,13 @@ export default function RFPComplete({ rfpData, email }: RFPCompleteProps) {
           </div>
 
           <h2 style={{ font: 'var(--text-title)', letterSpacing: 'var(--letter-tight)', color: 'var(--text-primary)', marginBottom: 'var(--space-sm)' }}>
-            {consultationSubmitted ? '접수가 완료되었습니다!' : '감사합니다!'}
+            {consultationSubmitted ? '접수가 완료되었습니다!' : '감사핫니다!'}
           </h2>
           <p style={{ font: 'var(--text-body)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-xl)' }}>
             24시간 내에 연락드리겠습니다.<br />위시켓과 함께 성공적인 프로젝트를 만들어보세요.
           </p>
 
-          <div style={{
-            padding: 'var(--space-md)',
-            background: 'var(--surface-2)',
-            borderRadius: 'var(--radius-md)',
-          }}>
+          <div style={{ padding: 'var(--space-md)', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
             <p style={{ font: 'var(--text-caption)', color: 'var(--text-tertiary)' }}>
               접수 확인 이메일이 <strong style={{ color: 'var(--text-secondary)' }}>{email}</strong>로 발송되었습니다
             </p>

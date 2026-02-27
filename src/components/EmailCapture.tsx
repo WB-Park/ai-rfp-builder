@@ -1,10 +1,12 @@
 'use client';
+
 // PRD 화면 2.5: 이메일 수집 (서비스 시작 전)
-// AIDP B2C DNA — 풀스크린, gradient mesh, 마이크로인터랙션
+// AIDP B2C DNA — 풀스크린, gradient mesh, 마이크로인터랭션
+
 import { useState } from 'react';
 
 interface EmailCaptureProps {
-  onSubmit: (email: string) => void;
+  onSubmit: (email: string, sessionId?: string) => void;
 }
 
 export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
@@ -33,7 +35,7 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
       if (data.error) {
         setError(data.error);
       } else {
-        onSubmit(email);
+        onSubmit(email, data.sessionId);
       }
     } catch {
       setError('네트워크 오류가 발생했습니다.');
@@ -46,14 +48,12 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
     <div className="min-h-screen flex items-center justify-center bg-mesh" style={{ background: 'var(--surface-1)' }}>
       <div className="animate-fade-in-up" style={{ maxWidth: 420, width: '100%', padding: '0 var(--page-padding-mobile)' }}>
         {/* Card */}
-        <div
-          style={{
-            background: 'var(--surface-0)',
-            borderRadius: 'var(--radius-2xl)',
-            padding: 'var(--space-2xl) var(--space-xl)',
-            boxShadow: 'var(--shadow-lg)',
-          }}
-        >
+        <div style={{
+          background: 'var(--surface-0)',
+          borderRadius: 'var(--radius-2xl)',
+          padding: 'var(--space-2xl) var(--space-xl)',
+          boxShadow: 'var(--shadow-lg)',
+        }}>
           {/* Badge */}
           <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
             <span className="badge" style={{ marginBottom: 'var(--space-md)', display: 'inline-flex' }}>
@@ -65,40 +65,35 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
           </div>
 
           {/* Hero text */}
-          <h1
-            style={{
-              font: 'var(--text-title)',
-              letterSpacing: 'var(--letter-tight)',
-              color: 'var(--text-primary)',
-              textAlign: 'center',
-              marginBottom: 'var(--space-sm)',
-            }}
-          >
+          <h1 style={{
+            font: 'var(--text-title)',
+            letterSpacing: 'var(--letter-tight)',
+            color: 'var(--text-primary)',
+            textAlign: 'center',
+            marginBottom: 'var(--space-sm)',
+          }}>
             AI가 무료로 RFP를<br />작성해드립니다
           </h1>
-          <p
-            style={{
-              font: 'var(--text-body)',
-              color: 'var(--text-tertiary)',
-              textAlign: 'center',
-              marginBottom: 'var(--space-xl)',
-            }}
-          >
-            5분이면 개발사에 바로 전달할 수 있는<br />기획서가 완성됩니다
+
+          <p style={{
+            font: 'var(--text-body)',
+            color: 'var(--text-tertiary)',
+            textAlign: 'center',
+            marginBottom: 'var(--space-xl)',
+          }}>
+            5분이메 개발사에 바로 전달할 수 있는<br />기획서가 완성됩니다
           </p>
 
           {/* Form */}
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 'var(--space-md)' }}>
-              <div
-                style={{
-                  position: 'relative',
-                  borderRadius: 'var(--radius-md)',
-                  border: `1.5px solid ${focused ? 'var(--color-primary)' : error ? 'var(--color-error)' : 'var(--border-strong)'}`,
-                  boxShadow: focused ? '0 0 0 3px var(--color-primary-alpha)' : 'none',
-                  transition: 'border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)',
-                }}
-              >
+              <div style={{
+                position: 'relative',
+                borderRadius: 'var(--radius-md)',
+                border: `1.5px solid ${focused ? 'var(--color-primary)' : error ? 'var(--color-error)' : 'var(--border-strong)'}`,
+                boxShadow: focused ? '0 0 0 3px var(--color-primary-alpha)' : 'none',
+                transition: 'border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)',
+              }}>
                 <input
                   type="email"
                   value={email}
@@ -122,15 +117,12 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
                 />
               </div>
               {error && (
-                <p
-                  className="animate-fade-in"
-                  style={{
-                    font: 'var(--text-caption)',
-                    color: 'var(--color-error)',
-                    marginTop: 'var(--space-sm)',
-                    paddingLeft: 'var(--space-xs)',
-                  }}
-                >
+                <p className="animate-fade-in" style={{
+                  font: 'var(--text-caption)',
+                  color: 'var(--color-error)',
+                  marginTop: 'var(--space-sm)',
+                  paddingLeft: 'var(--space-xs)',
+                }}>
                   {error}
                 </p>
               )}
@@ -184,15 +176,13 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
           </form>
 
           {/* Trust signals */}
-          <div
-            style={{
-              marginTop: 'var(--space-lg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'var(--space-md)',
-            }}
-          >
+          <div style={{
+            marginTop: 'var(--space-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 'var(--space-md)',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-quaternary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -210,14 +200,12 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
         </div>
 
         {/* Bottom trust */}
-        <p
-          style={{
-            font: 'var(--text-caption)',
-            color: 'var(--text-quaternary)',
-            textAlign: 'center',
-            marginTop: 'var(--space-lg)',
-          }}
-        >
+        <p style={{
+          font: 'var(--text-caption)',
+          color: 'var(--text-quaternary)',
+          textAlign: 'center',
+          marginTop: 'var(--space-lg)',
+        }}>
           13년 외주 매칭 경험의 위시켓이 설계한 AI
         </p>
       </div>

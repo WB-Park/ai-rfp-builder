@@ -1,7 +1,10 @@
 'use client';
+
 // PRD 화면 2: RFP 작성 (Split View)
 // AIDP B2C DNA — Glassmorphism header, chat bubbles, micro-interactions
-import { useState, useRef, useEffect } from 'react';
+// + 세션 데이터 Supabase 실시간 저장
+
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { STEPS, RFPData, emptyRFPData, REQUIRED_STEPS } from '@/types/rfp';
 
 interface ChatMessage {
@@ -12,13 +15,14 @@ interface ChatMessage {
 interface ChatInterfaceProps {
   onComplete: (rfpData: RFPData) => void;
   email: string;
+  sessionId?: string;
 }
 
-export default function ChatInterface({ onComplete, email }: ChatInterfaceProps) {
+export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: `안녕하세요! ${email.split('@')[0]}님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해볼까요? 7가지 질문에 답해주시면 5분 안에 완성됩니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`,
+      content: `안녕하세요! ${email.split('@')[0]}님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해보鹌요? 7가지 질문에 답해주시면 5분 안에 완성됩니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -33,12 +37,38 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // 세션 데이터를 Supabase에 저장 (fire-and-forget)
+  const saveSession = useCallback(async (
+    updatedRfpData: RFPData,
+    updatedMessages: ChatMessage[],
+    step: number,
+    completed: boolean
+  ) => {
+    if (!sessionId) return;
+    try {
+      await fetch('/api/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          rfpData: updatedRfpData,
+          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
+          currentStep: step,
+          completed,
+        }),
+      });
+    } catch (err) {
+      console.error('Session save failed (non-blocking):', err);
+    }
+  }, [sessionId]);
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
-
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+
+    const newMessages = [...messages, { role: 'user' as const, content: userMessage }];
+    setMessages(newMessages);
     setLoading(true);
 
     try {
@@ -46,7 +76,7 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMessage }].map(m => ({
+          messages: newMessages.map(m => ({
             role: m.role,
             content: m.content,
           })),
@@ -57,32 +87,42 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
 
       const data = await res.json();
 
+      let updatedRfpData = rfpData;
+      let updatedStep = currentStep;
+      let completed = false;
+
       if (data.rfpUpdate) {
-        setRfpData(prev => {
-          const updated = { ...prev };
-          const { section, value } = data.rfpUpdate;
-          if (section && value !== undefined) {
-            if (section === 'coreFeatures' && Array.isArray(value)) {
-              updated.coreFeatures = value;
-            } else if (section in updated) {
-              (updated as Record<string, unknown>)[section] = value;
-            }
+        updatedRfpData = { ...rfpData };
+        const { section, value } = data.rfpUpdate;
+        if (section && value !== undefined) {
+          if (section === 'coreFeatures' && Array.isArray(value)) {
+            updatedRfpData.coreFeatures = value;
+          } else if (section in updatedRfpData) {
+            (updatedRfpData as Record<string, unknown>)[section] = value;
           }
-          return updated;
-        });
+        }
+        setRfpData(updatedRfpData);
       }
 
       if (data.nextStep) {
+        updatedStep = data.nextStep;
         setCurrentStep(data.nextStep);
       } else if (data.nextAction !== 'clarify') {
-        setCurrentStep(prev => Math.min(prev + 1, 8));
+        updatedStep = Math.min(currentStep + 1, 8);
+        setCurrentStep(updatedStep);
       }
 
       if (data.nextAction === 'complete' || currentStep >= 7) {
+        completed = true;
         setIsComplete(true);
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+      const finalMessages = [...newMessages, { role: 'assistant' as const, content: data.message }];
+      setMessages(finalMessages);
+
+      // Supabase에 세션 데이터 저장 (non-blocking)
+      saveSession(updatedRfpData, finalMessages, updatedStep, completed);
+
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -112,16 +152,25 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-0)' }}>
-      {/* ━━ Left: Chat Panel ━━ */}
-      <div style={{ width: '50%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-default)' }}>
+      {/* Left: Chat Panel */}
+      <div style={{
+        width: '50%',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid var(--border-default)'
+      }}>
         {/* Glassmorphism Header */}
         <div className="glass-header" style={{ padding: '16px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
               <div style={{
-                width: 8, height: 8, borderRadius: '50%',
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
                 background: isComplete ? 'var(--color-success)' : 'var(--color-primary)',
-                boxShadow: isComplete ? '0 0 8px rgba(52, 199, 89, 0.4)' : '0 0 8px rgba(var(--color-primary-rgb), 0.4)',
+                boxShadow: isComplete
+                  ? '0 0 8px rgba(52, 199, 89, 0.4)'
+                  : '0 0 8px rgba(var(--color-primary-rgb), 0.4)',
               }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                 {currentStep <= 7 ? STEPS[currentStep - 1]?.label : 'RFP 완성'}
@@ -145,7 +194,14 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-md)'
+        }}>
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -157,7 +213,8 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
             >
               {msg.role === 'assistant' && (
                 <div style={{
-                  width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                  width: 32, height: 32,
+                  borderRadius: 'var(--radius-sm)',
                   background: 'var(--color-primary-alpha)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   marginRight: 'var(--space-sm)', flexShrink: 0, marginTop: 2,
@@ -176,7 +233,8 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
           {loading && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-sm)' }}>
               <div style={{
-                width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                width: 32, height: 32,
+                borderRadius: 'var(--radius-sm)',
                 background: 'var(--color-primary-alpha)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
@@ -268,21 +326,19 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
                   }}
                 />
               </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <button
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
                   style={{
-                    width: 48,
-                    height: 48,
+                    width: 48, height: 48,
                     borderRadius: 'var(--radius-md)',
                     border: 'none',
                     background: input.trim() ? 'var(--color-primary)' : 'var(--surface-2)',
                     color: input.trim() ? 'white' : 'var(--text-quaternary)',
                     cursor: loading || !input.trim() ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all var(--duration-fast) var(--ease-out)',
                   }}
                 >
@@ -295,12 +351,9 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
                     onClick={handleSkip}
                     disabled={loading}
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: 12,
-                      color: 'var(--text-quaternary)',
-                      cursor: 'pointer',
-                      padding: '4px',
+                      background: 'none', border: 'none',
+                      fontSize: 12, color: 'var(--text-quaternary)',
+                      cursor: 'pointer', padding: '4px',
                       transition: 'color var(--duration-fast)',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
@@ -315,7 +368,7 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
         </div>
       </div>
 
-      {/* ━━ Right: RFP Preview Panel ━━ */}
+      {/* Right: RFP Preview Panel */}
       <div style={{ width: '50%', background: 'var(--surface-1)', overflowY: 'auto' }}>
         <div style={{ padding: 'var(--space-xl)' }}>
           <div style={{
@@ -327,9 +380,7 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
           }}>
             {/* Header */}
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               marginBottom: 'var(--space-xl)',
               paddingBottom: 'var(--space-md)',
               borderBottom: '1px solid var(--border-default)',
@@ -338,12 +389,9 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
                 RFP 미리보기
               </h2>
               <span style={{
-                fontSize: 12,
-                color: 'var(--text-quaternary)',
-                background: 'var(--surface-2)',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                fontWeight: 500,
+                fontSize: 12, color: 'var(--text-quaternary)',
+                background: 'var(--surface-2)', padding: '4px 10px',
+                borderRadius: 'var(--radius-full)', fontWeight: 500,
               }}>
                 실시간 업데이트
               </span>
@@ -353,23 +401,15 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
               <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
                 <RFPSection number={1} title="프로젝트 개요" content={rfpData.overview} />
                 {rfpData.targetUsers && <RFPSection number={2} title="타겟 사용자" content={rfpData.targetUsers} />}
-
                 {rfpData.coreFeatures.length > 0 && (
                   <div>
                     <SectionLabel number={3} title="핵심 기능" />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
                       {rfpData.coreFeatures.map((f, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 'var(--space-md)',
-                            padding: '12px 16px',
-                            borderRadius: 'var(--radius-md)',
-                            background: 'var(--surface-1)',
-                          }}
-                        >
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center', gap: 'var(--space-md)',
+                          padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
+                        }}>
                           <span className={`chip-${f.priority.toLowerCase()}`}>{f.priority}</span>
                           <div style={{ flex: 1 }}>
                             <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{f.name}</span>
@@ -380,18 +420,13 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
                     </div>
                   </div>
                 )}
-
                 {rfpData.referenceServices && <RFPSection number={4} title="참고 서비스" content={rfpData.referenceServices} />}
                 {rfpData.techRequirements && <RFPSection number={5} title="기술 요구사항" content={rfpData.techRequirements} />}
                 {rfpData.budgetTimeline && <RFPSection number={6} title="예산 및 일정" content={rfpData.budgetTimeline} />}
                 {rfpData.additionalRequirements && <RFPSection number={7} title="추가 요구사항" content={rfpData.additionalRequirements} />}
               </div>
             ) : (
-              /* Empty state */
-              <div style={{
-                textAlign: 'center',
-                padding: 'var(--space-4xl) var(--space-lg)',
-              }}>
+              <div style={{ textAlign: 'center', padding: 'var(--space-4xl) var(--space-lg)' }}>
                 <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>
                   📝
                 </div>
@@ -410,14 +445,13 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
   );
 }
 
-/* ━━ Sub-components ━━ */
+/* Sub-components */
 function SectionLabel({ number, title }: { number: number; title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
       <span style={{
         width: 24, height: 24, borderRadius: '50%',
-        background: 'var(--color-primary-alpha)',
-        color: 'var(--color-primary)',
+        background: 'var(--color-primary-alpha)', color: 'var(--color-primary)',
         fontSize: 12, fontWeight: 700,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
