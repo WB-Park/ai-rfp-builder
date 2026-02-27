@@ -55,8 +55,8 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
           }}
         >
           {/* Badge */}
-          <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)* }}>
-            <span className="badge" style={{ marginBottom: 'var(--space-md)', display: 'inline-flex" }}>
+          <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+            <span className="badge" style={{ marginBottom: 'var(--space-md)', display: 'inline-flex' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
               </svg>
@@ -89,131 +89,138 @@ export default function EmailCapture({ onSubmit }: EmailCaptureProps) {
 
           {/* Form */}
           <form onSubmit={handleSubmit}>
-            {/* Input field goes here */}
-          </form>
-        </div>
-      </div>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  uscorollparila: :no-preferred-color-scheme;
+            <div style={{ marginBottom: 'var(--space-md)' }}>
+              <div
+                style={{
+                  position: 'relative',
+                  borderRadius: 'var(--radius-md)',
+                  border: `1.5px solid ${focused ? 'var(--color-primary)' : error ? 'var(--color-error)' : 'var(--border-strong)'}`,
+                  boxShadow: focused ? '0 0 0 3px var(--color-primary-alpha)' : 'none',
+                  transition: 'border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)',
+                }}
+              >
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  placeholder="이메일을 입력하세요"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    padding: '0 var(--space-md)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    outline: 'none',
+                    fontSize: 15,
+                    fontFamily: 'var(--font-kr)',
+                    color: 'var(--text-primary)',
+                    background: 'transparent',
+                  }}
+                />
+              </div>
+              {error && (
+                <p
+                  className="animate-fade-in"
+                  style={{
+                    font: 'var(--text-caption)',
+                    color: 'var(--color-error)',
+                    marginTop: 'var(--space-sm)',
+                    paddingLeft: 'var(--space-xs)',
+                  }}
+                >
+                  {error}
+                </p>
+              )}
+            </div>
 
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                height: 'var(--btn-height)',
+                borderRadius: 'var(--btn-radius)',
+                border: 'none',
+                background: 'var(--color-primary)',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: 16,
+                fontFamily: 'var(--font-kr)',
+                cursor: loading ? 'wait' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                boxShadow: '0 2px 8px rgba(var(--color-primary-rgb), 0.25)',
+                transition: 'all var(--duration-normal) var(--ease-out)',
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--color-primary-rgb), 0.3)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(var(--color-primary-rgb), 0.25)';
+              }}
+              onMouseDown={(e) => {
+                if (!loading) e.currentTarget.style.transform = 'scale(0.98)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+            >
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </span>
+              ) : (
+                '무료로 시작하기'
+              )}
+            </button>
+          </form>
+
+          {/* Trust signals */}
+          <div
+            style={{
+              marginTop: 'var(--space-lg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--space-md)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-quaternary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span style={{ font: 'var(--text-caption)', color: 'var(--text-quaternary)' }}>암호화 저장</span>
+            </div>
+            <span style={{ color: 'var(--border-strong)' }}>|</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-quaternary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>
+              </svg>
+              <span style={{ font: 'var(--text-caption)', color: 'var(--text-quaternary)' }}>AI 학습 미사용</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom trust */}
+        <p
+          style={{
+            font: 'var(--text-caption)',
+            color: 'var(--text-quaternary)',
+            textAlign: 'center',
+            marginTop: 'var(--space-lg)',
+          }}
+        >
+          13년 외주 매칭 경험의 위시켓이 설계한 AI
+        </p>
+      </div>
+    </div>
+  );
 }
-(

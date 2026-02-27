@@ -1,7 +1,7 @@
 // Fallback 모드: API 키 없이도 데모 동작
 // PRD 8.1: AI 미응답 시 사전 정의된 질문으로 진행
 
-import { STEPS } from 'A/types/rfp';
+import { STEPS } from '@/types/rfp';
 
 interface FallbackResponse {
   message: string;
@@ -49,7 +49,7 @@ export function generateFallbackResponse(
   // RFP 데이터 업데이트
   let rfpUpdate: FallbackResponse['rfpUpdate'] = null;
 
-  if (userMessage.trim() !== "건너뛰기") {
+  if (userMessage.trim() !== '건너뛰기') {
     if (section === 'coreFeatures') {
       rfpUpdate = {
         section,
@@ -63,7 +63,7 @@ export function generateFallbackResponse(
     }
   }
 
-  // 다음 짉문 생성
+  // 다음 질문 생성
   let message: string;
   if (isComplete) {
     message = '모든 질문이 완료되었습니다! 🎉\n\n지금까지 답변해주신 내용으로 RFP를 생성합니다. 아래 버튼을 눌러주세요.';

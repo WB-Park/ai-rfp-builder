@@ -3,7 +3,7 @@
 // PRD 화면 플로우: 이메일 수집 → 대화형 RFP 작성 → RFP 완성/상담
 import { useState } from 'react';
 import { RFPData } from '@/types/rfp';
-import EmailCapture from 'A/components/EmailCapture';
+import EmailCapture from '@/components/EmailCapture';
 import ChatInterface from '@/components/ChatInterface';
 import RFPComplete from '@/components/RFPComplete';
 

@@ -2,7 +2,7 @@
 // Fallback 모드: API 키 없으면 사전 정의된 질문으로 진행
 import { NextRequest, NextResponse } from 'next/server';
 import { SYSTEM_PROMPT } from '@/lib/prompts';
-import { generateFallbackResponse } from 'A/lib/fallback';
+import { generateFallbackResponse } from '@/lib/fallback';
 
 const HAS_API_KEY = !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'placeholder';
 
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     let parsed;
     try {
-      const jsonMatch = content.text.match(/```json\s*([\s\S]*?)\s*``b/) ||
+      const jsonMatch = content.text.match(/```json\s*([\s\S]*?)\s*```/) ||
                         content.text.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content.text;
       parsed = JSON.parse(jsonStr);

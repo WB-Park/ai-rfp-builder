@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   AIDP Design Quality System — B2C DNA   Reference: Toss, Apple, Airbnb, Spotify
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   AIDP Design Quality System — B2C DNA
+   Reference: Toss, Apple, Airbnb, Spotify
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 :root {
@@ -54,7 +55,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.04), 0 12px 24px rgba(0, 0, 0, 0.06);
-  --shadow-hover: 0 8px 824px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.1);
 
   /* ━━ Motion ━━ */
@@ -72,132 +73,20 @@
   --radius-xl: 20px;
   --radius-2xl: 24px;
   --radius-full: 100px;
-   /* ━━ B2C Overrides ━━ */
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  uscorollparila: :no-preferred-color-scheme;
 
+  /* ━━ B2C Overrides ━━ */
+  --btn-height: 52px;
+  --btn-radius: var(--radius-lg);
+  --card-radius: var(--radius-xl);
+  --card-padding: var(--space-lg);
+  --section-gap: var(--space-5xl);
+  --content-max: 1200px;
+  --page-padding-mobile: 20px;
+  --page-padding-desktop: 24px;
 }
+
 /* ━━ Base ━━ */
-( {
+* {
   box-sizing: border-box;
 }
 
@@ -209,4 +98,253 @@ body {
   letter-spacing: var(--letter-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ━━ Custom Scrollbar (WOW) ━━ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ━━ Animations ━━ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+@keyframes progress-fill {
+  from { width: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s var(--ease-spring) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s var(--ease-out) both;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.4s var(--ease-spring) both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s var(--ease-spring) both;
+}
+
+/* Stagger children */
+.stagger > * {
+  animation: fadeInUp 0.4s var(--ease-spring) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger > *:nth-child(5) { animation-delay: 0.24s; }
+
+/* ━━ Skeleton Loader ━━ */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ━━ Gradient Mesh Background (WOW) ━━ */
+.bg-mesh {
+  position: relative;
+  overflow: hidden;
+}
+.bg-mesh::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(var(--color-primary-rgb), 0.06), transparent 70%);
+  top: -200px;
+  right: -100px;
+  pointer-events: none;
+}
+.bg-mesh::after {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(139, 92, 246, 0.04), transparent 70%);
+  bottom: -150px;
+  left: -100px;
+  pointer-events: none;
+}
+
+/* ━━ Glassmorphism Header (WOW) ━━ */
+.glass-header {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* ━━ Chat Bubbles ━━ */
+.chat-bubble-assistant {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) 6px;
+  padding: var(--space-md) var(--space-lg);
+  max-width: 85%;
+  animation: fadeInUp 0.3s var(--ease-spring) both;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.chat-bubble-user {
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-xl) var(--radius-xl) 6px var(--radius-xl);
+  padding: var(--space-md) var(--space-lg);
+  max-width: 85%;
+  animation: slideInRight 0.3s var(--ease-spring) both;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+/* ━━ Typing Indicator ━━ */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-tertiary);
+  border-radius: 50%;
+  display: inline-block;
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* ━━ Progress Bar ━━ */
+.progress-bar {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+  border-radius: var(--radius-full);
+  transition: width 0.5s var(--ease-spring);
+}
+
+/* ━━ Priority Chips ━━ */
+.chip-p1 {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.1);
+  color: #DC2626;
+}
+.chip-p2 {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.1);
+  color: #D97706;
+}
+.chip-p3 {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(107, 114, 128, 0.1);
+  color: #6B7280;
+}
+
+/* ━━ Badge ━━ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--color-primary-alpha);
+  color: var(--color-primary);
+}
+
+/* ━━ Divider ━━ */
+.divider {
+  height: 1px;
+  background: var(--border-default);
+  margin: var(--space-lg) 0;
+}
+
+/* ━━ Focus Ring (Accessibility) ━━ */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ━━ Selection ━━ */
+::selection {
+  background: rgba(var(--color-primary-rgb), 0.15);
 }

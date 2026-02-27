@@ -1,10 +1,96 @@
 // AI RFP Builder â€” Consultation Request API (PRD F3: ìƒë‹´ì‹ ì²­/íŒŒíŠ¸ë„ˆ ë°›ì•„ë³´ê¸°)
-// Supabase ì €ì¥ + år»ë®¨
+// Supabase ì €ì¥ + Slack ì•Œë¦¼
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
-// Hš™[Y[:å!:ë';'(8/hˆÓÓ”ÕSUSÓˆP“K;( ;'©{f-:ì&û%a:ìí:®,™›Ü›HÛXÚÈ›İYšXØ][Û‚š[\ÜÈ™^™\]Y\İ™^™\ÜÛœÙHHœ›ÛH	Û™^ÜÙ\™\‰ÎÂš[\ÜÈİ\X˜\ÙHHœ›ÛH	ĞÛX‹Üİ\X˜\ÙIÎÂ‚™^Ü\Ş[˜È[˜İ[ÛˆÔÕ
-™\Nˆ™^™\]Y\İ
-HÂˆHÂˆÛÛœİÂˆİU\K˜[YK[XZ[Û™KÛÛ\[Kˆ™Y™\œ™Y[YKYÙ]˜[™ÙK™œİ[[X\KˆHH]ØZ]™\KšœÛÛŠ
-NÂ‚ˆYˆ
-XİU\H[˜[YHY[XZ[\Û™JHÂˆ™]\›ˆ™^™\ÜÛœÙKšœÛÛŠÈ\œ›Üˆ	ûga:¬ï:î§Éè^º
-^Ù[NÊ;ÎÈKÉ©BârÒÂ²7FGW3¢CÒ“°¢Ğ ¢òòâf–æBÆVB'’VÖ–À¢6öç7B²FF¢ÆVBÒÒv—B7W&6P¢æg&öÒ‚w&göÆVG2r¢ç6VÆV7B‚v–Br¢æW‚vVÖ–ÂrÂVÖ–Â¢ç6–ævÆR‚“° ¢òò"â6fR6öç7VÇFF–öâ&WVW7BFò7W&6P¢6öç7B²W'&÷#¢–ç6W'DW'&÷"ÒÒv—B7W&6P¢æg&öÒ‚w&gö6öç7VÇFF–öç2r¢æ–ç6W'B‡°¢ÆVEö–C¢ÆVCòæ–BÇÂçVÆÂÀ¢7F÷G—S¢7FG—RÀ¢&VfW'&VE÷F–ÖS¢&VfW'&VEF–ÖRÀ¢'VFvWE÷&ævS¢'VFvWE&ævRÀ¢&g÷7VÖÖ'“¢&g7VÖÖ'“òç6Æ–6RƒÂ#’À¢7FGW3¢wVæF–ærrÀ¢Ò“° ¢–b†–ç6W'DW'&÷"’°¢6öç6öÆRæW'&÷"‚t6öç7VÇFF–öâ–ç6W'BW'&÷#¢rÂ–ç6W'DW'&÷"“°¢Ğ ¢òò2â6Æ6²ÉXÎºkÀ¢6öç7B6Æ6µvV&†ööµW&ÂÒ&ö6W72æVçbå4Ä4µõtT$„ôôµõU$Ã°¢6öç7B7FÆ&VÂÒ7FG—RÓÓÒv6öç7VÇFF–öârò~ºËNº8ÂÈ8¸»NÈºË*Òr¢~ºyîËjBØÈÎØ«¸H‚»	¾ÉXN»;N«‹s° ¢6öç7B6Æ6´ÖW76vRÒ°¢FW‡C¢	ùIBÈ8ºÎÉ«BG¶7FÆ&VÇŞÉÛBÊ	È‰¹	ÉxÈ«^¸¸¸ºBÀ¢&Æö6·3¢°¢°¢G—S¢v†VFW"rÀ¢FW‡C¢²G—S¢wÆ–å÷FW‡BrÂFW‡C¢	ùIB’$e'V–ÆFW"(	BG¶7FÆ&VÇÒÊ	È‰†ÒÀ¢ÒÀ¢°¢G—S¢w6V7F–öârÀ¢f–VÆG3¢°¢²G—S¢v×&¶GvârÂFW‡C¢®ÉÛNºhC¢¢G¶æÖWÖÒÀ¢²G—S¢v×&¶GvârÂFW‡C¢®ÉÛNº™NÉÛÃ¢¢G¶VÖ–ÇÖÒÀ¢²G—S¢v×&¶GvârÂFW‡C¢®É{¹ÛŞË)ƒ¢¢G·†öæWÖÒÀ¢²G—S¢v×&¶GvârÂFW‡C¢®Ù¨ÎÈ*Ã¢¢G¶6ö×ç’ÇÂ~ºûÉè^º
-RwÖÒÀ¢²G—S¢v×&¶GvârÂFW‡C¢®È8¸»BÙÚÎºyÓ¢¢G·&VfW'&VEF–ÖRÇÂ~ºËN«HwÖÒÀ¢²G—S¢v×&¶GvârÂFW‡C¢®ÉˆÈ+¢¢G¶'VFvWE&ævRÇÂ~ºûÊ	RwÖÒÀ¢ÒÀ¢ÒÀ¢°¢G—S¢w6V7F–öârÀ¢FW‡C¢²G—S¢v×&¶GvârÂFW‡C¢¥$eÉ©NÉ[Ó¢¥ÆâG·&g7VÖÖ'“òç6Æ–6RƒÂS’ÇÂ~ÉxnÉØÂwÖÒÀ¢ÒÀ¢ÒÀ¢Ó° ¢–b‡6Æ6µvV&†ööµW&Â’°¢G'’°¢v—BfWF6‚‡6Æ6µvV&†ööµW&ÂÂ°¢ÖWF†öC¢uõ5BrÀ¢†VFW'3¢²t6öçFVçBÕG—Rs¢vÆ–6F–öâö§6öârÒÀ¢&öG“¢¥4ôâç7G&–æv–g’‡6Æ6´ÖW76vR’À¢Ò“°¢Ò6F6‚‡6Æ6´W'&÷"’°¢6öç6öÆRæW'&÷"‚u6Æ6²æ÷F–f–6F–öâf–ÆVC¢rÂ6Æ6´W'&÷"“°¢Ğ¢ÒVÇ6R°¢6öç6öÆRæÆör‚u´DUeÒ6Æ6²æ÷F–f–6F–öã¢rÂ¥4ôâç7G&–æv–g’‡6Æ6´ÖW76vRÂçVÆÂÂ"’“°¢Ğ ¢&WGW&âæW‡E&W7öç6Ræ§6öâ‡°¢7V66W73¢G'VRÀ¢ÖW76vS¢7FG—RÓÓÒv6öç7VÇFF–öâp¢ò~È8¸»NÈºË*ŞÉÛBÊ	È‰¹	ÉxÈ«^¸¸¸ºBâ#NÈ¹Î«B¸+NÉyÉ{¹ÛŞ¹9ÎºjÎ«*È«^¸¸¸ºBâp¢¢~ØÈÎØ«¸H‚ËiNË)ÂÉ©NË*ŞÉÛBÊ	È‰¹	ÉxÈ«^¸¸¸ºBâºyîËjBØÈÎØ«¸H‚>È*Îº[ÂËiNË)ÎÙ[N¹9ÎºjÎ«*È«^¸¸¸ºBârÀ¢&WVW7D–C¢&WòG´FFRææ÷r‚—ÖÀ¢Ò“° ¢Ò6F6‚†W'&÷"’°¢6öç6öÆRæW'&÷"‚t6öç7VÇFF–öâ’W'&÷#¢rÂW'&÷"“°¢òòFöâwB&Æö6²F†RW6W"fÆ÷p¢&WGW&âæW‡E&W7öç6Ræ§6öâ‡²7V66W73¢G'VRÂÖW76vS¢~Ê	È‰¹	ÉxÈ«^¸¸¸ºBârÒ“°¢Ğ§Ğ 
+export async function POST(req: NextRequest) {
+  try {
+    const {
+      ctaType, name, email, phone, company,
+      preferredTime, budgetRange, rfpSummary,
+    } = await req.json();
+
+    if (!ctaType || !name || !email || !phone) {
+      return NextResponse.json({ error: 'í•„ìˆ˜ ì •ë³´ë¥¼ ì…ë ¥í•´ì£¼ì„¸ìš”.' }, { status: 400 });
+    }
+
+    // 1. Find lead by email
+    const { data: lead } = await supabase
+      .from('rfp_leads')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    // 2. Save consultation request to Supabase
+    const { error: insertError } = await supabase
+      .from('rfp_consultations')
+      .insert({
+        lead_id: lead?.id || null,
+        cta_type: ctaType,
+        preferred_time: preferredTime,
+        budget_range: budgetRange,
+        rfp_summary: rfpSummary?.slice(0, 2000),
+        status: 'pending',
+      });
+
+    if (insertError) {
+      console.error('Consultation insert error:', insertError);
+    }
+
+    // 3. Slack ì•Œë¦¼
+    const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+    const ctaLabel = ctaType === 'consultation' ? 'ë¬´ë£Œ ìƒë‹´ì‹ ì²­' : 'ë§ì¶¤ íŒŒíŠ¸ë„ˆ ë°›ì•„ë³´ê¸°';
+
+    const slackMessage = {
+      text: `ğŸ”” ìƒˆë¡œìš´ ${ctaLabel}ì´ ì ‘ìˆ˜ë˜ì—ˆìŠµë‹ˆë‹¤!`,
+      blocks: [
+        {
+          type: 'header',
+          text: { type: 'plain_text', text: `ğŸ”” AI RFP Builder â€” ${ctaLabel} ì ‘ìˆ˜` },
+        },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*ì´ë¦„:* ${name}` },
+            { type: 'mrkdwn', text: `*ì´ë©”ì¼:* ${email}` },
+            { type: 'mrkdwn', text: `*ì—°ë½ì²˜:* ${phone}` },
+            { type: 'mrkdwn', text: `*íšŒì‚¬:* ${company || 'ë¯¸ì…ë ¥'}` },
+            { type: 'mrkdwn', text: `*ìƒë‹´ í¬ë§:* ${preferredTime || 'ë¬´ê´€'}` },
+            { type: 'mrkdwn', text: `*ì˜ˆì‚°:* ${budgetRange || 'ë¯¸ì •'}` },
+          ],
+        },
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: `*RFP ìš”ì•½:*\n${rfpSummary?.slice(0, 500) || 'ì—†ìŒ'}` },
+        },
+      ],
+    };
+
+    if (slackWebhookUrl) {
+      try {
+        await fetch(slackWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(slackMessage),
+        });
+      } catch (slackError) {
+        console.error('Slack notification failed:', slackError);
+      }
+    } else {
+      console.log('[DEV] Slack notification:', JSON.stringify(slackMessage, null, 2));
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: ctaType === 'consultation'
+        ? 'ìƒë‹´ì‹ ì²­ì´ ì ‘ìˆ˜ë˜ì—ˆìŠµë‹ˆë‹¤. 24ì‹œê°„ ë‚´ì— ì—°ë½ë“œë¦¬ê² ìŠµë‹ˆë‹¤.'
+        : 'íŒŒíŠ¸ë„ˆ ì¶”ì²œ ìš”ì²­ì´ ì ‘ìˆ˜ë˜ì—ˆìŠµë‹ˆë‹¤. ë§ì¶¤ íŒŒíŠ¸ë„ˆ 3ì‚¬ë¥¼ ì¶”ì²œí•´ë“œë¦¬ê² ìŠµë‹ˆë‹¤.',
+      requestId: `req_${Date.now()}`,
+    });
+
+  } catch (error) {
+    console.error('Consultation API error:', error);
+    // Don't block the user flow
+    return NextResponse.json({ success: true, message: 'ì ‘ìˆ˜ë˜ì—ˆìŠµë‹ˆë‹¤.' });
+  }
+}

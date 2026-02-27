@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (step === 'email') {
       // PRD: 이메일 수집 (서비스 시작 시 필수)
       if (!email || !email.includes('@')) {
-        return NextResponse.json({ error: '유효한 이메일을 입력하주세요.' }, { status: 400 });
+        return NextResponse.json({ error: '유효한 이메일을 입력해주세요.' }, { status: 400 });
       }
 
       // Check if lead already exists

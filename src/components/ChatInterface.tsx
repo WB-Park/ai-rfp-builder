@@ -24,7 +24,7 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
   const [input, setInput] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
   const [rfpData, setRfpData] = useState<RFPData>(emptyRFPData);
-  const [loading, setLoadingd] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -46,11 +46,10 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMessage }].map(m => (
-            {
-              role: m.role,
-              content: m.content,
-            })),
+          messages: [...messages, { role: 'user', content: userMessage }].map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
           currentStep,
           rfpData,
         }),
@@ -76,7 +75,7 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
       if (data.nextStep) {
         setCurrentStep(data.nextStep);
       } else if (data.nextAction !== 'clarify') {
-        setCurrentStep(prev => Math.min+prev + 1, 8));
+        setCurrentStep(prev => Math.min(prev + 1, 8));
       }
 
       if (data.nextAction === 'complete' || currentStep >= 7) {
@@ -87,7 +86,7 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: '톪 일삋�� 친근하고 전문적인 톤. 기돤신‍니다. 닥변을 입력해주세요.',
+        content: '죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.',
       }]);
     } finally {
       setLoading(false);
@@ -146,13 +145,13 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', fontSize: 15, fontFamily: 'var(--font-kr)' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           {messages.map((msg, i) => (
             <div
               key={i}
               style={{
                 display: 'flex',
-                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 animationDelay: `${i * 0.05}s`,
               }}
             >
@@ -173,10 +172,274 @@ export default function ChatInterface({ onComplete, email }: ChatInterfaceProps)
               </div>
             </div>
           ))}
+
+          {loading && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-sm)' }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-primary-alpha)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <div className="chat-bubble-assistant animate-fade-in">
+                <div style={{ display: 'flex', gap: 6, padding: '4px 0' }}>
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
+
         {/* Input Area */}
-        <div></div>
+        <div style={{
+          padding: '16px 24px',
+          borderTop: '1px solid var(--border-default)',
+          background: 'var(--surface-0)',
+        }}>
+          {isComplete ? (
+            <button
+              onClick={() => onComplete(rfpData)}
+              className="animate-bounce-in"
+              style={{
+                width: '100%',
+                height: 'var(--btn-height)',
+                borderRadius: 'var(--btn-radius)',
+                border: 'none',
+                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: 16,
+                fontFamily: 'var(--font-kr)',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(var(--color-primary-rgb), 0.3)',
+                transition: 'all var(--duration-normal) var(--ease-out)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(var(--color-primary-rgb), 0.35)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--color-primary-rgb), 0.3)';
+              }}
+            >
+              RFP 완성하기
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="답변을 입력하세요..."
+                  rows={1}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    minHeight: 48,
+                    maxHeight: 120,
+                    padding: '12px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1.5px solid var(--border-strong)',
+                    outline: 'none',
+                    resize: 'none',
+                    fontSize: 15,
+                    fontFamily: 'var(--font-kr)',
+                    color: 'var(--text-primary)',
+                    background: 'var(--surface-0)',
+                    transition: 'border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-alpha)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-strong)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <button
+                  onClick={handleSend}
+                  disabled={loading || !input.trim()}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 'var(--radius-md)',
+                    border: 'none',
+                    background: input.trim() ? 'var(--color-primary)' : 'var(--surface-2)',
+                    color: input.trim() ? 'white' : 'var(--text-quaternary)',
+                    cursor: loading || !input.trim() ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all var(--duration-fast) var(--ease-out)',
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+                {!REQUIRED_STEPS.includes(currentStep as 1 | 3) && currentStep <= 7 && (
+                  <button
+                    onClick={handleSkip}
+                    disabled={loading}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 12,
+                      color: 'var(--text-quaternary)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      transition: 'color var(--duration-fast)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+                  >
+                    건너뛰기
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ━━ Right: RFP Preview Panel ━━ */}
+      <div style={{ width: '50%', background: 'var(--surface-1)', overflowY: 'auto' }}>
+        <div style={{ padding: 'var(--space-xl)' }}>
+          <div style={{
+            background: 'var(--surface-0)',
+            borderRadius: 'var(--card-radius)',
+            padding: 'var(--space-xl)',
+            boxShadow: 'var(--shadow-sm)',
+            minHeight: 'calc(100vh - 64px)',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 'var(--space-xl)',
+              paddingBottom: 'var(--space-md)',
+              borderBottom: '1px solid var(--border-default)',
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: 'var(--letter-tight)' }}>
+                RFP 미리보기
+              </h2>
+              <span style={{
+                fontSize: 12,
+                color: 'var(--text-quaternary)',
+                background: 'var(--surface-2)',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-full)',
+                fontWeight: 500,
+              }}>
+                실시간 업데이트
+              </span>
+            </div>
+
+            {rfpData.overview ? (
+              <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+                <RFPSection number={1} title="프로젝트 개요" content={rfpData.overview} />
+                {rfpData.targetUsers && <RFPSection number={2} title="타겟 사용자" content={rfpData.targetUsers} />}
+
+                {rfpData.coreFeatures.length > 0 && (
+                  <div>
+                    <SectionLabel number={3} title="핵심 기능" />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
+                      {rfpData.coreFeatures.map((f, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--space-md)',
+                            padding: '12px 16px',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'var(--surface-1)',
+                          }}
+                        >
+                          <span className={`chip-${f.priority.toLowerCase()}`}>{f.priority}</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{f.name}</span>
+                            <span style={{ color: 'var(--text-tertiary)', fontSize: 13, marginLeft: 8 }}>{f.description}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rfpData.referenceServices && <RFPSection number={4} title="참고 서비스" content={rfpData.referenceServices} />}
+                {rfpData.techRequirements && <RFPSection number={5} title="기술 요구사항" content={rfpData.techRequirements} />}
+                {rfpData.budgetTimeline && <RFPSection number={6} title="예산 및 일정" content={rfpData.budgetTimeline} />}
+                {rfpData.additionalRequirements && <RFPSection number={7} title="추가 요구사항" content={rfpData.additionalRequirements} />}
+              </div>
+            ) : (
+              /* Empty state */
+              <div style={{
+                textAlign: 'center',
+                padding: 'var(--space-4xl) var(--space-lg)',
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>
+                  📝
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
+                  아직 작성된 내용이 없어요
+                </p>
+                <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
+                  AI와 대화하면 여기에 RFP가 실시간으로 채워집니다
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ━━ Sub-components ━━ */
+function SectionLabel({ number, title }: { number: number; title: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+      <span style={{
+        width: 24, height: 24, borderRadius: '50%',
+        background: 'var(--color-primary-alpha)',
+        color: 'var(--color-primary)',
+        fontSize: 12, fontWeight: 700,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {number}
+      </span>
+      <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h3>
+    </div>
+  );
+}
+
+function RFPSection({ number, title, content }: { number: number; title: string; content: string }) {
+  return (
+    <div>
+      <SectionLabel number={number} title={title} />
+      <p style={{
+        font: 'var(--text-body)',
+        color: 'var(--text-secondary)',
+        marginTop: 'var(--space-sm)',
+        paddingLeft: 'calc(24px + var(--space-sm))',
+      }}>
+        {content}
+      </p>
     </div>
   );
 }
