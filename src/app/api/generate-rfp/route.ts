@@ -913,118 +913,47 @@ function generateSmartProjectName(overview: string, features: FeatureItem[], pro
 
 interface PRDResult {
   projectName: string;
-  summary: string;
-  consultantOpinion: string;
-  totalWeeks: number;
-  successRate: number;
-  totalMD: number;
+  projectOverview: string;
+  targetUsers: string;
+  techStack: string[];
+  referenceServices: string;
+  additionalRequirements: string;
 
-  pricing: {
-    economy: {
-      label: string;
-      mdRate: number;
-      desc: string;
-      approach: string;
-      techStack: string[];
-      team: string;
-      timeline: string;
-      includes: string[];
-      excludes: string[];
-      bestFor: string;
-    };
-    standard: {
-      label: string;
-      mdRate: number;
-      desc: string;
-      approach: string;
-      techStack: string[];
-      team: string;
-      timeline: string;
-      includes: string[];
-      excludes: string[];
-      bestFor: string;
-    };
-    premium: {
-      label: string;
-      mdRate: number;
-      desc: string;
-      approach: string;
-      techStack: string[];
-      team: string;
-      timeline: string;
-      includes: string[];
-      excludes: string[];
-      bestFor: string;
-    };
-  };
-
-  modules: {
+  featureModules: {
     id: number;
     name: string;
-    priority: 'critical' | 'important' | 'nice-to-have';
+    priority: 'P0' | 'P1' | 'P2';
+    priorityLabel: string;
     features: {
       id: string;
       name: string;
       description: string;
-      complexity: 'low' | 'mid' | 'high';
-      mdEstimate: number;
       subFeatures: string[];
       acceptanceCriteria: string[];
+      userFlow: string;
+      screenSpecs: {
+        id: string;
+        name: string;
+        purpose: string;
+        elements: string[];
+        scenarios: string[][];
+      }[];
+      businessRules: string[];
+      dataEntities: { name: string; fields: string }[];
+      errorCases: string[];
     }[];
   }[];
 
-  wbs: {
-    phase: string;
-    task: string;
-    startWeek: number;
-    durationWeeks: number;
-    md: number;
-  }[];
-
-  risks: {
+  nonFunctionalRequirements: {
     category: string;
-    description: string;
-    level: 'red' | 'yellow' | 'green';
-    mitigation: string;
+    items: string[];
   }[];
-}
-
-function calculateMDEstimate(complexity: number): number {
-  // Complexity: 1-5 scale
-  // MD estimate: low=2-3, mid=4-6, high=8-12
-  if (complexity <= 2) return 2;
-  if (complexity <= 3) return 4;
-  if (complexity <= 4) return 6;
-  return 10;
-}
-
-function getComplexityLevel(value: number): 'low' | 'mid' | 'high' {
-  if (value <= 2) return 'low';
-  if (value <= 3) return 'mid';
-  return 'high';
 }
 
 function generateFallbackRFP(rfpData: RFPData): string {
   const projectInfo = getProjectTypeInfo(rfpData.overview);
   const features = rfpData.coreFeatures || [];
   const analyzedFeatures = features.map(f => analyzeFeature(f));
-
-  // Calculate total MD
-  const totalMD = analyzedFeatures.reduce((sum, f) => sum + calculateMDEstimate(f.complexity), 0);
-
-  // Calculate timeline
-  const weekEstimates = analyzedFeatures.map(f => {
-    const match = f.estimatedWeeks.match(/(\d+)~(\d+)/);
-    return match ? [parseInt(match[1]), parseInt(match[2])] : [2, 3];
-  });
-  const totalWeeksMin = Math.max(weekEstimates.reduce((s, w) => s + w[0], 0) * 0.6, 4);
-  const totalWeeksMax = Math.max(weekEstimates.reduce((s, w) => s + w[1], 0) * 0.7, 6);
-  const avgWeeks = Math.round((totalWeeksMin + totalWeeksMax) / 2);
-
-  // Calculate success rate based on project complexity and features
-  const totalComplexity = analyzedFeatures.reduce((sum, f) => sum + f.complexity, 0);
-  const baseSuccessRate = projectInfo.successRate.match(/(\d+)%/)?.[1];
-  const successRate = baseSuccessRate ? parseInt(baseSuccessRate) : 75;
 
   // Generate project name
   const projectName = generateSmartProjectName(rfpData.overview || '', features, projectInfo.type);
@@ -1034,244 +963,149 @@ function generateFallbackRFP(rfpData: RFPData): string {
   const featuresP1 = analyzedFeatures.filter(f => f.priority === 'P2');
   const featuresP2 = analyzedFeatures.filter(f => f.priority === 'P3');
 
-  // Create modules
-  const modules: PRDResult['modules'] = [];
+  // Create feature modules with full blueprint data from FEATURE_DB
+  const featureModules: PRDResult['featureModules'] = [];
 
   if (featuresP0.length > 0) {
-    modules.push({
+    featureModules.push({
       id: 1,
       name: 'MVP 필수 기능',
-      priority: 'critical',
-      features: featuresP0.map((f, i) => ({
-        id: `P0-${i + 1}`,
-        name: f.name,
-        description: f.description,
-        complexity: getComplexityLevel(f.complexity),
-        mdEstimate: calculateMDEstimate(f.complexity),
-        subFeatures: f.subFeatures || [],
-        acceptanceCriteria: f.acceptanceCriteria || [],
-      })),
+      priority: 'P0',
+      priorityLabel: 'MVP 필수',
+      features: featuresP0.map((f, i) => {
+        const blueprint = getFeatureBlueprint(f.name);
+        return {
+          id: `P0-${i + 1}`,
+          name: f.name,
+          description: f.description,
+          subFeatures: blueprint?.subFeatures || f.subFeatures || [],
+          acceptanceCriteria: blueprint?.acceptanceCriteria || f.acceptanceCriteria || [],
+          userFlow: blueprint?.flowDiagram || '(사용자 흐름 미정의)',
+          screenSpecs: blueprint?.screenSpecs || [],
+          businessRules: blueprint?.businessRules || [],
+          dataEntities: blueprint?.dataEntities || [],
+          errorCases: blueprint?.errorCases || [],
+        };
+      }),
     });
   }
 
   if (featuresP1.length > 0) {
-    modules.push({
+    featureModules.push({
       id: 2,
       name: '우선 기능',
-      priority: 'important',
-      features: featuresP1.map((f, i) => ({
-        id: `P1-${i + 1}`,
-        name: f.name,
-        description: f.description,
-        complexity: getComplexityLevel(f.complexity),
-        mdEstimate: calculateMDEstimate(f.complexity),
-        subFeatures: f.subFeatures || [],
-        acceptanceCriteria: f.acceptanceCriteria || [],
-      })),
+      priority: 'P1',
+      priorityLabel: '우선순위 1',
+      features: featuresP1.map((f, i) => {
+        const blueprint = getFeatureBlueprint(f.name);
+        return {
+          id: `P1-${i + 1}`,
+          name: f.name,
+          description: f.description,
+          subFeatures: blueprint?.subFeatures || f.subFeatures || [],
+          acceptanceCriteria: blueprint?.acceptanceCriteria || f.acceptanceCriteria || [],
+          userFlow: blueprint?.flowDiagram || '(사용자 흐름 미정의)',
+          screenSpecs: blueprint?.screenSpecs || [],
+          businessRules: blueprint?.businessRules || [],
+          dataEntities: blueprint?.dataEntities || [],
+          errorCases: blueprint?.errorCases || [],
+        };
+      }),
     });
   }
 
   if (featuresP2.length > 0) {
-    modules.push({
+    featureModules.push({
       id: 3,
       name: '선택 기능',
-      priority: 'nice-to-have',
-      features: featuresP2.map((f, i) => ({
-        id: `P2-${i + 1}`,
-        name: f.name,
-        description: f.description,
-        complexity: getComplexityLevel(f.complexity),
-        mdEstimate: calculateMDEstimate(f.complexity),
-        subFeatures: f.subFeatures || [],
-        acceptanceCriteria: f.acceptanceCriteria || [],
-      })),
+      priority: 'P2',
+      priorityLabel: '우선순위 2',
+      features: featuresP2.map((f, i) => {
+        const blueprint = getFeatureBlueprint(f.name);
+        return {
+          id: `P2-${i + 1}`,
+          name: f.name,
+          description: f.description,
+          subFeatures: blueprint?.subFeatures || f.subFeatures || [],
+          acceptanceCriteria: blueprint?.acceptanceCriteria || f.acceptanceCriteria || [],
+          userFlow: blueprint?.flowDiagram || '(사용자 흐름 미정의)',
+          screenSpecs: blueprint?.screenSpecs || [],
+          businessRules: blueprint?.businessRules || [],
+          dataEntities: blueprint?.dataEntities || [],
+          errorCases: blueprint?.errorCases || [],
+        };
+      }),
     });
   }
 
-  // Create WBS
-  const wbs: PRDResult['wbs'] = [];
-  let currentWeek = 1;
-
-  // Phase 1: Planning & Design
-  wbs.push({
-    phase: '1. 기획 & 설계',
-    task: '요구사항 분석 & 상세 설계',
-    startWeek: currentWeek,
-    durationWeeks: 2,
-    md: 6,
-  });
-  currentWeek += 2;
-
-  // Phase 2: Design
-  wbs.push({
-    phase: '2. UI/UX 디자인',
-    task: '디자인 시안 & 디자인 시스템',
-    startWeek: currentWeek,
-    durationWeeks: 2,
-    md: 8,
-  });
-  currentWeek += 2;
-
-  // Phase 3: Frontend Development
-  const frontendMD = Math.round(totalMD * 0.35);
-  const frontendDuration = Math.max(Math.round(avgWeeks * 0.4), 2);
-  wbs.push({
-    phase: '3. 프론트엔드 개발',
-    task: 'UI 구현 & API 연동',
-    startWeek: currentWeek,
-    durationWeeks: frontendDuration,
-    md: frontendMD,
-  });
-  currentWeek += frontendDuration;
-
-  // Phase 4: Backend Development
-  const backendMD = Math.round(totalMD * 0.35);
-  const backendDuration = Math.max(Math.round(avgWeeks * 0.4), 2);
-  wbs.push({
-    phase: '4. 백엔드 개발',
-    task: 'API 개발 & DB 구축',
-    startWeek: currentWeek,
-    durationWeeks: backendDuration,
-    md: backendMD,
-  });
-  currentWeek += backendDuration;
-
-  // Phase 5: Integration & QA
-  wbs.push({
-    phase: '5. 통합 & QA',
-    task: '통합 테스트 & 버그 수정',
-    startWeek: currentWeek,
-    durationWeeks: 2,
-    md: 6,
-  });
-  currentWeek += 2;
-
-  // Phase 6: Deployment
-  wbs.push({
-    phase: '6. 배포 & 론칭',
-    task: '프로덕션 배포 & 모니터링',
-    startWeek: currentWeek,
-    durationWeeks: 1,
-    md: 3,
-  });
-
-  // Create risks
-  const risks: PRDResult['risks'] = projectInfo.keyRisks.map((r, i) => ({
-    category: i < 2 ? 'Technical' : 'Process',
-    description: r,
-    level: i < 2 ? 'red' : 'yellow',
-    mitigation: i < 2
-      ? '사전 일정 반영 + 대안 기술 검토'
-      : '주 1~2회 정기 미팅 + 마일스톤별 리뷰',
-  }));
-
-  // Add scope creep risk
-  risks.push({
-    category: 'Scope',
-    description: 'Requirements 변화 및 스코프 크리프',
-    level: 'red',
-    mitigation: 'MVP(P0) 우선 출시, 추가 기능은 2차 개발로 분리',
-  });
-
-  // Create 3-tier pricing
-  const economyRate = Math.round(totalMD * 4); // 4K per MD (budget)
-  const standardRate = Math.round(totalMD * 5.5); // 5.5K per MD (standard)
-  const premiumRate = Math.round(totalMD * 7); // 7K per MD (premium)
-
-  const pricing: PRDResult['pricing'] = {
-    economy: {
-      label: 'Economy',
-      mdRate: 4,
-      desc: '경제형 - 기본 기능 중심',
-      approach: '필수 기능(P0) 중심으로 빠른 출시',
-      techStack: [
-        projectInfo.commonStack.split('+')[0].trim(),
-        'PostgreSQL',
-        '기본 인프라',
+  // Generate non-functional requirements based on project type
+  const nonFunctionalRequirements: PRDResult['nonFunctionalRequirements'] = [
+    {
+      category: '보안 (Security)',
+      items: [
+        'HTTPS/TLS 암호화 적용 (모든 통신)',
+        '사용자 비밀번호: bcrypt 해싱, 최소 8자 + 영문+숫자+특수문자',
+        'JWT 토큰: Access 1시간, Refresh 14일 만료',
+        'SQL Injection/XSS 방지: 입력 검증 및 parameterized queries',
+        '개인정보보호법(GDPR/CCPA) 준수: 데이터 암호화, 개인정보 삭제 기능',
+        'API 인증/인가: OAuth 2.0 또는 API Key 기반',
+        '민감 정보 로깅 금지 (비밀번호, 결제정보 등)',
       ],
-      team: '개발자 1~2명 (풀스택)',
-      timeline: `${avgWeeks + 2}주`,
-      includes: [
-        'P0 필수 기능만 개발',
-        '기본 UI/UX',
-        '외부 서비스 1~2개 연동',
-        '기본 QA',
-      ],
-      excludes: [
-        'P1/P2 기능',
-        '고급 UI 애니메이션',
-        '다국어 지원',
-        '성능 최적화',
-      ],
-      bestFor: '초기 시장 검증, 최소 기능 출시',
     },
-    standard: {
-      label: 'Standard',
-      mdRate: 5.5,
-      desc: '표준형 - 권장 옵션',
-      approach: 'P0 + P1 기능으로 완성도 있는 출시',
-      techStack: projectInfo.commonStack.split('+').map(s => s.trim()),
-      team: '개발자 2~3명 (프론트/백엔드 분리)',
-      timeline: `${avgWeeks + 1}주`,
-      includes: [
-        'P0 + P1 기능 개발',
-        '전문 UI/UX 디자인',
-        '외부 서비스 2~3개 연동',
-        '성능 테스트',
-        '배포 및 모니터링',
+    {
+      category: '성능 (Performance)',
+      items: [
+        'API 응답 시간: 평균 < 200ms, 99th percentile < 1초',
+        '페이지 로딩: First Contentful Paint (FCP) < 2초',
+        '동시 사용자 처리: 최소 1,000명 이상 (예상 피크 기준)',
+        '데이터베이스 쿼리: 인덱싱을 통한 < 100ms 응답',
+        '캐싱 전략: Redis 캐시 (세션, 자주 조회하는 데이터)',
+        'CDN 활용: 정적 자산(이미지, CSS, JS) 글로벌 배포',
+        '이미지 최적화: WebP 포맷, 자동 리사이즈',
       ],
-      excludes: [
-        'P2 기능',
-        'AI/ML 고도화',
-        '다국어 지원',
-        '엔터프라이즈 기능',
-      ],
-      bestFor: '일반적인 스타트업/중소기업 프로젝트',
     },
-    premium: {
-      label: 'Premium',
-      mdRate: 7,
-      desc: '프리미엄 - 풀 스펙',
-      approach: '모든 기능 포함 + 품질 고도화',
-      techStack: [
-        ...projectInfo.commonStack.split('+').map(s => s.trim()),
-        'Redis',
-        'ElasticSearch',
-        '모니터링 솔루션',
+    {
+      category: '접근성 (Accessibility)',
+      items: [
+        'WCAG 2.1 Level AA 준수 (웹 접근성)',
+        '모바일 반응형 디자인: 320px부터 2560px까지 지원',
+        '화면 읽기 프로그램 지원: ARIA 레이블 및 의미론적 HTML',
+        '키보드 네비게이션: Tab/Shift+Tab으로 모든 기능 접근 가능',
+        '컬러 대비: 최소 4.5:1 비율 (텍스트)',
+        '터치 대상 최소 크기: 44x44px (모바일)',
       ],
-      team: '개발자 3~4명 + 아키텍트 (전문화)',
-      timeline: `${avgWeeks}주`,
-      includes: [
-        'P0 + P1 + P2 전체 기능',
-        '고급 UI/UX + 애니메이션',
-        '모든 외부 서비스 연동',
-        'A/B 테스팅',
-        '성능 최적화 & 캐싱',
-        'CI/CD 파이프라인',
-        '보안 감시 및 로깅',
-      ],
-      excludes: [],
-      bestFor: '엔터프라이즈급 프로젝트, 고품질 요구 프로젝트',
     },
-  };
+    {
+      category: '규정준수 (Compliance)',
+      items: [
+        '개인정보보호정책, 이용약관 필수 제시',
+        '결제: PCI DSS 레벨 1 준수 (결제 정보 암호화)',
+        '이메일 마케팅: CAN-SPAM Act 준수 (구독 해지 기능)',
+        '쿠키 정책: GDPR 준수 (명시적 동의)',
+        '접근성: WCAG, ADA 준수',
+        '데이터 거주지: 사용자 국가별 데이터 로컬 저장',
+      ],
+    },
+  ];
 
-  // Create summary
-  const summary = `${rfpData.overview || '프로젝트'} - ${projectInfo.type} 프로젝트로 총 ${analyzedFeatures.length}개의 기능을 포함합니다. 예상 기간: ${avgWeeks}주, 예상 공수: ${totalMD}MD입니다.`;
+  // Build expanded project overview
+  const projectOverview = `${rfpData.overview || '(프로젝트 개요 미입력)'}\n\n주요 특성:\n- 프로젝트 유형: ${projectInfo.type}\n- 평균 예산 수준: ${projectInfo.avgBudget}\n- 평균 개발 기간: ${projectInfo.avgDuration}\n- 시장 인사이트: ${projectInfo.marketInsight}`;
 
-  // Create consultant opinion
-  const consultantOpinion = `이 프로젝트는 ${projectInfo.type} 프로젝트로 평가됩니다. 복잡도 ${totalComplexity >= 15 ? '높음' : totalComplexity >= 8 ? '중간~높음' : '중간'} 수준의 ${analyzedFeatures.length}개 기능을 포함하고 있습니다. 표준형(Standard) 3-tier 프리미엄 옵션을 추천하며, 이는 ${avgWeeks + 1}주의 개발 기간과 ${standardRate.toLocaleString()}만원대의 예산이 소요될 것으로 예상됩니다. 핵심은 P0 필수 기능부터 우선 구현하고, P1/P2 기능은 단계적으로 추가하는 것입니다.`;
+  // Tech stack from reference services and projectInfo
+  const techStack = projectInfo.commonStack
+    .split('+')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
 
   const result: PRDResult = {
     projectName,
-    summary,
-    consultantOpinion,
-    totalWeeks: avgWeeks,
-    successRate,
-    totalMD,
-    pricing,
-    modules,
-    wbs,
-    risks,
+    projectOverview,
+    targetUsers: rfpData.targetUsers || '일반 사용자',
+    techStack,
+    referenceServices: rfpData.referenceServices || '해당 없음',
+    additionalRequirements: rfpData.additionalRequirements || '추가 요구사항 없음',
+    featureModules,
+    nonFunctionalRequirements,
   };
 
   return JSON.stringify(result);
