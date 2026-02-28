@@ -66,7 +66,7 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     marketInsight: '2025년 모바일 앱 시장은 슈퍼앱 트렌드에서 버티컬 특화 앱으로 전환 중입니다.',
     mvpScope: '핵심 기능 3개 + 소셜 로그인 + 푸시 알림',
     competitorExample: '당근마켓, 토스, 오늘의집',
-    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'techRequirements', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'techRequirements', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
     deepDiveQuestions: {
       overview: ['이 앱의 핵심 가치를 한 문장으로 표현하면?', '유사한 앱이 있다면, 어떤 점이 다른가요?'],
       targetUsers: ['하루 중 언제 이 앱을 가장 많이 사용할 것 같으세요?', '앱을 처음 실행했을 때 사용자가 가장 먼저 해야 할 행동은?'],
@@ -94,7 +94,7 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     marketInsight: '웹 서비스는 초기 진입장벽이 가장 낮고, 이후 앱으로 확장하기 용이합니다.',
     mvpScope: '핵심 페이지 5개 이내 + 회원 시스템 + 반응형',
     competitorExample: '노션, 슬랙, 피그마',
-    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'budgetTimeline', 'referenceServices', 'techRequirements', 'additionalRequirements'],
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'budgetTimeline', 'referenceServices', 'techRequirements', 'additionalRequirements'],
     deepDiveQuestions: {
       overview: ['이 서비스의 수익 모델은 무엇인가요?', 'PC와 모바일 중 어디에서 더 많이 접속할 것 같으세요?'],
       targetUsers: ['사용자가 이 서비스를 얼마나 자주 방문할 것 같나요?'],
@@ -123,7 +123,7 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     mvpScope: '메인 + 소개 + 서비스 + 문의 페이지',
     competitorExample: '잘 만든 브랜드 사이트 하나가 영업사원 10명 역할',
     // 웹사이트는 간소한 플로우 (5개 질문이면 충분)
-    topicPriority: ['overview', 'coreFeatures', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
     deepDiveQuestions: {
       overview: ['웹사이트의 주요 목적은 무엇인가요? (브랜딩/리드 수집/정보 제공)'],
       targetUsers: [], coreFeatures: ['콘텐츠를 직접 수정할 수 있어야 하나요? (CMS 필요 여부)'],
@@ -150,7 +150,7 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     marketInsight: '이커머스는 PG+정산+교환환불이 개발의 60%를 차지합니다.',
     mvpScope: '상품 등록 + 장바구니 + 결제 + 주문 관리',
     competitorExample: '무신사, 마켓컬리, 크림',
-    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
     deepDiveQuestions: {
       overview: ['어떤 상품/서비스를 판매하시나요?', '결제 후 배송이 필요한 실물 상품인가요, 디지털 상품인가요?'],
       targetUsers: ['구매자가 주로 어떤 경로로 상품을 찾게 될까요?'],
@@ -234,7 +234,7 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     marketInsight: '2025년 AI 서비스 핵심은 "AI 래퍼" — 기존 API 위에 UX를 입히는 것.',
     mvpScope: 'AI 핵심 기능 1개 + 결과 화면 + 사용량 제한',
     competitorExample: '뤼튼, 스켈터랩스, 업스테이지',
-    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'techRequirements', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'techRequirements', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
     deepDiveQuestions: {
       overview: ['AI가 해결해야 할 핵심 문제는 무엇인가요?', '기존에 이 문제를 어떻게 해결하고 있었나요?'],
       targetUsers: ['사용자가 AI 결과물을 얼마나 신뢰해야 하나요? (참고용 vs 의사결정용)'],
@@ -265,7 +265,7 @@ const DEFAULT_PROJECT_TYPE: ProjectTypeInfo = {
   marketInsight: '소프트웨어 서비스 성공의 80%는 명확한 범위 정의에서 결정됩니다.',
   mvpScope: '핵심 기능 3개 이내 + 인증 + 기본 관리',
   competitorExample: '명확한 문제 해결에 집중한 서비스가 성공률이 높습니다',
-  topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
+  topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
   deepDiveQuestions: {
     overview: [], targetUsers: [], coreFeatures: [], referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
   },

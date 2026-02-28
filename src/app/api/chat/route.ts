@@ -1,6 +1,5 @@
-// AI RFP Builder — Chat API v7
-// Claude AI가 대화 주도 + 기능 리스트 동적 생성.
-// fallback은 UI 구조(nextStep, progress, rfpUpdate) + 안전장치.
+// AI RFP Builder — Chat API v8
+// 전체 대화를 Claude가 주도. fallback은 UI 구조 + 데이터 파싱만.
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { generateFallbackResponse } from '@/lib/fallback';
@@ -22,8 +21,7 @@ interface SelectableFeature {
 }
 
 /**
- * Claude가 서비스 설명을 분석하여 맞춤 기능 리스트 생성
- * fallback에서 selectableFeatures가 나올 때 호출
+ * Claude가 서비스 설명 분석 → 맞춤 기능 리스트 생성
  */
 async function generateAIFeatures(overview: string): Promise<SelectableFeature[] | null> {
   if (!process.env.ANTHROPIC_API_KEY || !overview || overview.length < 2) return null;
@@ -40,17 +38,14 @@ async function generateAIFeatures(overview: string): Promise<SelectableFeature[]
 
 규칙:
 1. 이 서비스에 실제로 필요한 기능만 추천 (8~15개)
-2. must: 서비스가 동작하기 위해 반드시 필요한 핵심 기능
-3. recommended: 있으면 좋지만 MVP에서는 생략 가능한 기능
-4. 기능명은 한국어, 간결하게 (예: "실시간 채팅", "AI 자동응답")
+2. must: 서비스 동작에 반드시 필요한 핵심 기능
+3. recommended: 있으면 좋지만 MVP에서 생략 가능한 기능
+4. 기능명은 한국어, 간결하게
 5. 설명은 한 문장으로 핵심만
-6. 서비스 설명과 관련 없는 기능은 절대 포함하지 마세요
+6. 서비스와 관련 없는 기능 절대 포함 금지
 
-JSON 배열만 출력 (다른 텍스트 없이):
-[
-  {"name": "기능명", "desc": "설명", "category": "must"},
-  {"name": "기능명", "desc": "설명", "category": "recommended"}
-]`
+JSON 배열만 출력:
+[{"name": "기능명", "desc": "설명", "category": "must"}]`
       }],
     });
 
@@ -75,13 +70,14 @@ JSON 배열만 출력 (다른 텍스트 없이):
 }
 
 /**
- * Claude AI가 맞춤 피드백 + 질문 생성
- * 기능 리스트가 아닌 일반 대화 단계에서 사용
+ * Claude가 대화 메시지 생성 — 모든 단계에서 호출
  */
 async function generateAIMessage(
   messages: ChatMessage[],
+  currentTopicId: string,
   nextTopicId: string,
-  overview: string
+  overview: string,
+  hasFeatures: boolean
 ): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
@@ -90,18 +86,34 @@ async function generateAIMessage(
     .map(m => `${m.role === 'user' ? '고객' : 'AI'}: ${m.content}`)
     .join('\n');
 
+  const topicNames: Record<string, string> = {
+    overview: '프로젝트 설명',
+    coreFeatures: '핵심 기능',
+    targetUsers: '타겟 사용자',
+    referenceServices: '참고 서비스',
+    techRequirements: '기술 요구사항 (웹/앱)',
+    budgetTimeline: '예산과 일정',
+    additionalRequirements: '추가 요구사항',
+  };
+
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: `위시켓 AI 프로젝트 컨설턴트. PRD 정보수집 대화 중.
-규칙: 존댓말 필수. 인사이트/코칭/교육 금지. 짧은 피드백(1문장) + 다음 질문만.
-견적/비용/시장분석 언급 금지. 고객 답변에 맞춤 반응.
+      system: `위시켓 AI 프로젝트 컨설턴트. PRD 정보수집 대화.
+절대 규칙:
+- 존댓말 필수
+- 인사이트/코칭/교육/조언 금지
+- 견적/비용/시장분석 언급 금지
+- 짧게: 피드백 1문장 + 질문 1문장
+- 고객 답변에 맞춤 반응 (제네릭 금지)
+
 고객 서비스: ${overview || '(미입력)'}
-다음 질문 단계: ${nextTopicId}`,
+방금 답변한 항목: ${topicNames[currentTopicId] || currentTopicId}
+다음 질문할 항목: ${topicNames[nextTopicId] || nextTopicId}${hasFeatures ? '\n\n[주의: 기능 리스트는 별도로 UI에 표시됩니다. 메시지에서는 기능을 나열하지 마세요. "아래 추천 기능 중 필요한 것을 선택해주세요" 정도만 안내하세요.]' : ''}`,
       messages: [{
         role: 'user',
-        content: `대화:\n${conversationContext}\n\n고객의 마지막 답변에 짧게 반응하고, "${nextTopicId}" 에 대해 질문하세요.`
+        content: `대화:\n${conversationContext}\n\n고객의 마지막 답변에 맞춤 반응 1문장 + "${topicNames[nextTopicId] || nextTopicId}" 질문 1문장. 총 2~3문장 이내.`
       }],
     });
 
@@ -132,26 +144,30 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 1. fallback 엔진 → UI 구조 (rfpUpdate, nextStep, progress, quickReplies 등)
+    // 1. fallback 엔진 → UI 구조 (rfpUpdate, nextStep, progress, quickReplies)
     const fallback = generateFallbackResponse(userText, currentStep, rfpData);
 
-    const overview = (rfpData?.overview as string) || '';
+    const overview = (rfpData?.overview as string) || userText; // 첫 단계면 userText가 overview
+    const currentTopicId = STEP_TO_TOPIC[currentStep] || 'overview';
     const nextTopicId = fallback.nextStep ? (STEP_TO_TOPIC[fallback.nextStep] || '') : '';
+    const hasFeatures = !!(fallback.selectableFeatures && fallback.selectableFeatures.length > 0);
 
-    // 2. 기능 리스트가 나오는 단계 → Claude가 기능 리스트 새로 생성
-    if (fallback.selectableFeatures && fallback.selectableFeatures.length > 0 && overview.length >= 2) {
+    // 2. 기능 리스트 → Claude가 새로 생성
+    if (hasFeatures && overview.length >= 2) {
       const aiFeatures = await generateAIFeatures(overview);
       if (aiFeatures && aiFeatures.length >= 3) {
         fallback.selectableFeatures = aiFeatures;
-        fallback.message = `서비스 분석 결과, 아래 기능들을 추천드립니다. 필요한 기능을 선택해주세요.`;
       }
     }
-    // 3. 일반 대화 단계 → Claude가 맞춤 피드백 + 질문 생성
-    else if (nextTopicId && overview.length >= 2) {
+
+    // 3. 대화 메시지 → Claude가 생성 (모든 단계)
+    if (nextTopicId || hasFeatures) {
       const aiMessage = await generateAIMessage(
         messages as ChatMessage[],
-        nextTopicId,
-        overview
+        currentTopicId,
+        nextTopicId || 'coreFeatures',
+        overview,
+        hasFeatures
       );
       if (aiMessage) {
         fallback.message = aiMessage;
