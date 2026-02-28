@@ -177,8 +177,20 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         updatedRfpData = { ...rfpData };
         const { section, value } = data.rfpUpdate;
         if (section && value !== undefined) {
-          if (section === 'coreFeatures' && Array.isArray(value)) {
-            updatedRfpData.coreFeatures = value;
+          if (section === 'coreFeatures') {
+            // 항상 배열로 정규화
+            if (Array.isArray(value)) {
+              updatedRfpData.coreFeatures = value;
+            } else if (typeof value === 'string') {
+              // 문자열이면 파싱 시도
+              try {
+                const parsed = JSON.parse(value);
+                updatedRfpData.coreFeatures = Array.isArray(parsed) ? parsed : [];
+              } catch {
+                updatedRfpData.coreFeatures = [];
+              }
+            }
+            // 그 외 타입은 무시 (기존 배열 유지)
           } else if (section in updatedRfpData) {
             (updatedRfpData as unknown as Record<string, unknown>)[section] = value;
           }
@@ -397,7 +409,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
               <RFPSection title="프로젝트 개요" icon="📋" content={rfpData.overview} />
               {rfpData.targetUsers && <RFPSection title="타겟 사용자" icon="👥" content={rfpData.targetUsers} />}
-              {rfpData.coreFeatures.length > 0 && (
+              {Array.isArray(rfpData.coreFeatures) && rfpData.coreFeatures.length > 0 && (
                 <div>
                   <SectionLabel title="핵심 기능" icon="⚙️" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>

@@ -81,9 +81,32 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    // rfp_update의 coreFeatures가 항상 배열인지 서버에서 정규화
+    let rfpUpdate = parsed.rfp_update;
+    if (rfpUpdate && rfpUpdate.section === 'coreFeatures' && rfpUpdate.value !== undefined) {
+      if (!Array.isArray(rfpUpdate.value)) {
+        if (typeof rfpUpdate.value === 'string') {
+          try { rfpUpdate = { ...rfpUpdate, value: JSON.parse(rfpUpdate.value) }; } catch { rfpUpdate = { ...rfpUpdate, value: [] }; }
+        } else if (typeof rfpUpdate.value === 'object' && rfpUpdate.value !== null) {
+          // 단일 객체면 배열로 감싸기
+          rfpUpdate = { ...rfpUpdate, value: [rfpUpdate.value] };
+        } else {
+          rfpUpdate = { ...rfpUpdate, value: [] };
+        }
+      }
+      // 배열 내 각 항목에 필수 필드 보장
+      if (Array.isArray(rfpUpdate.value)) {
+        rfpUpdate.value = rfpUpdate.value.map((f: Record<string, unknown>) => ({
+          name: f.name || f.feature || '기능',
+          description: f.description || f.desc || '',
+          priority: f.priority || 'P1',
+        }));
+      }
+    }
+
     return NextResponse.json({
       message: parsed.message,
-      rfpUpdate: parsed.rfp_update,
+      rfpUpdate,
       nextAction: parsed.next_action,
       nextStep: parsed.next_step,
       topicsCovered: parsed.topics_covered || [],
