@@ -923,9 +923,20 @@ function generateSmartProjectName(overview: string, features: FeatureItem[], pro
 
 interface PRDResult {
   projectName: string;
+  documentMeta: {
+    version: string;
+    createdAt: string;
+    generatedBy: string;
+  };
+  executiveSummary: string;
   projectOverview: string;
+  problemStatement: string;
+  projectGoals: { goal: string; metric: string }[];
   targetUsers: string;
-  techStack: string[];
+  userPersonas: { name: string; role: string; needs: string; painPoints: string }[];
+  scopeInclusions: string[];
+  scopeExclusions: string[];
+  techStack: { category: string; tech: string; rationale: string }[];
   referenceServices: string;
   additionalRequirements: string;
 
@@ -958,15 +969,101 @@ interface PRDResult {
     category: string;
     items: string[];
   }[];
+
+  timeline: { phase: string; duration: string; deliverables: string[] }[];
+  assumptions: string[];
+  constraints: string[];
+  risks: { risk: string; impact: string; mitigation: string }[];
+  glossary: { term: string; definition: string }[];
+  expertInsight: string;
 }
 
 function generateFallbackRFP(rfpData: RFPData): string {
   const projectInfo = getProjectTypeInfo(rfpData.overview);
   const features = rfpData.coreFeatures || [];
   const analyzedFeatures = features.map(f => analyzeFeature(f));
+  const overview = rfpData.overview || '';
+  const target = rfpData.targetUsers || '일반 사용자';
 
   // Generate project name
-  const projectName = generateSmartProjectName(rfpData.overview || '', features, projectInfo.type);
+  const projectName = generateSmartProjectName(overview, features, projectInfo.type);
+  const now = new Date();
+
+  // Document metadata
+  const documentMeta = {
+    version: '1.0',
+    createdAt: now.toISOString().split('T')[0],
+    generatedBy: 'Wishket AI PRD Builder',
+  };
+
+  // Executive Summary
+  const executiveSummary = `본 문서는 "${projectName}" 프로젝트의 제품 요구사항 정의서(PRD)입니다. ${overview.split('\n')[0]?.trim().slice(0, 100) || projectInfo.type} 서비스로, ${target}을 대상으로 합니다. 핵심 기능 ${features.length}개를 포함하며, ${projectInfo.avgDuration} 내 MVP 출시를 목표로 합니다. 위시켓 플랫폼 데이터 기준, ${projectInfo.type} 프로젝트의 평균 예산은 ${projectInfo.avgBudget}이며, 본 프로젝트는 이에 부합하는 수준으로 설계되었습니다.`;
+
+  // Problem Statement
+  const problemStatement = overview.length > 10
+    ? `현재 ${target}은(는) 기존 솔루션의 한계로 인해 효율적인 서비스 이용에 어려움을 겪고 있습니다. ${overview.split('\n')[0]?.trim() || ''} 이러한 문제를 해결하기 위해 ${projectInfo.type} 기반의 디지털 솔루션을 개발하여, 사용자 경험을 혁신하고 비즈니스 가치를 창출하고자 합니다.`
+    : `${projectInfo.type} 서비스 개발을 통해 ${target}의 니즈를 충족하고 시장 기회를 선점합니다.`;
+
+  // Project Goals
+  const projectGoals: PRDResult['projectGoals'] = [
+    { goal: 'MVP 기능 완성 및 출시', metric: `핵심 기능 ${features.length}개 전체 구현 완료` },
+    { goal: '사용자 만족도 확보', metric: 'NPS 점수 40 이상 달성 (출시 후 1개월 기준)' },
+    { goal: '안정적 서비스 운영', metric: '서비스 가용성 99.5% 이상, 장애 복구 시간 < 1시간' },
+    { goal: '시장 진입 및 사용자 확보', metric: '출시 후 3개월 내 MAU 1,000명 달성' },
+  ];
+
+  // User Personas
+  const userPersonas: PRDResult['userPersonas'] = [];
+  if (target.includes('B2B') || target.includes('기업')) {
+    userPersonas.push(
+      { name: '김팀장', role: '중간관리자 (35~45세)', needs: '팀 업무 효율 향상, 데이터 기반 의사결정', painPoints: '수동 작업 반복, 데이터 산재, 보고서 작성 시간 과다' },
+      { name: '이대리', role: '실무 담당자 (25~35세)', needs: '빠른 업무 처리, 직관적 인터페이스', painPoints: '복잡한 기존 시스템, 불필요한 반복 작업, 모바일 접근 불가' },
+    );
+  } else if (target.includes('MZ') || target.includes('20') || target.includes('30')) {
+    userPersonas.push(
+      { name: '박소은', role: 'MZ세대 사용자 (25~32세)', needs: '빠른 온보딩, 소셜 연동, 모바일 최적화', painPoints: '느린 앱 속도, 복잡한 회원가입, 과도한 광고' },
+      { name: '최현우', role: '얼리어답터 (28~35세)', needs: '신기술 경험, 개인화 추천, 커뮤니티', painPoints: '차별화 부재, 개인 맞춤 부족, 데이터 프라이버시 우려' },
+    );
+  } else {
+    userPersonas.push(
+      { name: '사용자 A', role: `핵심 사용자 (${target})`, needs: '직관적 사용법, 빠른 결과, 안정적 서비스', painPoints: '기존 솔루션 대비 기능 부족, 복잡한 인터페이스' },
+      { name: '사용자 B', role: '보조 사용자 / 관리자', needs: '전체 현황 파악, 관리 기능, 데이터 내보내기', painPoints: '수동 관리 부담, 통합 대시보드 부재' },
+    );
+  }
+
+  // Scope
+  const scopeInclusions = features.map(f => `${f.name}${f.description ? ` — ${f.description}` : ''}`);
+  const scopeExclusions: string[] = [];
+  const featureNames = features.map(f => f.name.toLowerCase()).join(' ');
+  if (!featureNames.includes('다국어')) scopeExclusions.push('다국어 지원 (i18n) — 추후 검토');
+  if (!featureNames.includes('오프라인')) scopeExclusions.push('오프라인 모드 — 추후 검토');
+  if (!featureNames.includes('접근성')) scopeExclusions.push('접근성 고도화 (WCAG AAA) — 추후 검토');
+  if (!featureNames.includes('AI') && !featureNames.includes('추천')) scopeExclusions.push('AI 기반 개인화 추천 — 추후 검토');
+  if (scopeExclusions.length === 0) {
+    scopeExclusions.push('고급 분석/BI 대시보드 — 추후 검토');
+    scopeExclusions.push('써드파티 ERP 연동 — 추후 검토');
+  }
+
+  // Tech Stack with rationale
+  const techStackRaw = projectInfo.commonStack.split('+').map(s => s.trim()).filter(s => s.length > 0);
+  const techStack: PRDResult['techStack'] = [];
+  for (const t of techStackRaw) {
+    const lower = t.toLowerCase();
+    let category = '기타';
+    let rationale = '프로젝트 요구사항에 적합';
+    if (lower.includes('react') || lower.includes('vue') || lower.includes('next') || lower.includes('flutter')) {
+      category = '프론트엔드'; rationale = '빠른 개발 속도와 풍부한 생태계, 위시켓 프로젝트 채택률 상위';
+    } else if (lower.includes('node') || lower.includes('spring') || lower.includes('django') || lower.includes('nest') || lower.includes('express')) {
+      category = '백엔드'; rationale = '안정적 API 구현, 확장성 및 유지보수성 우수';
+    } else if (lower.includes('postgres') || lower.includes('mysql') || lower.includes('mongo') || lower.includes('redis')) {
+      category = '데이터베이스'; rationale = '대규모 데이터 처리 및 트랜잭션 안정성 보장';
+    } else if (lower.includes('aws') || lower.includes('firebase') || lower.includes('gcp') || lower.includes('docker') || lower.includes('vercel')) {
+      category = '인프라/클라우드'; rationale = '자동 스케일링, 고가용성 및 글로벌 배포 지원';
+    } else if (lower.includes('figma') || lower.includes('tailwind')) {
+      category = '디자인/UI'; rationale = '디자인 시스템 효율화 및 일관된 UI 구현';
+    }
+    techStack.push({ category, tech: t, rationale });
+  }
 
   // Organize features by priority
   const featuresP0 = analyzedFeatures.filter(f => f.priority === 'P1');
@@ -1099,23 +1196,74 @@ function generateFallbackRFP(rfpData: RFPData): string {
   ];
 
   // Build expanded project overview
-  const projectOverview = `${rfpData.overview || '(프로젝트 개요 미입력)'}\n\n주요 특성:\n- 프로젝트 유형: ${projectInfo.type}\n- 평균 예산 수준: ${projectInfo.avgBudget}\n- 평균 개발 기간: ${projectInfo.avgDuration}\n- 시장 인사이트: ${projectInfo.marketInsight}`;
+  const projectOverview = `${overview || '(프로젝트 개요 미입력)'}\n\n프로젝트 유형: ${projectInfo.type} | 평균 예산: ${projectInfo.avgBudget} | 예상 기간: ${projectInfo.avgDuration}\n\n${projectInfo.marketInsight}`;
 
-  // Tech stack from reference services and projectInfo
-  const techStack = projectInfo.commonStack
-    .split('+')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+  // Timeline
+  const totalFeatures = features.length;
+  const timeline: PRDResult['timeline'] = [
+    { phase: '기획 & 설계', duration: '2~3주', deliverables: ['요구사항 확정', '와이어프레임/프로토타입', 'DB 설계', 'API 명세서'] },
+    { phase: 'MVP 개발 (P0)', duration: `${Math.max(4, totalFeatures)}~${Math.max(6, totalFeatures + 2)}주`, deliverables: [`P0 필수 기능 ${featuresP0.length}개 구현`, 'QA 및 버그 수정', '스테이징 배포'] },
+    { phase: '추가 개발 (P1~P2)', duration: `${Math.max(2, featuresP1.length + featuresP2.length)}~${Math.max(4, featuresP1.length + featuresP2.length + 2)}주`, deliverables: [`P1 기능 ${featuresP1.length}개 + P2 기능 ${featuresP2.length}개 구현`, '통합 테스트', '성능 최적화'] },
+    { phase: '출시 & 안정화', duration: '1~2주', deliverables: ['프로덕션 배포', '모니터링 세팅', '사용자 피드백 수집', '핫픽스 대응'] },
+  ];
+
+  // Assumptions
+  const assumptions: string[] = [
+    '클라이언트 측에서 기획/디자인 시안을 제공하거나, 개발사 내부 디자이너가 담당',
+    '개발 기간 중 요구사항 변경은 스프린트 단위로 관리 (애자일 방식)',
+    `서버 인프라는 ${techStack.some(t => t.tech.toLowerCase().includes('aws')) ? 'AWS' : '클라우드'} 기반으로 구성`,
+    '외부 API (결제, 소셜 로그인 등)의 안정적 제공을 전제',
+    '테스트 데이터 및 시나리오는 클라이언트와 협의하여 준비',
+  ];
+
+  // Constraints
+  const constraints: string[] = [
+    `예산 범위: ${projectInfo.avgBudget} 내 (범위 초과 시 기능 우선순위 재조정)`,
+    `일정 목표: ${projectInfo.avgDuration} 내 MVP 출시`,
+    '개인정보보호법 및 관련 법규 준수 필수',
+    '모바일 반응형 필수 지원 (iOS Safari, Android Chrome)',
+    '한국어 우선 지원 (다국어는 향후 확장)',
+  ];
+
+  // Risks
+  const risks: PRDResult['risks'] = [
+    { risk: '요구사항 변경으로 인한 일정 지연', impact: '높음', mitigation: '주 단위 스프린트 리뷰, 변경 관리 프로세스 수립' },
+    { risk: '외부 API 연동 이슈 (결제, 소셜 등)', impact: '중간', mitigation: 'Mock API 기반 병렬 개발, API 장애 대응 플랜 수립' },
+    { risk: '성능 병목 (대량 데이터 처리)', impact: '중간', mitigation: '초기부터 인덱싱 전략 수립, 캐싱 레이어 설계' },
+    { risk: '보안 취약점 발견', impact: '높음', mitigation: '출시 전 보안 감사, OWASP Top 10 대응 체크리스트 적용' },
+  ];
+
+  // Glossary
+  const glossary: PRDResult['glossary'] = [
+    { term: 'MVP', definition: 'Minimum Viable Product, 최소 기능 제품. 핵심 기능만으로 시장 검증하는 첫 번째 버전' },
+    { term: 'P0/P1/P2', definition: '우선순위 등급. P0=필수(MVP), P1=우선(2차), P2=선택(향후)' },
+    { term: 'PRD', definition: 'Product Requirements Document, 제품 요구사항 정의서' },
+    { term: 'NFR', definition: 'Non-Functional Requirements, 비기능 요구사항 (성능, 보안, 접근성 등)' },
+    { term: 'UAT', definition: 'User Acceptance Testing, 사용자 인수 테스트' },
+  ];
 
   const result: PRDResult = {
     projectName,
+    documentMeta,
+    executiveSummary,
     projectOverview,
-    targetUsers: rfpData.targetUsers || '일반 사용자',
+    problemStatement,
+    projectGoals,
+    targetUsers: target,
+    userPersonas,
+    scopeInclusions,
+    scopeExclusions,
     techStack,
     referenceServices: rfpData.referenceServices || '해당 없음',
     additionalRequirements: rfpData.additionalRequirements || '추가 요구사항 없음',
     featureModules,
     nonFunctionalRequirements,
+    timeline,
+    assumptions,
+    constraints,
+    risks,
+    glossary,
+    expertInsight: '',
   };
 
   return JSON.stringify(result);
@@ -1159,8 +1307,8 @@ export async function POST(req: NextRequest) {
 
         const response = await anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 1024,
-          system: `당신은 위시켓 13년 경험의 IT 외주 컨설턴트입니다. 간결하고 전문적인 한국어로 답변하세요.`,
+          max_tokens: 1500,
+          system: `당신은 위시켓 13년 경험의 IT 외주 컨설턴트입니다. 수천 건의 프로젝트 데이터를 기반으로 정확한 조언을 합니다. 반드시 존댓말을 사용하세요.`,
           messages: [
             {
               role: 'user',
@@ -1170,12 +1318,14 @@ export async function POST(req: NextRequest) {
 타겟 사용자: ${rfpData.targetUsers || ''}
 핵심 기능: ${featureList}
 프로젝트 유형: ${projectInfo.type}
+참고 서비스: ${rfpData.referenceServices || '없음'}
 
-아래 JSON 형식으로만 응답하세요:
+아래 JSON 형식으로만 응답하세요 (각 필드는 한국어로, 존댓말 사용):
 {
-  "projectOverview": "프로젝트 배경, 목적, 기대효과를 포함한 전문적 개요 (300자 이상)",
-  "targetUsersAnalysis": "타겟 사용자 분석 및 UX 전략 (200자 이상)",
-  "expertInsight": "이 프로젝트의 핵심 성공 요인과 주의점 (200자 이상)"
+  "projectOverview": "프로젝트 배경, 시장 현황, 목적, 핵심 가치제안, 기대효과를 포함한 전문적 개요 (400자 이상). 구체적 수치나 시장 데이터 포함",
+  "targetUsersAnalysis": "타겟 사용자의 특성, 행동 패턴, 니즈 분석 및 UX 전략 제안 (300자 이상)",
+  "expertInsight": "위시켓 프로젝트 데이터 기반으로 이 유형 프로젝트의 (1) 핵심 성공 요인 3가지, (2) 흔한 실패 원인 3가지, (3) 개발사 선정 시 확인해야 할 포인트 3가지를 구체적으로 작성 (500자 이상)",
+  "problemStatement": "현재 시장/사용자의 문제점과 이 프로젝트가 해결하는 핵심 문제 (200자 이상)"
 }`,
             },
           ],
@@ -1191,14 +1341,16 @@ export async function POST(req: NextRequest) {
               const parsed = JSON.parse(rfpDocument) as PRDResult;
               if (aiEnhancement.projectOverview) {
                 parsed.projectOverview = aiEnhancement.projectOverview +
-                  `\n\n주요 특성:\n- 프로젝트 유형: ${projectInfo.type}\n- 평균 예산 수준: ${projectInfo.avgBudget}\n- 평균 개발 기간: ${projectInfo.avgDuration}\n- 시장 인사이트: ${projectInfo.marketInsight}`;
+                  `\n\n프로젝트 유형: ${projectInfo.type} | 평균 예산: ${projectInfo.avgBudget} | 예상 기간: ${projectInfo.avgDuration}`;
               }
               if (aiEnhancement.targetUsersAnalysis) {
                 parsed.targetUsers = aiEnhancement.targetUsersAnalysis;
               }
               if (aiEnhancement.expertInsight) {
-                parsed.additionalRequirements = (rfpData.additionalRequirements || '') +
-                  `\n\n[AI 전문가 분석]\n${aiEnhancement.expertInsight}`;
+                parsed.expertInsight = aiEnhancement.expertInsight;
+              }
+              if (aiEnhancement.problemStatement) {
+                parsed.problemStatement = aiEnhancement.problemStatement;
               }
               rfpDocument = JSON.stringify(parsed);
             }
