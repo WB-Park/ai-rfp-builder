@@ -5,6 +5,12 @@
 
 import { RFPData, TopicId, TOPIC_TO_STEP, STEP_TO_TOPIC, getTopicsCovered, isReadyToComplete, TOPICS } from '@/types/rfp';
 
+interface SelectableFeature {
+  name: string;
+  desc: string;
+  category: 'must' | 'recommended';
+}
+
 interface FallbackResponse {
   message: string;
   rfpUpdate: {
@@ -14,6 +20,7 @@ interface FallbackResponse {
   nextAction: string;
   nextStep: number | null;
   quickReplies?: string[];
+  selectableFeatures?: SelectableFeature[];
   thinkingLabel?: string;
   topicsCovered?: TopicId[];
   progress?: number;
@@ -292,6 +299,213 @@ const FEATURE_DB: Record<string, { desc: string; complexity: string; weeks: stri
 };
 
 // ═══════════════════════════════════════════════════════
+//  🆕 서비스 키워드 기반 맞춤 기능 추천 DB (v11)
+//  "배달 앱"이면 배달 앱 전용 기능을, "교육 플랫폼"이면 교육 전용 기능을 추천
+// ═══════════════════════════════════════════════════════
+interface ServiceFeatureSet {
+  keywords: string[];  // 매칭 키워드
+  label: string;       // 서비스 카테고리 라벨
+  must: { name: string; desc: string }[];       // 필수 기능
+  recommended: { name: string; desc: string }[]; // 추천 기능
+}
+
+const SERVICE_FEATURES_DB: ServiceFeatureSet[] = [
+  {
+    keywords: ['배달', '딜리버리', 'delivery', '음식 주문', '배민', '요기요', '쿠팡이츠', '푸드'],
+    label: '배달/음식 주문 서비스',
+    must: [
+      { name: '실시간 주문 관리', desc: '주문 접수→조리→배달 상태 실시간 추적' },
+      { name: '지도/위치 기반 배달 추적', desc: 'GPS 기반 라이더 위치 실시간 표시' },
+      { name: '결제 시스템', desc: '카드/간편결제/계좌이체 PG 연동' },
+      { name: '매장/메뉴 관리', desc: '메뉴 등록, 가격, 옵션, 품절 관리' },
+    ],
+    recommended: [
+      { name: '리뷰/별점', desc: '배달 완료 후 음식·배달 평가' },
+      { name: '쿠폰/프로모션', desc: '할인 쿠폰, 첫 주문 이벤트' },
+      { name: '찜/즐겨찾기', desc: '자주 시키는 매장 저장' },
+      { name: '주문 내역/재주문', desc: '이전 주문 기반 원클릭 재주문' },
+      { name: '푸시 알림', desc: '주문 상태 변경, 프로모션 알림' },
+      { name: '라이더 매칭 시스템', desc: '배달 라이더 자동/수동 배정' },
+    ],
+  },
+  {
+    keywords: ['교육', '강의', '학습', 'lms', '인강', '온라인 수업', '클래스', 'e-learning', '과외', '튜터'],
+    label: '교육/학습 플랫폼',
+    must: [
+      { name: '강의 영상 플레이어', desc: '동영상 스트리밍, 배속, 이어보기' },
+      { name: '수강 관리', desc: '수강신청, 진도율 추적, 수료증' },
+      { name: '회원/로그인', desc: '학생·강사 역할 분리, 소셜 로그인' },
+      { name: '결제/수강권', desc: '강의 구매, 구독, 쿠폰 적용' },
+    ],
+    recommended: [
+      { name: '과제/퀴즈', desc: '과제 제출, 자동 채점 퀴즈' },
+      { name: '실시간 화상 수업', desc: 'WebRTC 기반 라이브 클래스' },
+      { name: '수강 후기/별점', desc: '강의 평가 및 리뷰' },
+      { name: '강사 대시보드', desc: '매출, 수강생 현황, 강의 관리' },
+      { name: '알림', desc: '새 강의, 과제 마감, 공지사항 알림' },
+      { name: 'Q&A 게시판', desc: '강의별 질문/답변 커뮤니티' },
+    ],
+  },
+  {
+    keywords: ['예약', '부킹', 'booking', '병원', '미용실', '숙소', '호텔', '펜션', '캠핑', '식당', '레스토랑'],
+    label: '예약 서비스',
+    must: [
+      { name: '캘린더 예약 시스템', desc: '날짜/시간 선택, 실시간 가용성' },
+      { name: '예약 관리', desc: '예약 확인/변경/취소, 노쇼 관리' },
+      { name: '회원/로그인', desc: '예약자 정보 관리, 소셜 로그인' },
+      { name: '알림/리마인더', desc: '예약 확인, 방문 전 리마인드' },
+    ],
+    recommended: [
+      { name: '결제/선결제', desc: '예약 시 결제 또는 현장 결제' },
+      { name: '리뷰/별점', desc: '방문 후 서비스 평가' },
+      { name: '업체 관리 페이지', desc: '예약 현황, 스케줄, 고객 관리' },
+      { name: '지도/위치', desc: '매장 위치 표시, 길찾기' },
+      { name: '대기열 시스템', desc: '대기 번호 발급, 실시간 순번' },
+      { name: '쿠폰/혜택', desc: '재방문 할인, 첫 예약 쿠폰' },
+    ],
+  },
+  {
+    keywords: ['쇼핑', '커머스', '쇼핑몰', '판매', '상품', 'e-commerce', '스토어', '마켓', '구매'],
+    label: '쇼핑/이커머스',
+    must: [
+      { name: '상품 등록/관리', desc: '상품 정보, 이미지, 옵션, 재고' },
+      { name: '장바구니/결제', desc: '장바구니, PG 연동, 간편결제' },
+      { name: '주문/배송 관리', desc: '주문 상태, 송장 등록, 배송 추적' },
+      { name: '회원/로그인', desc: '소셜 로그인, 회원 등급, 마이페이지' },
+    ],
+    recommended: [
+      { name: '검색/필터', desc: '상품 검색, 카테고리, 가격 필터' },
+      { name: '리뷰/별점', desc: '상품 리뷰, 포토 리뷰, 평점' },
+      { name: '찜/위시리스트', desc: '관심 상품 저장' },
+      { name: '쿠폰/프로모션', desc: '할인 쿠폰, 포인트, 적립금' },
+      { name: '추천 시스템', desc: '맞춤 상품 추천, 연관 상품' },
+      { name: '판매자 정산', desc: '수수료 계산, 정산 리포트' },
+    ],
+  },
+  {
+    keywords: ['매칭', '중개', '마켓플레이스', '연결', '플랫폼', '프리랜서', '구인', '구직', '소개팅', '인력'],
+    label: '매칭/중개 플랫폼',
+    must: [
+      { name: '프로필 시스템', desc: '공급자/수요자 프로필, 포트폴리오' },
+      { name: '매칭/검색', desc: '조건 기반 매칭, 필터 검색' },
+      { name: '채팅/메시지', desc: '매칭 후 1:1 실시간 대화' },
+      { name: '회원/역할 분리', desc: '공급자·수요자 별도 가입/관리' },
+    ],
+    recommended: [
+      { name: '결제/에스크로', desc: '안전결제, 중개 수수료 처리' },
+      { name: '리뷰/평판', desc: '거래 후 상호 평가' },
+      { name: '알림', desc: '새 매칭, 메시지, 거래 상태 알림' },
+      { name: '관리자 대시보드', desc: '매칭 현황, 분쟁 관리, 통계' },
+      { name: '포트폴리오/실적', desc: '공급자 작업물, 경력 표시' },
+      { name: '견적/제안서', desc: '수요자에게 견적 보내기' },
+    ],
+  },
+  {
+    keywords: ['채팅', 'sns', '소셜', '커뮤니티', '메신저', '카톡', '인스타', '피드', '소통'],
+    label: 'SNS/커뮤니티',
+    must: [
+      { name: '실시간 채팅', desc: '1:1/그룹 메시지, 읽음 확인' },
+      { name: '피드/타임라인', desc: '게시물 작성, 좋아요, 댓글' },
+      { name: '회원/프로필', desc: '프로필, 팔로우/팔로잉' },
+      { name: '알림 시스템', desc: '좋아요, 댓글, DM 알림' },
+    ],
+    recommended: [
+      { name: '이미지/영상 업로드', desc: '미디어 첨부, 갤러리' },
+      { name: '해시태그/검색', desc: '태그 기반 콘텐츠 탐색' },
+      { name: '스토리/숏폼', desc: '24시간 사라지는 콘텐츠' },
+      { name: '신고/차단', desc: '유해 콘텐츠 신고, 사용자 차단' },
+      { name: '그룹/채널', desc: '관심사 기반 그룹 생성' },
+      { name: '푸시 알림', desc: '실시간 활동 알림' },
+    ],
+  },
+  {
+    keywords: ['건강', '헬스', '운동', '피트니스', '다이어트', '의료', '병원', '진료', '약', '케어'],
+    label: '건강/헬스케어',
+    must: [
+      { name: '건강 기록 관리', desc: '운동/식단/수면/체중 기록' },
+      { name: '회원/로그인', desc: '개인 건강 데이터 보호, 소셜 로그인' },
+      { name: '대시보드/통계', desc: '건강 데이터 시각화, 추이 분석' },
+      { name: '알림/리마인더', desc: '운동, 약 복용, 검진 리마인더' },
+    ],
+    recommended: [
+      { name: '운동 프로그램', desc: '루틴 추천, 영상 가이드' },
+      { name: '전문가 상담', desc: '의사/트레이너 1:1 상담' },
+      { name: '예약 시스템', desc: '진료/PT 예약' },
+      { name: '웨어러블 연동', desc: '스마트워치 데이터 동기화' },
+      { name: '커뮤니티', desc: '건강 팁 공유, 챌린지' },
+      { name: '결제/구독', desc: '프리미엄 플랜, 상담 결제' },
+    ],
+  },
+  {
+    keywords: ['saas', 'b2b', '대시보드', '관리', '구독', '비즈니스', '업무', 'crm', 'erp', '인사', '회계'],
+    label: 'SaaS/B2B 서비스',
+    must: [
+      { name: '팀/조직 관리', desc: '워크스페이스, 멤버 초대, 권한' },
+      { name: '대시보드', desc: '핵심 KPI, 데이터 시각화' },
+      { name: '회원/인증', desc: 'SSO, 2FA, 역할 기반 접근 제어' },
+      { name: '구독/과금', desc: '플랜별 과금, 결제, 인보이스' },
+    ],
+    recommended: [
+      { name: 'API 연동', desc: '외부 서비스 연동, 웹훅' },
+      { name: '리포트/내보내기', desc: 'PDF/Excel 리포트 생성' },
+      { name: '알림/Slack 연동', desc: '이벤트 알림, 메신저 통합' },
+      { name: '감사 로그', desc: '작업 이력, 변경 추적' },
+      { name: '온보딩 가이드', desc: '사용자 튜토리얼, 도움말' },
+      { name: '멀티 테넌시', desc: '고객사별 데이터 격리' },
+    ],
+  },
+  {
+    keywords: ['ai', '인공지능', 'gpt', '챗봇', 'llm', '머신러닝', '자동화', '생성'],
+    label: 'AI 서비스',
+    must: [
+      { name: 'AI 처리 엔진', desc: 'LLM/ML 모델 연동, API 호출' },
+      { name: '입력/출력 인터페이스', desc: '텍스트·파일 입력, 결과 표시' },
+      { name: '회원/사용량 관리', desc: '로그인, API 크레딧, 사용 이력' },
+      { name: '결과 저장/내보내기', desc: 'AI 결과물 저장, 다운로드' },
+    ],
+    recommended: [
+      { name: '프롬프트 템플릿', desc: '자주 쓰는 질문/명령어 저장' },
+      { name: '히스토리', desc: '이전 대화/생성 내역 관리' },
+      { name: '결제/구독', desc: 'API 크레딧 충전, 프리미엄 플랜' },
+      { name: '공유/협업', desc: '결과물 공유, 팀 워크스페이스' },
+      { name: '파일 업로드', desc: '문서/이미지 분석용 업로드' },
+      { name: '관리자 통계', desc: '사용량, 비용, 성과 대시보드' },
+    ],
+  },
+];
+
+/**
+ * 서비스 설명(overview)에서 키워드를 분석하여
+ * 해당 서비스에 맞는 맞춤 기능 목록을 반환
+ */
+function getServiceFeatures(overviewText: string): { label: string; features: SelectableFeature[] } | null {
+  const t = overviewText.toLowerCase();
+
+  let bestMatch: ServiceFeatureSet | null = null;
+  let bestScore = 0;
+
+  for (const service of SERVICE_FEATURES_DB) {
+    let score = 0;
+    for (const kw of service.keywords) {
+      if (t.includes(kw)) score += kw.length; // 긴 키워드일수록 높은 점수
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = service;
+    }
+  }
+
+  if (!bestMatch || bestScore === 0) return null;
+
+  const features: SelectableFeature[] = [
+    ...bestMatch.must.map(f => ({ name: f.name, desc: f.desc, category: 'must' as const })),
+    ...bestMatch.recommended.map(f => ({ name: f.name, desc: f.desc, category: 'recommended' as const })),
+  ];
+
+  return { label: bestMatch.label, features };
+}
+
+// ═══════════════════════════════════════════════════════
 //  프로젝트 유형 감지 (기존 유지)
 // ═══════════════════════════════════════════════════════
 function detectProjectType(text: string): { projectType: string; typeInfo: ProjectTypeInfo; confidence: string } {
@@ -390,7 +604,7 @@ function determineNextTopic(rfpData: RFPData, currentTopicStep: number): number 
 //  🆕 맥락 기반 동적 질문 생성
 //  이전 답변을 참조하여 맞춤형 질문 생성
 // ═══════════════════════════════════════════════════════
-function generateContextualQuestion(topicStep: number, rfpData: RFPData): { question: string; quickReplies?: string[] } {
+function generateContextualQuestion(topicStep: number, rfpData: RFPData): { question: string; quickReplies?: string[]; selectableFeatures?: SelectableFeature[] } {
   const ti = detectedType || DEFAULT_PROJECT_TYPE;
   const topicId = STEP_TO_TOPIC[topicStep];
   const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 20) : '프로젝트';
@@ -431,28 +645,39 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
     }
 
     case 'coreFeatures': {
-      // 🆕 기능 추천 & 선택 시스템
-      // CEO 피드백: 추천기능을 전부 나열하고 사용자가 선택하는 방식
-      const mustHave = ti.mustHaveFeatures;
-      const quickFeatures = ti.quickRepliesMap.coreFeatures;
-      // 추천 기능 = quickRepliesMap에서 필수와 겹치지 않는 것
-      const recommended = quickFeatures.filter(f =>
-        !mustHave.some(m => m.toLowerCase().includes(f.toLowerCase().slice(0, 3)) || f.toLowerCase().includes(m.toLowerCase().slice(0, 3)))
-      );
+      // 🆕 v11: 서비스 설명(overview) 기반 맞춤 기능 추천
+      // CEO: "어떤 서비스를 만들고 싶은가요?의 대답에 맞는 기능 리스트를 만들어야지"
+      const overviewText = previousAnswers[1] || rfpData?.overview || '';
+      const serviceMatch = getServiceFeatures(overviewText);
 
-      // 기능 선택 시작
       featureSelectionActive = true;
       accumulatedFeatures = [];
 
-      const mustHaveList = mustHave.map(f => `• ${f}`).join('\n');
-      const recommendedList = recommended.map(f => `• ${f}`).join('\n');
+      if (serviceMatch) {
+        // 서비스 키워드 매칭 성공 → 맞춤 기능 목록
+        const question = `PRD의 핵심은 **기능 정의**입니다.\n\n**"${overviewText.slice(0, 30)}"**에 맞는 **${serviceMatch.label}** 추천 기능을 준비했습니다.\n\n아래에서 필요한 기능을 **선택/해제**한 후 확인해주세요.\n직접 추가할 기능이 있으면 텍스트로 입력하셔도 됩니다.`;
 
-      const question = `PRD의 핵심은 **기능 정의**입니다.\n\n**${ti.type}** 프로젝트에서 추천하는 기능 목록입니다:\n\n🔴 **필수 기능** (이 유형에 거의 항상 필요)\n${mustHaveList}\n\n🟡 **추천 기능** (프로젝트에 따라 선택)\n${recommendedList}\n\n포함할 기능을 선택해주세요.\n여러 개를 콤마로 나열하거나, 하나씩 선택하셔도 됩니다.\n"**전체 필수 포함**"을 누르면 필수 기능이 모두 추가됩니다.`;
+        return {
+          question,
+          selectableFeatures: serviceMatch.features,
+        };
+      } else {
+        // 매칭 실패 → 카테고리 기반 폴백 + selectableFeatures
+        const mustHave = ti.mustHaveFeatures;
+        const quickFeatures = ti.quickRepliesMap.coreFeatures;
 
-      return {
-        question,
-        quickReplies: ['전체 필수 포함', ...recommended.slice(0, 4), '직접 입력할게요'],
-      };
+        const features: SelectableFeature[] = [
+          ...mustHave.map(f => ({ name: f, desc: FEATURE_DB[f.split('(')[0].trim()]?.desc || f, category: 'must' as const })),
+          ...quickFeatures.filter(f => !mustHave.includes(f)).map(f => ({ name: f, desc: FEATURE_DB[f.split('(')[0].trim()]?.desc || f, category: 'recommended' as const })),
+        ];
+
+        const question = `PRD의 핵심은 **기능 정의**입니다.\n\n**${ti.type}** 프로젝트에서 추천하는 기능 목록입니다.\n\n아래에서 필요한 기능을 **선택/해제**한 후 확인해주세요.\n직접 추가할 기능이 있으면 텍스트로 입력하셔도 됩니다.`;
+
+        return {
+          question,
+          selectableFeatures: features,
+        };
+      }
     }
 
     case 'referenceServices': {
@@ -524,70 +749,52 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
     }
 
     case 'coreFeatures': {
-      // 🆕 기능 선택 시스템 — 추천 기능에서 선택하는 방식
-      const ti = detectedType || DEFAULT_PROJECT_TYPE;
-      const mustHave = ti.mustHaveFeatures;
-      const quickFeatures = ti.quickRepliesMap.coreFeatures;
-      const allRecommended = [...new Set([...mustHave, ...quickFeatures])];
+      // 🆕 v11: 복수선택 UI에서 한 번에 제출되므로 단순화
+      // 입력: JSON 배열 (UI에서 선택) 또는 자유 텍스트
 
-      // "전체 필수 포함" 처리
-      if (a === '전체 필수 포함') {
-        for (const f of mustHave) {
-          if (!accumulatedFeatures.some(af => af.name === f)) {
-            const dbMatch = Object.entries(FEATURE_DB).find(([k]) =>
-              f.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(f.toLowerCase().slice(0, 3))
-            );
-            accumulatedFeatures.push({
-              name: f,
-              description: dbMatch ? `${dbMatch[1].desc} [${dbMatch[1].complexity} | ${dbMatch[1].weeks}]` : `${f} — 상세 요구사항은 개발사와 협의`,
-              priority: 'P1',
-            });
-          }
+      // JSON 배열로 온 경우 (UI 복수선택)
+      let selectedFeatures: { name: string; desc: string; category: string }[] = [];
+      try {
+        const parsed = JSON.parse(a);
+        if (Array.isArray(parsed)) {
+          selectedFeatures = parsed;
         }
+      } catch {
+        // JSON이 아닌 경우 — 자유 텍스트 입력
+      }
+
+      if (selectedFeatures.length > 0) {
+        // UI에서 선택된 기능 → accumulatedFeatures로 변환
+        accumulatedFeatures = selectedFeatures.map((f, i) => ({
+          name: f.name,
+          description: f.desc || f.name,
+          priority: (f.category === 'must' ? 'P1' : i < 4 ? 'P2' : 'P3') as 'P1' | 'P2' | 'P3',
+        }));
+        featureSelectionActive = false;
+        const selectedList = accumulatedFeatures.map(f => `✅ ${f.name}`).join('\n');
+        return {
+          message: `**선택 기능 ${accumulatedFeatures.length}개 반영 완료:**\n${selectedList}`,
+          thinkingLabel: '기능 목록 반영 중...',
+        };
       } else if (a === '직접 입력할게요') {
-        // 자유 입력 모드 — 다음 메시지에서 처리
         return {
           message: '원하시는 기능을 자유롭게 입력해주세요.\n여러 개를 콤마(,)나 줄바꿈으로 구분하시면 됩니다.',
           thinkingLabel: '입력 대기 중...',
         };
-      } else if (a !== '이대로 진행') {
-        // 개별 기능 선택 또는 자유 텍스트 입력
+      } else if (a !== '이대로 진행' && a !== '건너뛰기') {
+        // 자유 텍스트 입력
         const newFeatures = parseFeatures(a);
-        for (const nf of newFeatures) {
-          if (!accumulatedFeatures.some(af => af.name.toLowerCase() === nf.name.toLowerCase())) {
-            accumulatedFeatures.push(nf);
-          }
-        }
-      }
-
-      // 선택된 기능 표시
-      const selectedList = accumulatedFeatures.map(f => `✅ ${f.name}`).join('\n');
-      const selectedNames = accumulatedFeatures.map(f => f.name.toLowerCase());
-      const remaining = allRecommended.filter(r =>
-        !selectedNames.some(s =>
-          s.includes(r.toLowerCase().slice(0, 3)) || r.toLowerCase().includes(s.slice(0, 3))
-        )
-      );
-
-      let message: string;
-      if (accumulatedFeatures.length === 0) {
-        message = '기능을 선택해주세요.';
-      } else if (remaining.length > 0 && a !== '이대로 진행') {
-        message = `**선택된 기능 (${accumulatedFeatures.length}개):**\n${selectedList}\n\n아직 선택 가능한 추천 기능:\n${remaining.map(r => `• ${r}`).join('\n')}\n\n더 추가하시겠어요?`;
-      } else {
-        message = `**최종 선택 기능 (${accumulatedFeatures.length}개):**\n${selectedList}`;
+        accumulatedFeatures = newFeatures;
         featureSelectionActive = false;
+        const selectedList = accumulatedFeatures.map(f => `✅ ${f.name}`).join('\n');
+        return {
+          message: `**입력 기능 ${accumulatedFeatures.length}개 반영 완료:**\n${selectedList}`,
+          thinkingLabel: '기능 목록 반영 중...',
+        };
       }
 
-      const qr = (remaining.length > 0 && a !== '이대로 진행')
-        ? ['이대로 진행', ...remaining.slice(0, 5)]
-        : undefined;
-
-      return {
-        message,
-        quickReplies: qr,
-        thinkingLabel: '기능 목록 반영 중...',
-      };
+      featureSelectionActive = false;
+      return { message: '기능 정보를 반영했습니다.', thinkingLabel: '반영 중...' };
     }
 
     case 'referenceServices': {
@@ -741,6 +948,7 @@ export function generateFallbackResponse(
   let message: string;
   let quickReplies: string[] | undefined = feedback.quickReplies;
   let thinkingLabel: string | undefined = feedback.thinkingLabel;
+  let selectableFeatures: SelectableFeature[] | undefined;
 
   if (shouldComplete) {
     // 완료 상태
@@ -752,10 +960,6 @@ export function generateFallbackResponse(
       return topic ? `✅ ${topic.icon} ${topic.label}` : '';
     }).filter(Boolean).join('\n')}${ti ? `\n\n📊 이 ${ti.type} 프로젝트 추천 MVP: ${ti.mvpScope}` : ''}\n\n아래 버튼을 눌러 **전문 PRD**를 완성하세요!`;
     thinkingLabel = 'RFP 문서 구조 설계 중...';
-  } else if (topicId === 'coreFeatures' && featureSelectionActive && nextStepNumber === currentStep) {
-    // 🆕 기능 선택 멀티라운드 — 피드백만 표시 (다음 토픽 질문 없이)
-    message = feedback.message;
-    quickReplies = feedback.quickReplies;
   } else {
     // 다음 질문으로 진행
     const nextQ = generateContextualQuestion(nextStepNumber!, simulatedRfpData);
@@ -768,6 +972,13 @@ export function generateFallbackResponse(
 
     message = `${feedback.message}\n\n---\n\n**${topicLabel}**\n${nextQ.question}${completeHint}`;
     quickReplies = feedback.quickReplies || nextQ.quickReplies;
+
+    // 🆕 selectableFeatures 전달 (coreFeatures 토픽일 때)
+    if (nextQ.selectableFeatures) {
+      selectableFeatures = nextQ.selectableFeatures;
+      quickReplies = undefined; // selectableFeatures가 있으면 quickReplies 숨김
+    }
+
     if (canCompleteNow && quickReplies) {
       quickReplies = ['바로 RFP 생성하기', ...quickReplies];
     }
@@ -779,6 +990,7 @@ export function generateFallbackResponse(
     nextAction: shouldComplete ? 'complete' : 'continue',
     nextStep: nextStepNumber,
     quickReplies,
+    selectableFeatures,
     thinkingLabel,
     topicsCovered: covered,
     progress,

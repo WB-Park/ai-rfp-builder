@@ -7,10 +7,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { RFPData, emptyRFPData, TOPICS, TopicId, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
 
+interface SelectableFeature {
+  name: string;
+  desc: string;
+  category: 'must' | 'recommended';
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp?: number;
+  selectableFeatures?: SelectableFeature[];
 }
 
 interface ChatInterfaceProps {
@@ -70,6 +77,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [topicsCovered, setTopicsCovered] = useState<TopicId[]>([]);
   const [progressPercent, setProgressPercent] = useState(0);
   const [canComplete, setCanComplete] = useState(false);
+  // 🆕 복수선택 기능 UI
+  const [featureSelection, setFeatureSelection] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -219,13 +228,24 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setThinkingLabel(data.thinkingLabel);
       }
 
-      const finalMessages: ChatMessage[] = [
-        ...newMessages,
-        { role: 'assistant' as const, content: data.message, timestamp: Date.now() }
-      ];
+      const assistantMsg: ChatMessage = {
+        role: 'assistant' as const,
+        content: data.message,
+        timestamp: Date.now(),
+        selectableFeatures: data.selectableFeatures || undefined,
+      };
+      const finalMessages: ChatMessage[] = [...newMessages, assistantMsg];
       setMessages(finalMessages);
 
-      if (data.quickReplies && data.quickReplies.length > 0) {
+      // 🆕 selectableFeatures가 있으면 초기 선택 상태 설정 (must=선택, recommended=미선택)
+      if (data.selectableFeatures && data.selectableFeatures.length > 0) {
+        const initialSelection: Record<string, boolean> = {};
+        for (const f of data.selectableFeatures) {
+          initialSelection[f.name] = f.category === 'must';
+        }
+        setFeatureSelection(initialSelection);
+        setQuickReplies([]); // selectableFeatures가 있으면 quickReplies 숨김
+      } else if (data.quickReplies && data.quickReplies.length > 0) {
         setQuickReplies(data.quickReplies);
       }
 
@@ -566,6 +586,146 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     paddingRight: msg.role === 'user' ? 4 : 0,
                   }}>
                     {formatTime(msg.timestamp)}
+                  </div>
+                )}
+                {/* 🆕 복수선택 기능 UI — 마지막 assistant 메시지에만 */}
+                {msg.role === 'assistant' && msg.selectableFeatures && msg.selectableFeatures.length > 0 && i === messages.length - 1 && !loading && (
+                  <div style={{
+                    marginTop: 12,
+                    background: 'var(--surface-1)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-default)',
+                    overflow: 'hidden',
+                  }}>
+                    {/* 필수 기능 */}
+                    {msg.selectableFeatures.filter(f => f.category === 'must').length > 0 && (
+                      <div style={{ padding: '10px 14px 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        🔴 필수 기능
+                      </div>
+                    )}
+                    {msg.selectableFeatures.filter(f => f.category === 'must').map((feat) => (
+                      <button
+                        key={feat.name}
+                        onClick={() => setFeatureSelection(prev => ({ ...prev, [feat.name]: !prev[feat.name] }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: 'none',
+                          borderBottom: '1px solid var(--border-default)',
+                          background: featureSelection[feat.name] ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s',
+                          fontFamily: 'var(--font-kr)',
+                        }}
+                      >
+                        <span style={{
+                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                          border: featureSelection[feat.name] ? 'none' : '2px solid var(--border-strong)',
+                          background: featureSelection[feat.name] ? 'var(--color-primary)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 0.15s',
+                        }}>
+                          {featureSelection[feat.name] && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{feat.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{feat.desc}</div>
+                        </div>
+                      </button>
+                    ))}
+                    {/* 추천 기능 */}
+                    {msg.selectableFeatures.filter(f => f.category === 'recommended').length > 0 && (
+                      <div style={{ padding: '10px 14px 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        🟡 추천 기능
+                      </div>
+                    )}
+                    {msg.selectableFeatures.filter(f => f.category === 'recommended').map((feat) => (
+                      <button
+                        key={feat.name}
+                        onClick={() => setFeatureSelection(prev => ({ ...prev, [feat.name]: !prev[feat.name] }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: 'none',
+                          borderBottom: '1px solid var(--border-default)',
+                          background: featureSelection[feat.name] ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s',
+                          fontFamily: 'var(--font-kr)',
+                        }}
+                      >
+                        <span style={{
+                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                          border: featureSelection[feat.name] ? 'none' : '2px solid var(--border-strong)',
+                          background: featureSelection[feat.name] ? 'var(--color-primary)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 0.15s',
+                        }}>
+                          {featureSelection[feat.name] && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{feat.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{feat.desc}</div>
+                        </div>
+                      </button>
+                    ))}
+                    {/* 선택 개수 + 확인 버튼 */}
+                    <div style={{
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--surface-0)',
+                    }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                        {Object.values(featureSelection).filter(Boolean).length}개 선택됨
+                      </span>
+                      <button
+                        onClick={() => {
+                          const selected = msg.selectableFeatures!.filter(f => featureSelection[f.name]);
+                          if (selected.length === 0) return;
+                          const payload = JSON.stringify(selected.map(f => ({ name: f.name, desc: f.desc, category: f.category })));
+                          // 메시지에서 selectableFeatures 제거 (UI 정리)
+                          setMessages(prev => prev.map((m, idx) =>
+                            idx === prev.length - 1 ? { ...m, selectableFeatures: undefined } : m
+                          ));
+                          setFeatureSelection({});
+                          sendMessage(payload);
+                        }}
+                        style={{
+                          padding: '8px 20px',
+                          borderRadius: 'var(--radius-full)',
+                          border: 'none',
+                          background: Object.values(featureSelection).filter(Boolean).length > 0
+                            ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))'
+                            : 'var(--border-default)',
+                          color: Object.values(featureSelection).filter(Boolean).length > 0 ? 'white' : 'var(--text-quaternary)',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          fontFamily: 'var(--font-kr)',
+                          cursor: Object.values(featureSelection).filter(Boolean).length > 0 ? 'pointer' : 'default',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        선택 완료
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
