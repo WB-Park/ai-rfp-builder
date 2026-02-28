@@ -599,10 +599,222 @@ const FEATURE_KEYWORDS: [string[], FeatureAtom][] = [
   [['스토리', '숏폼', '릴스'], { name: '스토리/숏폼 콘텐츠', desc: '짧은 영상/사진 콘텐츠 업로드', priority: 2 }],
 ];
 
+// ── NEW: 컨텍스트 패턴 인터페이스 ──
+interface ContextPattern {
+  triggers: string[];
+  features: FeatureAtom[];
+  suppressKeywords: string[];
+}
+
+// ── NEW: 컨텍스트 패턴 데이터베이스 ──
+const CONTEXT_PATTERNS: ContextPattern[] = [
+  // FAQ / 자주 묻는 질문 자동화
+  {
+    triggers: ['자주 물어보는', '자주 묻는', 'faq', '자동 응답', '자동 답변', '문의 자동', '반복 문의', '반복되는 질문', '자주 오는 질문'],
+    features: [
+      { name: 'FAQ 자동응답 시스템', desc: '자주 묻는 질문 등록, 카테고리별 분류, 키워드 기반 자동 답변', priority: 1 },
+      { name: 'AI 챗봇', desc: '자연어 이해 기반 고객 질문 자동 응답, 시나리오 설계', priority: 1 },
+      { name: '고객 문의 관리', desc: '문의 접수, 상태 추적, 담당자 배정, 답변 템플릿', priority: 1 },
+      { name: '카테고리별 FAQ 관리', desc: '상품/배송/교환 등 카테고리별 FAQ 등록 및 관리', priority: 2 },
+      { name: '문의 통계/분석', desc: '자주 묻는 질문 유형 분석, 응답률, 처리 시간 통계', priority: 2 },
+    ],
+    suppressKeywords: ['문의', '대화', '메시지'],
+  },
+  // 고객 상담/CS 센터
+  {
+    triggers: ['고객 상담', '고객 센터', 'cs센터', 'cs 센터', '상담 시스템', '상담원', '콜센터', '고객 지원', '고객 응대'],
+    features: [
+      { name: '고객 상담 시스템', desc: '실시간 상담, 상담 이력, 상담원 배정, 상담 카테고리', priority: 1 },
+      { name: '상담 티켓 관리', desc: '문의 접수→처리→완료 워크플로우, SLA 관리', priority: 1 },
+      { name: '상담 채널 통합', desc: '전화, 채팅, 이메일 등 멀티채널 상담 통합 관리', priority: 2 },
+      { name: '상담 통계/리포트', desc: '상담 유형, 처리 시간, 만족도 통계', priority: 2 },
+      { name: 'FAQ/자동 응답', desc: '반복 문의 자동 처리, 셀프서비스 가이드', priority: 2 },
+    ],
+    suppressKeywords: ['채팅', '메시지', '대화'],
+  },
+  // 예약 + 일정 관리 (단순 예약 키워드와 다름)
+  {
+    triggers: ['예약 관리', '예약 시스템', '일정 관리', '스케줄 관리', '예약 받', '온라인 예약'],
+    features: [
+      { name: '예약 캘린더', desc: '날짜/시간별 가용성 확인, 실시간 예약', priority: 1 },
+      { name: '예약 알림/리마인더', desc: '예약 확인, 변경, 취소 알림, 리마인더 발송', priority: 1 },
+      { name: '예약 대시보드', desc: '일별/주별/월별 예약 현황, 통계', priority: 2 },
+      { name: '고객 관리(CRM)', desc: '예약 고객 정보, 방문 이력, 메모', priority: 2 },
+      { name: '결제/선결제', desc: '예약 시 선결제, 노쇼 방지 보증금', priority: 2 },
+    ],
+    suppressKeywords: ['예약', '부킹', '스케줄'],
+  },
+  // 주문/배달 시스템 (음식점, 카페 등)
+  {
+    triggers: ['주문 받', '주문 시스템', '배달 주문', '온라인 주문', '모바일 주문', '테이블 주문', '포장 주문'],
+    features: [
+      { name: '메뉴/상품 관리', desc: '메뉴 등록, 가격 설정, 품절 관리, 옵션 설정', priority: 1 },
+      { name: '온라인 주문', desc: '메뉴 선택, 옵션 선택, 장바구니, 결제', priority: 1 },
+      { name: '주문 접수/관리', desc: '실시간 주문 알림, 접수/조리/완료 상태 관리', priority: 1 },
+      { name: '배달/포장 관리', desc: '배달/포장/매장식사 선택, 배달 추적', priority: 2 },
+      { name: '매출 통계', desc: '일별/월별 매출, 인기 메뉴, 주문 통계', priority: 2 },
+    ],
+    suppressKeywords: ['주문', '배달', '상품', '판매'],
+  },
+  // 콘텐츠 구독/멤버십
+  {
+    triggers: ['구독 서비스', '멤버십 서비스', '유료 콘텐츠', '프리미엄 콘텐츠', '구독형', '월정액 서비스'],
+    features: [
+      { name: '구독 플랜 관리', desc: '무료/베이직/프리미엄 등급, 가격, 혜택 설정', priority: 1 },
+      { name: '콘텐츠 접근 제어', desc: '등급별 콘텐츠 열람 권한, 미리보기', priority: 1 },
+      { name: '정기 결제', desc: '자동 갱신, 결제 수단 관리, 해지', priority: 1 },
+      { name: '콘텐츠 관리(CMS)', desc: '콘텐츠 등록, 에디터, 카테고리, 태그', priority: 2 },
+      { name: '이용 통계', desc: '구독자 현황, 이탈률, 인기 콘텐츠 분석', priority: 2 },
+    ],
+    suppressKeywords: ['구독', '멤버십', '월정액', '콘텐츠'],
+  },
+  // 매칭/중개 플랫폼
+  {
+    triggers: ['매칭 플랫폼', '중개 플랫폼', '연결해주는', '매칭 서비스', '연결 서비스', '중개 서비스', '공급자와 수요자'],
+    features: [
+      { name: '매칭 알고리즘', desc: '조건 기반 공급자-수요자 자동 매칭, 추천', priority: 1 },
+      { name: '프로필/포트폴리오', desc: '공급자 프로필, 경력, 작업물, 인증', priority: 1 },
+      { name: '견적/제안 시스템', desc: '요청서 작성, 견적 수신, 비교', priority: 1 },
+      { name: '리뷰/평가', desc: '거래 완료 후 상호 평가, 별점', priority: 2 },
+      { name: '에스크로 결제', desc: '작업 완료 확인 후 대금 정산', priority: 2 },
+    ],
+    suppressKeywords: ['매칭', '연결', '중개'],
+  },
+  // 사내 업무 도구 / 내부 시스템
+  {
+    triggers: ['사내 시스템', '내부 시스템', '업무 도구', '사내 도구', '그룹웨어', '인트라넷', '업무 관리', '백오피스'],
+    features: [
+      { name: '직원 관리', desc: '직원 정보, 조직도, 권한 관리', priority: 1 },
+      { name: '업무 관리(태스크)', desc: '할 일 등록, 배정, 상태 추적, 기한 관리', priority: 1 },
+      { name: '결재/승인 시스템', desc: '전자결재, 승인 워크플로우, 이력 관리', priority: 1 },
+      { name: '공지/게시판', desc: '사내 공지, 자료 공유, 의견 게시판', priority: 2 },
+      { name: '근태/출퇴근', desc: '출퇴근 기록, 휴가 신청, 근무 통계', priority: 2 },
+    ],
+    suppressKeywords: ['관리자', '팀', '조직'],
+  },
+  // 커뮤니티/포럼
+  {
+    triggers: ['커뮤니티 사이트', '커뮤니티 플랫폼', '포럼', '동호회', '모임 사이트', '팬 커뮤니티', '사용자 커뮤니티'],
+    features: [
+      { name: '게시판/포럼', desc: '카테고리별 게시판, 글 작성, 댓글, 대댓글', priority: 1 },
+      { name: '회원 등급/포인트', desc: '활동 기반 등급, 포인트 적립, 뱃지', priority: 1 },
+      { name: '채팅/DM', desc: '회원 간 1:1 메시지, 그룹 채팅', priority: 2 },
+      { name: '검색', desc: '게시글 검색, 태그, 필터', priority: 2 },
+      { name: '신고/관리', desc: '부적절 콘텐츠 신고, 관리자 모더레이션', priority: 2 },
+    ],
+    suppressKeywords: ['게시판', '커뮤니티', '피드'],
+  },
+  // 쇼핑몰 / 자사몰
+  {
+    triggers: ['쇼핑몰', '자사몰', '온라인 스토어', '온라인몰', '인터넷 쇼핑몰', '브랜드몰'],
+    features: [
+      { name: '상품 등록/관리', desc: '상품 정보, 이미지, 옵션(사이즈/색상), 재고', priority: 1 },
+      { name: '장바구니/결제', desc: '장바구니, PG 결제(카드/간편결제/계좌이체)', priority: 1 },
+      { name: '주문/배송 관리', desc: '주문 접수, 배송 추적, 교환/환불', priority: 1 },
+      { name: '회원/등급', desc: '회원가입, 등급별 혜택, 적립금', priority: 2 },
+      { name: '리뷰/상품 후기', desc: '구매 후기, 포토 리뷰, 별점', priority: 2 },
+      { name: '쿠폰/프로모션', desc: '할인 쿠폰, 기획전, 이벤트', priority: 3 },
+    ],
+    suppressKeywords: ['상품', '판매', '쇼핑', '구매', '커머스', '장바구니'],
+  },
+  // 포트폴리오/브랜딩 사이트
+  {
+    triggers: ['포트폴리오 사이트', '브랜드 사이트', '회사 소개', '기업 소개', '홍보 사이트', '회사 홈페이지'],
+    features: [
+      { name: '서비스/제품 소개', desc: '핵심 서비스, 제품 라인업, 특장점 페이지', priority: 1 },
+      { name: '회사 소개', desc: '비전, 연혁, 팀 소개, 오시는 길', priority: 1 },
+      { name: '포트폴리오/사례', desc: '프로젝트 사례, 고객사, 성과 갤러리', priority: 1 },
+      { name: '문의/상담 신청', desc: '문의 폼, 상담 예약, 연락처', priority: 2 },
+      { name: '뉴스/블로그', desc: '회사 소식, 인사이트, SEO 콘텐츠', priority: 2 },
+    ],
+    suppressKeywords: ['게시판', '커뮤니티'],
+  },
+];
+
+// ── NEW: 비즈니스 도메인 인터페이스 ──
+interface BusinessDomain {
+  triggers: string[];
+  domainName: string;
+  additionalFeatures: FeatureAtom[];
+}
+
+// ── NEW: 비즈니스 도메인 데이터베이스 ──
+const BUSINESS_DOMAINS: BusinessDomain[] = [
+  {
+    triggers: ['수영복', '의류', '패션', '옷', '신발', '가방', '액세서리', '뷰티', '화장품'],
+    domainName: '패션/뷰티',
+    additionalFeatures: [
+      { name: '사이즈 가이드', desc: '사이즈 표, 체형별 추천, 실측 정보', priority: 2 },
+      { name: '상품 문의 게시판', desc: '상품별 Q&A, 재입고 알림', priority: 2 },
+      { name: '코디/스타일링', desc: '관련 상품 추천, 코디 제안', priority: 3 },
+    ],
+  },
+  {
+    triggers: ['음식점', '카페', '식당', '레스토랑', '베이커리', '치킨', '피자', '배달'],
+    domainName: '요식업',
+    additionalFeatures: [
+      { name: '메뉴 관리', desc: '메뉴 등록, 가격, 사진, 품절 관리', priority: 1 },
+      { name: '영업시간 관리', desc: '요일별 영업시간, 임시 휴무, 공휴일 설정', priority: 2 },
+      { name: '테이블/좌석 관리', desc: '테이블 배치, 예약 관리, 대기열', priority: 2 },
+    ],
+  },
+  {
+    triggers: ['병원', '의원', '클리닉', '치과', '한의원', '의료', '진료', '피부과'],
+    domainName: '의료/헬스케어',
+    additionalFeatures: [
+      { name: '진료 예약', desc: '의사별 진료 스케줄, 온라인 예약', priority: 1 },
+      { name: '환자 관리', desc: '환자 정보, 진료 이력, 차트', priority: 1 },
+      { name: '진료 안내', desc: '진료과목, 의료진 소개, 진료 절차 안내', priority: 2 },
+    ],
+  },
+  {
+    triggers: ['학원', '교습소', '과외', '학습', '교육', '강의', '수업', '수강'],
+    domainName: '교육',
+    additionalFeatures: [
+      { name: '수강 관리', desc: '수강 신청, 반 배정, 출석 관리', priority: 1 },
+      { name: '학습 콘텐츠', desc: '강의 영상, 자료 배포, 과제', priority: 1 },
+      { name: '학부모 알림', desc: '출석, 성적, 공지 알림', priority: 2 },
+    ],
+  },
+  {
+    triggers: ['부동산', '중개', '매물', '임대', '월세', '전세', '아파트'],
+    domainName: '부동산',
+    additionalFeatures: [
+      { name: '매물 등록/관리', desc: '매물 정보, 사진, 가격, 위치', priority: 1 },
+      { name: '매물 검색/필터', desc: '지역, 가격, 평수, 유형별 검색', priority: 1 },
+      { name: '방문 예약', desc: '매물 방문 일정 잡기, 중개사 매칭', priority: 2 },
+    ],
+  },
+  {
+    triggers: ['업체', '회사', 'b2b', '기업', '비즈니스', '사업', '사업자'],
+    domainName: '비즈니스(B2B/B2C)',
+    additionalFeatures: [
+      { name: '고객 문의 관리', desc: '문의 접수, 답변, 이력 관리', priority: 2 },
+      { name: '관리자 대시보드', desc: '주요 지표, 현황 모니터링', priority: 2 },
+    ],
+  },
+  {
+    triggers: ['미용실', '헤어', '네일', '속눈썹', '왁싱', '마사지', '스파', '에스테틱'],
+    domainName: '뷰티/웰니스',
+    additionalFeatures: [
+      { name: '시술/서비스 메뉴', desc: '시술 종류, 가격, 소요 시간, 사진', priority: 1 },
+      { name: '디자이너/시술사 프로필', desc: '경력, 포트폴리오, 리뷰', priority: 2 },
+      { name: '예약 관리', desc: '시간대별 예약, 디자이너 지정 예약', priority: 1 },
+    ],
+  },
+  {
+    triggers: ['펫', '반려동물', '강아지', '고양이', '동물', '펫시터', '동물병원'],
+    domainName: '반려동물',
+    additionalFeatures: [
+      { name: '반려동물 프로필', desc: '반려동물 정보, 건강 기록, 사진', priority: 2 },
+      { name: '서비스 예약', desc: '미용, 호텔, 산책 등 서비스 예약', priority: 1 },
+    ],
+  },
+];
+
 /**
- * v12: 문장 심층 분석 기반 기능 추천
- * 1) 유명 서비스명 매칭 → 해당 서비스 실제 기능 반환
- * 2) 문장의 모든 키워드를 분석 → 기능 원자 조합
+ * v16: 컨텍스트 인식 기반 기능 추천 엔진
+ * 4단계 분석: 유명 서비스 매칭 → 컨텍스트 패턴 → 비즈니스 도메인 → 키워드 원자 조합
  */
 function getServiceFeatures(overviewText: string): { label: string; features: SelectableFeature[] } | null {
   const t = overviewText.toLowerCase().trim();
@@ -610,7 +822,7 @@ function getServiceFeatures(overviewText: string): { label: string; features: Se
 
   // ── Step 1: 유명 서비스명 매칭 (가장 우선) ──
   for (const [serviceName, data] of Object.entries(KNOWN_SERVICES)) {
-    if (data.features.length === 0) continue; // alias with empty features
+    if (data.features.length === 0) continue;
     if (t.includes(serviceName.toLowerCase()) || t.includes(serviceName)) {
       return {
         label: data.label,
@@ -623,29 +835,110 @@ function getServiceFeatures(overviewText: string): { label: string; features: Se
     }
   }
 
-  // ── Step 2: 키워드 원자 조합 — 문장의 모든 단어를 분석 ──
-  const matched: Map<string, { feat: FeatureAtom; matchCount: number }> = new Map();
+  // ── Step 2: 컨텍스트 패턴 매칭 (복합 구문 우선) ──
+  const matchedPatterns: { pattern: ContextPattern; matchCount: number }[] = [];
+  const suppressedKeywords = new Set<string>();
 
-  for (const [keywords, feat] of FEATURE_KEYWORDS) {
+  for (const pattern of CONTEXT_PATTERNS) {
     let matchCount = 0;
-    for (const kw of keywords) {
-      if (t.includes(kw.toLowerCase())) matchCount++;
+    for (const trigger of pattern.triggers) {
+      if (t.includes(trigger.toLowerCase())) matchCount++;
     }
     if (matchCount > 0) {
-      const existing = matched.get(feat.name);
-      if (!existing || matchCount > existing.matchCount) {
-        matched.set(feat.name, { feat, matchCount });
+      matchedPatterns.push({ pattern, matchCount });
+      // Suppress individual keywords that would give wrong results
+      for (const kw of pattern.suppressKeywords) {
+        suppressedKeywords.add(kw.toLowerCase());
       }
     }
   }
 
-  if (matched.size === 0) return null;
+  // Sort by match count (more trigger matches = more relevant)
+  matchedPatterns.sort((a, b) => b.matchCount - a.matchCount);
 
-  // 정렬: matchCount 높은 순 → priority 낮은 순
-  const sorted = [...matched.values()]
-    .sort((a, b) => b.matchCount - a.matchCount || a.feat.priority - b.feat.priority);
+  // ── Step 3: 비즈니스 도메인 감지 ──
+  const matchedDomains: BusinessDomain[] = [];
+  for (const domain of BUSINESS_DOMAINS) {
+    for (const trigger of domain.triggers) {
+      if (t.includes(trigger.toLowerCase())) {
+        matchedDomains.push(domain);
+        break;
+      }
+    }
+  }
 
-  // 상위 기능은 필수, 나머지는 추천
+  // ── Step 4: 키워드 원자 매칭 (suppressed 키워드 제외) ──
+  const keywordMatched: Map<string, { feat: FeatureAtom; matchCount: number }> = new Map();
+
+  for (const [keywords, feat] of FEATURE_KEYWORDS) {
+    let matchCount = 0;
+    let allSuppressed = true;
+    for (const kw of keywords) {
+      if (t.includes(kw.toLowerCase())) {
+        matchCount++;
+        if (!suppressedKeywords.has(kw.toLowerCase())) {
+          allSuppressed = false;
+        }
+      }
+    }
+    // Only add if has matches AND not all matched keywords are suppressed
+    if (matchCount > 0 && !allSuppressed) {
+      const existing = keywordMatched.get(feat.name);
+      if (!existing || matchCount > existing.matchCount) {
+        keywordMatched.set(feat.name, { feat, matchCount });
+      }
+    }
+  }
+
+  // ── Combine all results ──
+  const allFeatures: Map<string, { feat: SelectableFeature; score: number }> = new Map();
+
+  // Context pattern features get highest score (100 + matchCount)
+  for (const { pattern, matchCount } of matchedPatterns) {
+    for (const feat of pattern.features) {
+      const existing = allFeatures.get(feat.name);
+      const score = 100 + matchCount * 10 - feat.priority;
+      if (!existing || score > existing.score) {
+        allFeatures.set(feat.name, {
+          feat: { name: feat.name, desc: feat.desc, category: feat.priority <= 1 ? 'must' as const : 'recommended' as const },
+          score,
+        });
+      }
+    }
+  }
+
+  // Domain features get medium score (50)
+  for (const domain of matchedDomains) {
+    for (const feat of domain.additionalFeatures) {
+      const existing = allFeatures.get(feat.name);
+      const score = 50 - feat.priority;
+      if (!existing || score > existing.score) {
+        allFeatures.set(feat.name, {
+          feat: { name: feat.name, desc: feat.desc, category: feat.priority <= 1 ? 'must' as const : 'recommended' as const },
+          score,
+        });
+      }
+    }
+  }
+
+  // Keyword matches get lower score (matchCount * 10)
+  for (const [, { feat, matchCount }] of keywordMatched) {
+    const existing = allFeatures.get(feat.name);
+    const score = matchCount * 10 - feat.priority;
+    if (!existing || score > existing.score) {
+      allFeatures.set(feat.name, {
+        feat: { name: feat.name, desc: feat.desc, category: feat.priority <= 1 ? 'must' as const : 'recommended' as const },
+        score,
+      });
+    }
+  }
+
+  if (allFeatures.size === 0) return null;
+
+  // Sort by score (highest first), take top features
+  const sorted = [...allFeatures.values()].sort((a, b) => b.score - a.score);
+
+  // Top 40% or minimum 3 are must-have
   const mustCount = Math.max(3, Math.ceil(sorted.length * 0.4));
   const features: SelectableFeature[] = sorted.map((item, i) => ({
     name: item.feat.name,
@@ -653,8 +946,12 @@ function getServiceFeatures(overviewText: string): { label: string; features: Se
     category: i < mustCount ? 'must' as const : 'recommended' as const,
   }));
 
-  // 라벨 생성 (서비스 설명 앞 30자)
-  const label = `"${overviewText.slice(0, 40)}" 분석 결과`;
+  // Generate descriptive label
+  const domainLabel = matchedDomains.length > 0 ? matchedDomains[0].domainName + ' · ' : '';
+  const patternLabel = matchedPatterns.length > 0
+    ? matchedPatterns[0].pattern.features[0].name
+    : '';
+  const label = domainLabel + (patternLabel || `"${overviewText.slice(0, 30)}" 분석 결과`);
 
   return { label, features };
 }

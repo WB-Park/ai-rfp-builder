@@ -911,14 +911,106 @@ function generateSmartProjectName(overview: string, features: FeatureItem[], pro
   return projectName || '프로젝트';
 }
 
-function generateFallbackRFP(rfpData: RFPData): string {
-  const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  const projectInfo = getProjectTypeInfo(rfpData.overview);
+interface PRDResult {
+  projectName: string;
+  summary: string;
+  consultantOpinion: string;
+  totalWeeks: number;
+  successRate: number;
+  totalMD: number;
 
+  pricing: {
+    economy: {
+      label: string;
+      mdRate: number;
+      desc: string;
+      approach: string;
+      techStack: string[];
+      team: string;
+      timeline: string;
+      includes: string[];
+      excludes: string[];
+      bestFor: string;
+    };
+    standard: {
+      label: string;
+      mdRate: number;
+      desc: string;
+      approach: string;
+      techStack: string[];
+      team: string;
+      timeline: string;
+      includes: string[];
+      excludes: string[];
+      bestFor: string;
+    };
+    premium: {
+      label: string;
+      mdRate: number;
+      desc: string;
+      approach: string;
+      techStack: string[];
+      team: string;
+      timeline: string;
+      includes: string[];
+      excludes: string[];
+      bestFor: string;
+    };
+  };
+
+  modules: {
+    id: number;
+    name: string;
+    priority: 'critical' | 'important' | 'nice-to-have';
+    features: {
+      id: string;
+      name: string;
+      description: string;
+      complexity: 'low' | 'mid' | 'high';
+      mdEstimate: number;
+      subFeatures: string[];
+      acceptanceCriteria: string[];
+    }[];
+  }[];
+
+  wbs: {
+    phase: string;
+    task: string;
+    startWeek: number;
+    durationWeeks: number;
+    md: number;
+  }[];
+
+  risks: {
+    category: string;
+    description: string;
+    level: 'red' | 'yellow' | 'green';
+    mitigation: string;
+  }[];
+}
+
+function calculateMDEstimate(complexity: number): number {
+  // Complexity: 1-5 scale
+  // MD estimate: low=2-3, mid=4-6, high=8-12
+  if (complexity <= 2) return 2;
+  if (complexity <= 3) return 4;
+  if (complexity <= 4) return 6;
+  return 10;
+}
+
+function getComplexityLevel(value: number): 'low' | 'mid' | 'high' {
+  if (value <= 2) return 'low';
+  if (value <= 3) return 'mid';
+  return 'high';
+}
+
+function generateFallbackRFP(rfpData: RFPData): string {
+  const projectInfo = getProjectTypeInfo(rfpData.overview);
   const features = rfpData.coreFeatures || [];
   const analyzedFeatures = features.map(f => analyzeFeature(f));
-  const totalComplexity = analyzedFeatures.reduce((sum, f) => sum + f.complexity, 0);
-  const complexityLevel = totalComplexity >= 15 ? '높음' : totalComplexity >= 8 ? '중간~높음' : totalComplexity >= 4 ? '중간' : '보통';
+
+  // Calculate total MD
+  const totalMD = analyzedFeatures.reduce((sum, f) => sum + calculateMDEstimate(f.complexity), 0);
 
   // Calculate timeline
   const weekEstimates = analyzedFeatures.map(f => {
@@ -927,147 +1019,262 @@ function generateFallbackRFP(rfpData: RFPData): string {
   });
   const totalWeeksMin = Math.max(weekEstimates.reduce((s, w) => s + w[0], 0) * 0.6, 4);
   const totalWeeksMax = Math.max(weekEstimates.reduce((s, w) => s + w[1], 0) * 0.7, 6);
+  const avgWeeks = Math.round((totalWeeksMin + totalWeeksMax) / 2);
 
+  // Calculate success rate based on project complexity and features
+  const totalComplexity = analyzedFeatures.reduce((sum, f) => sum + f.complexity, 0);
+  const baseSuccessRate = projectInfo.successRate.match(/(\d+)%/)?.[1];
+  const successRate = baseSuccessRate ? parseInt(baseSuccessRate) : 75;
+
+  // Generate project name
   const projectName = generateSmartProjectName(rfpData.overview || '', features, projectInfo.type);
 
-  const featuresP0 = features.filter(f => f.priority === 'P1');
-  const featuresP1 = features.filter(f => f.priority === 'P2');
-  const featuresP2 = features.filter(f => f.priority === 'P3');
+  // Organize features by priority
+  const featuresP0 = analyzedFeatures.filter(f => f.priority === 'P1');
+  const featuresP1 = analyzedFeatures.filter(f => f.priority === 'P2');
+  const featuresP2 = analyzedFeatures.filter(f => f.priority === 'P3');
 
-  // Budget analysis
-  let budgetText = '';
-  if (rfpData.budgetTimeline && !rfpData.budgetTimeline.includes('미정') && rfpData.budgetTimeline.trim() !== '') {
-    budgetText = rfpData.budgetTimeline;
+  // Create modules
+  const modules: PRDResult['modules'] = [];
+
+  if (featuresP0.length > 0) {
+    modules.push({
+      id: 1,
+      name: 'MVP 필수 기능',
+      priority: 'critical',
+      features: featuresP0.map((f, i) => ({
+        id: `P0-${i + 1}`,
+        name: f.name,
+        description: f.description,
+        complexity: getComplexityLevel(f.complexity),
+        mdEstimate: calculateMDEstimate(f.complexity),
+        subFeatures: f.subFeatures || [],
+        acceptanceCriteria: f.acceptanceCriteria || [],
+      })),
+    });
   }
 
-  return `
-─── 한 줄 요약 ─────────────────────────────────
+  if (featuresP1.length > 0) {
+    modules.push({
+      id: 2,
+      name: '우선 기능',
+      priority: 'important',
+      features: featuresP1.map((f, i) => ({
+        id: `P1-${i + 1}`,
+        name: f.name,
+        description: f.description,
+        complexity: getComplexityLevel(f.complexity),
+        mdEstimate: calculateMDEstimate(f.complexity),
+        subFeatures: f.subFeatures || [],
+        acceptanceCriteria: f.acceptanceCriteria || [],
+      })),
+    });
+  }
 
-  ${generateOneLiner(rfpData, projectInfo)}
+  if (featuresP2.length > 0) {
+    modules.push({
+      id: 3,
+      name: '선택 기능',
+      priority: 'nice-to-have',
+      features: featuresP2.map((f, i) => ({
+        id: `P2-${i + 1}`,
+        name: f.name,
+        description: f.description,
+        complexity: getComplexityLevel(f.complexity),
+        mdEstimate: calculateMDEstimate(f.complexity),
+        subFeatures: f.subFeatures || [],
+        acceptanceCriteria: f.acceptanceCriteria || [],
+      })),
+    });
+  }
 
-  프로젝트명: ${projectName}
-  작성일: ${date}
-  문서 버전: v1.0
-  작성 도구: 위시켓 AI PRD Builder
-  기밀 등급: Confidential
+  // Create WBS
+  const wbs: PRDResult['wbs'] = [];
+  let currentWeek = 1;
 
+  // Phase 1: Planning & Design
+  wbs.push({
+    phase: '1. 기획 & 설계',
+    task: '요구사항 분석 & 상세 설계',
+    startWeek: currentWeek,
+    durationWeeks: 2,
+    md: 6,
+  });
+  currentWeek += 2;
 
-─── 1. 개요 ─────────────────────────────────────
+  // Phase 2: Design
+  wbs.push({
+    phase: '2. UI/UX 디자인',
+    task: '디자인 시안 & 디자인 시스템',
+    startWeek: currentWeek,
+    durationWeeks: 2,
+    md: 8,
+  });
+  currentWeek += 2;
 
-${generateOverview(rfpData, projectInfo)}
+  // Phase 3: Frontend Development
+  const frontendMD = Math.round(totalMD * 0.35);
+  const frontendDuration = Math.max(Math.round(avgWeeks * 0.4), 2);
+  wbs.push({
+    phase: '3. 프론트엔드 개발',
+    task: 'UI 구현 & API 연동',
+    startWeek: currentWeek,
+    durationWeeks: frontendDuration,
+    md: frontendMD,
+  });
+  currentWeek += frontendDuration;
 
-  [프로젝트 핵심 수치]
-  • 프로젝트 유형: ${projectInfo.type}
-  • 예상 기간: ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주
-  • 핵심 기능: ${features.length}개 (P0: ${featuresP0.length} / P1: ${featuresP1.length} / P2: ${featuresP2.length})
-  • 프로젝트 복잡도: ${complexityLevel} (${totalComplexity}/25점)
-  • 참고 평균 예산: ${projectInfo.avgBudget}
+  // Phase 4: Backend Development
+  const backendMD = Math.round(totalMD * 0.35);
+  const backendDuration = Math.max(Math.round(avgWeeks * 0.4), 2);
+  wbs.push({
+    phase: '4. 백엔드 개발',
+    task: 'API 개발 & DB 구축',
+    startWeek: currentWeek,
+    durationWeeks: backendDuration,
+    md: backendMD,
+  });
+  currentWeek += backendDuration;
 
+  // Phase 5: Integration & QA
+  wbs.push({
+    phase: '5. 통합 & QA',
+    task: '통합 테스트 & 버그 수정',
+    startWeek: currentWeek,
+    durationWeeks: 2,
+    md: 6,
+  });
+  currentWeek += 2;
 
-─── 2. 스코프 ───────────────────────────────────
+  // Phase 6: Deployment
+  wbs.push({
+    phase: '6. 배포 & 론칭',
+    task: '프로덕션 배포 & 모니터링',
+    startWeek: currentWeek,
+    durationWeeks: 1,
+    md: 3,
+  });
 
-${generateScope(rfpData, features, projectInfo)}
+  // Create risks
+  const risks: PRDResult['risks'] = projectInfo.keyRisks.map((r, i) => ({
+    category: i < 2 ? 'Technical' : 'Process',
+    description: r,
+    level: i < 2 ? 'red' : 'yellow',
+    mitigation: i < 2
+      ? '사전 일정 반영 + 대안 기술 검토'
+      : '주 1~2회 정기 미팅 + 마일스톤별 리뷰',
+  }));
 
+  // Add scope creep risk
+  risks.push({
+    category: 'Scope',
+    description: 'Requirements 변화 및 스코프 크리프',
+    level: 'red',
+    mitigation: 'MVP(P0) 우선 출시, 추가 기능은 2차 개발로 분리',
+  });
 
-─── 3. 작업 타입 ─────────────────────────────────
+  // Create 3-tier pricing
+  const economyRate = Math.round(totalMD * 4); // 4K per MD (budget)
+  const standardRate = Math.round(totalMD * 5.5); // 5.5K per MD (standard)
+  const premiumRate = Math.round(totalMD * 7); // 7K per MD (premium)
 
-${generateWorkType(rfpData)}
+  const pricing: PRDResult['pricing'] = {
+    economy: {
+      label: 'Economy',
+      mdRate: 4,
+      desc: '경제형 - 기본 기능 중심',
+      approach: '필수 기능(P0) 중심으로 빠른 출시',
+      techStack: [
+        projectInfo.commonStack.split('+')[0].trim(),
+        'PostgreSQL',
+        '기본 인프라',
+      ],
+      team: '개발자 1~2명 (풀스택)',
+      timeline: `${avgWeeks + 2}주`,
+      includes: [
+        'P0 필수 기능만 개발',
+        '기본 UI/UX',
+        '외부 서비스 1~2개 연동',
+        '기본 QA',
+      ],
+      excludes: [
+        'P1/P2 기능',
+        '고급 UI 애니메이션',
+        '다국어 지원',
+        '성능 최적화',
+      ],
+      bestFor: '초기 시장 검증, 최소 기능 출시',
+    },
+    standard: {
+      label: 'Standard',
+      mdRate: 5.5,
+      desc: '표준형 - 권장 옵션',
+      approach: 'P0 + P1 기능으로 완성도 있는 출시',
+      techStack: projectInfo.commonStack.split('+').map(s => s.trim()),
+      team: '개발자 2~3명 (프론트/백엔드 분리)',
+      timeline: `${avgWeeks + 1}주`,
+      includes: [
+        'P0 + P1 기능 개발',
+        '전문 UI/UX 디자인',
+        '외부 서비스 2~3개 연동',
+        '성능 테스트',
+        '배포 및 모니터링',
+      ],
+      excludes: [
+        'P2 기능',
+        'AI/ML 고도화',
+        '다국어 지원',
+        '엔터프라이즈 기능',
+      ],
+      bestFor: '일반적인 스타트업/중소기업 프로젝트',
+    },
+    premium: {
+      label: 'Premium',
+      mdRate: 7,
+      desc: '프리미엄 - 풀 스펙',
+      approach: '모든 기능 포함 + 품질 고도화',
+      techStack: [
+        ...projectInfo.commonStack.split('+').map(s => s.trim()),
+        'Redis',
+        'ElasticSearch',
+        '모니터링 솔루션',
+      ],
+      team: '개발자 3~4명 + 아키텍트 (전문화)',
+      timeline: `${avgWeeks}주`,
+      includes: [
+        'P0 + P1 + P2 전체 기능',
+        '고급 UI/UX + 애니메이션',
+        '모든 외부 서비스 연동',
+        'A/B 테스팅',
+        '성능 최적화 & 캐싱',
+        'CI/CD 파이프라인',
+        '보안 감시 및 로깅',
+      ],
+      excludes: [],
+      bestFor: '엔터프라이즈급 프로젝트, 고품질 요구 프로젝트',
+    },
+  };
 
+  // Create summary
+  const summary = `${rfpData.overview || '프로젝트'} - ${projectInfo.type} 프로젝트로 총 ${analyzedFeatures.length}개의 기능을 포함합니다. 예상 기간: ${avgWeeks}주, 예상 공수: ${totalMD}MD입니다.`;
 
-─── 4. 기능 목록 ─────────────────────────────────
+  // Create consultant opinion
+  const consultantOpinion = `이 프로젝트는 ${projectInfo.type} 프로젝트로 평가됩니다. 복잡도 ${totalComplexity >= 15 ? '높음' : totalComplexity >= 8 ? '중간~높음' : '중간'} 수준의 ${analyzedFeatures.length}개 기능을 포함하고 있습니다. 표준형(Standard) 3-tier 프리미엄 옵션을 추천하며, 이는 ${avgWeeks + 1}주의 개발 기간과 ${standardRate.toLocaleString()}만원대의 예산이 소요될 것으로 예상됩니다. 핵심은 P0 필수 기능부터 우선 구현하고, P1/P2 기능은 단계적으로 추가하는 것입니다.`;
 
-  총 ${features.length}개 기능 (P0 필수: ${featuresP0.length}개 / P1 우선: ${featuresP1.length}개 / P2 선택: ${featuresP2.length}개)
+  const result: PRDResult = {
+    projectName,
+    summary,
+    consultantOpinion,
+    totalWeeks: avgWeeks,
+    successRate,
+    totalMD,
+    pricing,
+    modules,
+    wbs,
+    risks,
+  };
 
-${generateFeatureTable(analyzedFeatures)}
-
-
-─── 5. 화면 및 사용자 흐름 ────────────────────────
-
-${generateFlowsAndScreens(features, rfpData)}
-
-
-─── 6. 비즈니스 규칙 ─────────────────────────────
-
-${generateBusinessRules(rfpData, features, projectInfo)}
-
-
-─── 7. 비기능 요구사항 ───────────────────────────
-
-${generateNFR(projectInfo)}
-
-
-─── 8. 일정 및 예산 ──────────────────────────────
-
-  ${budgetText ? `예산: ${budgetText}` : `예산 미정 — 개발사 견적 기반 결정`}
-
-  [AI 분석 기반 예상치]
-  • ${projectInfo.type} 평균 예산: ${projectInfo.avgBudget}
-  • ${projectInfo.type} 평균 기간: ${projectInfo.avgDuration}
-  • 이 프로젝트 예상: ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주 (기능 ${features.length}개, 복잡도 ${complexityLevel})
-
-  [마일스톤]
-
-| 단계 | 기간 | 산출물 | 결제 비율 |
-| --- | --- | --- | --- |
-| M1. 기획/설계 | 1~2주 | 와이어프레임, IA, DB 스키마 | 착수금 30% |
-| M2. UI/UX 디자인 | 2~3주 | 디자인 시안, 디자인 시스템 | - |
-| M3. 프론트엔드 개발 | ${Math.round(totalWeeksMin * 0.4)}~${Math.round(totalWeeksMax * 0.4)}주 | 화면 구현, API 연동 | 중도금 30% |
-| M4. 백엔드 개발 | ${Math.round(totalWeeksMin * 0.4)}~${Math.round(totalWeeksMax * 0.4)}주 | API, DB, 외부 연동 | - |
-| M5. 통합 테스트/QA | 1~2주 | 버그 리포트, 성능 테스트 | - |
-| M6. 배포/런칭 | 1주 | 라이브 서비스, 운영 문서 | 잔금 40% |
-
-
-─── 9. 참고 자료 ─────────────────────────────────
-
-${generateReferences(rfpData)}
-
-
-─── 10. 미결 사항 ────────────────────────────────
-
-${generateOpenItems(rfpData, features, projectInfo)}
-
-
-─── 11. 리스크 및 대응 ───────────────────────────
-
-| # | 리스크 | 발생확률 | 영향도 | 대응 방안 |
-| --- | --- | --- | --- | --- |
-${projectInfo.keyRisks.map((r, i) => `| ${i + 1} | ${r} | 중~높음 | 높음 | 사전 일정 반영 + 대안 기술 검토 |`).join('\n')}
-| ${projectInfo.keyRisks.length + 1} | 스코프 크리프 (요구사항 증가) | 높음 | 매우 높음 | MVP(P0) 우선 출시, 추가 기능은 2차 개발 |
-| ${projectInfo.keyRisks.length + 2} | 커뮤니케이션 단절 | 중간 | 높음 | 주 1~2회 정기 미팅, 마일스톤별 리뷰 |
-
-
-─── 12. 산출물 및 계약 조건 ──────────────────────
-
-  [필수 산출물]
-  • 소스코드 전체 (Git Repository)
-  • 기술 문서 (아키텍처, API 문서)
-  • DB 스키마 문서
-  • 배포 가이드
-  • 관리자 매뉴얼
-
-  [계약 필수 조건]
-  • 소스코드 소유권: 모든 소스코드의 저작재산권은 발주사에 귀속
-  • 하자보수: 납품일로부터 6개월간 무상 하자보수
-  • 추가 개발: 추가 기능 요청 시 개발자 1인/일 단가 기준 협의
-  • 보안/기밀: NDA(비밀유지계약) 별도 체결
-  • 커뮤니케이션: 주 1~2회 진행 보고서 + 격주 화상 미팅
-  • 프로젝트 관리: Jira/Notion 등 협업 도구 필수 사용
-  • 코드 관리: Git 기반 버전 관리, 코드 리뷰 프로세스 적용
-
-
-─── 다음 단계 안내 ──────────────────────────────
-
-  본 PRD는 위시켓 AI PRD Builder로 생성되었습니다.
-  이 문서를 개발사에 바로 전달하여 정확한 견적을 받아보세요.
-
-  위시켓 | wishket.com
-  13년간 7만+ IT 프로젝트 매칭, 국내 최대 IT 외주 플랫폼
-
-  [추천 진행 순서]
-  1단계: 위시켓에 프로젝트 등록 → 48시간 내 검증된 개발사 3~5곳 제안 수령
-  2단계: 개발사 포트폴리오 및 리뷰 확인 → 면접 2~3곳 선정
-  3단계: 이 PRD 기반 개발사 미팅 → 최종 선정 및 계약
-  4단계: 킥오프 미팅 → 상세 요구사항 확정 → 개발 착수`.trim();
+  return JSON.stringify(result);
 }
 
 // ═══════════════════════════════════════════
