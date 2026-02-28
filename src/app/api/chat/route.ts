@@ -1,8 +1,7 @@
-// AI RFP Builder — Chat API v2 (Dynamic Conversation)
-// Fallback 모드: 동적 맥락 기반 질문 생성
-// AI 모드: Claude Sonnet으로 맞춤형 질문 생성
+// AI RFP Builder — Chat API v3 (Hybrid: Fallback UI + AI Enhancement)
+// 항상 fallback 엔진으로 UI 구조(selectableFeatures, quickReplies 등) 생성
+// Claude AI는 메시지 텍스트만 강화 (전문가 인사이트, 맞춤 피드백)
 import { NextRequest, NextResponse } from 'next/server';
-import { SYSTEM_PROMPT } from '@/lib/prompts';
 import { generateFallbackResponse } from '@/lib/fallback';
 
 const HAS_API_KEY = !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'placeholder';
@@ -24,7 +23,7 @@ export async function POST(req: NextRequest) {
     // "바로 RFP 생성하기" 처리
     if (userText === '바로 RFP 생성하기') {
       return NextResponse.json({
-        message: '🎉 좋습니다! 지금까지 수집된 정보로 전문 RFP를 생성합니다.\n\n아래 버튼을 눌러 완성하세요!',
+        message: '🎉 좋습니다! 지금까지 수집된 정보로 전문 PRD 기획서를 생성합니다.\n\n아래 버튼을 눌러 완성하세요!',
         rfpUpdate: null,
         nextAction: 'complete',
         nextStep: null,
@@ -34,102 +33,67 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ━━ Fallback mode (no API key) — 동적 대화 엔진 ━━
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 1단계: 항상 fallback 엔진 실행 → UI 구조 확보
+    //   (selectableFeatures, quickReplies, inlineOptions,
+    //    thinkingLabel, rfpUpdate, nextStep 등)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const fallback = generateFallbackResponse(userText, currentStep, rfpData);
+
+    // API 키 없으면 fallback 그대로 반환
     if (!HAS_API_KEY) {
-      const fallback = generateFallbackResponse(userText, currentStep, rfpData);
       return NextResponse.json(fallback);
     }
 
-    // ━━ AI mode (with API key) — Claude Sonnet 동적 질문 ━━
-    const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const contextMessage = `
-현재 RFP 작성 상태:
-- 현재 토픽 단계: ${currentStep}
-- 수집된 정보: ${JSON.stringify(rfpData, null, 2)}
-
-사용자의 답변을 처리하고, 맥락에 맞는 다음 질문을 동적으로 생성하세요.
-이전 답변 내용을 참조하여 맞춤형 질문을 만드세요.
-`;
-
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT + '\n\n' + contextMessage,
-      messages: messages.map((m: { role: string; content: string }) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-    });
-
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      const fallback = generateFallbackResponse(userText, currentStep, rfpData);
-      return NextResponse.json(fallback);
-    }
-
-    let parsed;
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 2단계: Claude AI로 메시지 텍스트만 강화
+    //   UI 구조(selectableFeatures 등)는 fallback 것을 유지
+    //   Claude는 전문가 인사이트, 맞춤 피드백만 생성
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     try {
-      const jsonMatch = content.text.match(/```json\s*([\s\S]*?)\s*```/) ||
-                        content.text.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content.text;
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      parsed = {
-        message: content.text,
-        rfp_update: null,
-        next_action: 'continue',
-        next_step: currentStep + 1,
-      };
-    }
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // 디버그: Claude 응답 구조 로깅
-    if (parsed.rfp_update?.section === 'coreFeatures') {
-      console.log('[DEBUG] coreFeatures raw value type:', typeof parsed.rfp_update.value, JSON.stringify(parsed.rfp_update.value).slice(0, 500));
-    }
+      const enhancePrompt = `당신은 위시켓 13년 경험의 IT 외주 컨설턴트입니다.
 
-    // rfp_update의 coreFeatures가 항상 배열인지 서버에서 정규화
-    let rfpUpdate = parsed.rfp_update;
-    if (rfpUpdate && rfpUpdate.section === 'coreFeatures' && rfpUpdate.value !== undefined) {
-      if (!Array.isArray(rfpUpdate.value)) {
-        if (typeof rfpUpdate.value === 'string') {
-          try { rfpUpdate = { ...rfpUpdate, value: JSON.parse(rfpUpdate.value) }; } catch { rfpUpdate = { ...rfpUpdate, value: [] }; }
-        } else if (typeof rfpUpdate.value === 'object' && rfpUpdate.value !== null) {
-          // 단일 객체면 배열로 감싸기
-          rfpUpdate = { ...rfpUpdate, value: [rfpUpdate.value] };
-        } else {
-          rfpUpdate = { ...rfpUpdate, value: [] };
-        }
+사용자의 답변에 대해 짧고 전문적인 피드백을 한국어로 작성하세요.
+
+규칙:
+1. 존댓말 사용 (절대 반말 금지)
+2. 첫 줄: 사용자 답변에 대한 짧은 긍정 피드백 (1문장)
+3. 💡 전문가 인사이트: 실제 위시켓 프로젝트 데이터 기반 조언 (2-3문장)
+4. 다음 질문은 시스템이 자동 생성하므로, 질문을 하지 마세요
+5. 총 4-5문장 이내로 간결하게
+
+사용자 답변: "${userText}"
+현재까지 수집된 정보: ${JSON.stringify(rfpData, null, 2)}
+현재 토픽: ${currentStep}`;
+
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: enhancePrompt }],
+      });
+
+      const content = response.content[0];
+      if (content.type === 'text' && content.text.trim().length > 20) {
+        // Claude의 전문가 피드백 + fallback의 질문을 합침
+        const aiInsight = content.text.trim();
+
+        // fallback 메시지에서 질문 부분만 추출 (마지막 질문)
+        const fallbackMsg = fallback.message || '';
+        const questionMatch = fallbackMsg.match(/(?:다음 질문입니다\.|이제[^.]*질문[^.]*\.|각 기능[^.]*\.)[\s\S]*/);
+        const questionPart = questionMatch ? '\n\n' + questionMatch[0] : '';
+
+        // AI 인사이트 + fallback 질문 결합
+        fallback.message = aiInsight + questionPart;
       }
-      // 배열 내 각 항목에 필수 필드 보장 (문자열/객체 모두 처리)
-      if (Array.isArray(rfpUpdate.value)) {
-        rfpUpdate.value = rfpUpdate.value.map((f: unknown) => {
-          if (typeof f === 'string') {
-            return { name: f, description: '', priority: 'P1' };
-          }
-          if (typeof f === 'object' && f !== null) {
-            const obj = f as Record<string, unknown>;
-            return {
-              name: obj.name || obj.feature || obj.title || obj.기능명 || obj.기능 || '기능',
-              description: obj.description || obj.desc || obj.설명 || '',
-              priority: obj.priority || 'P1',
-            };
-          }
-          return { name: '기능', description: '', priority: 'P1' };
-        });
-      }
+    } catch (aiError) {
+      console.error('AI enhancement error (using fallback message):', aiError);
+      // AI 실패해도 fallback 메시지 유지
     }
 
-    return NextResponse.json({
-      message: parsed.message,
-      rfpUpdate,
-      nextAction: parsed.next_action,
-      nextStep: parsed.next_step,
-      topicsCovered: parsed.topics_covered || [],
-      progress: parsed.progress || 0,
-      canComplete: parsed.can_complete || false,
-    });
+    return NextResponse.json(fallback);
 
   } catch (error) {
     console.error('Chat API error:', error);
