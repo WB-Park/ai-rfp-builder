@@ -1,7 +1,7 @@
 'use client';
 
 // PRD 화면 2: RFP 작성 (Split View)
-// AIDP B2C DNA — Glassmorphism header, chat bubbles, micro-interactions
+// AIDP B2C DNA — Glassmorphism header, chat bubbles, quick reply chips, markdown
 // + 세션 데이터 Supabase 실시간 저장
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -18,6 +18,15 @@ interface ChatInterfaceProps {
   sessionId?: string;
 }
 
+// 간단한 마크다운 → HTML 변환 (bold, newline, hr)
+function renderMarkdown(text: string) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border-default);margin:12px 0;"/>')
+    .replace(/💡/g, '<span style="display:inline-block;margin-right:4px">💡</span>')
+    .replace(/\n/g, '<br/>');
+}
+
 export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -30,6 +39,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [rfpData, setRfpData] = useState<RFPData>(emptyRFPData);
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -62,14 +72,13 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     }
   }, [sessionId]);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMessage = input.trim();
-    setInput('');
+  const sendMessage = async (userMessage: string) => {
+    if (!userMessage.trim() || loading) return;
 
     const newMessages = [...messages, { role: 'user' as const, content: userMessage }];
     setMessages(newMessages);
     setLoading(true);
+    setQuickReplies([]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -120,6 +129,11 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       const finalMessages = [...newMessages, { role: 'assistant' as const, content: data.message }];
       setMessages(finalMessages);
 
+      // 빠른 응답 칩 설정
+      if (data.quickReplies && data.quickReplies.length > 0) {
+        setQuickReplies(data.quickReplies);
+      }
+
       // Supabase에 세션 데이터 저장 (non-blocking)
       saveSession(updatedRfpData, finalMessages, updatedStep, completed);
 
@@ -134,10 +148,22 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     }
   };
 
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+    const msg = input.trim();
+    setInput('');
+    await sendMessage(msg);
+  };
+
+  const handleQuickReply = async (text: string) => {
+    if (loading) return;
+    setInput('');
+    await sendMessage(text);
+  };
+
   const handleSkip = () => {
     if (REQUIRED_STEPS.includes(currentStep as 1 | 3)) return;
-    setInput('건너뛰기');
-    setTimeout(() => handleSend(), 0);
+    sendMessage('건너뛰기');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -225,7 +251,14 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 </div>
               )}
               <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
-                <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+                {msg.role === 'assistant' ? (
+                  <div
+                    style={{ margin: 0, lineHeight: 1.6 }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                  />
+                ) : (
+                  <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+                )}
               </div>
             </div>
           ))}
@@ -254,6 +287,48 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Quick Reply Chips */}
+        {quickReplies.length > 0 && !loading && !isComplete && (
+          <div style={{
+            padding: '8px 24px',
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            borderTop: '1px solid var(--border-default)',
+            background: 'var(--surface-1)',
+          }}>
+            {quickReplies.map((reply, i) => (
+              <button
+                key={i}
+                onClick={() => handleQuickReply(reply)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  border: '1.5px solid var(--color-primary)',
+                  background: 'var(--surface-0)',
+                  color: 'var(--color-primary)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontFamily: 'var(--font-kr)',
+                  cursor: 'pointer',
+                  transition: 'all var(--duration-fast) var(--ease-out)',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--color-primary)';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--surface-0)';
+                  e.currentTarget.style.color = 'var(--color-primary)';
+                }}
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Input Area */}
         <div style={{
@@ -407,13 +482,15 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
                       {rfpData.coreFeatures.map((f, i) => (
                         <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 'var(--space-md)',
+                          display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)',
                           padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
                         }}>
-                          <span className={`chip-${f.priority.toLowerCase()}`}>{f.priority}</span>
+                          <span className={`chip-${f.priority.toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority}</span>
                           <div style={{ flex: 1 }}>
-                            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{f.name}</span>
-                            <span style={{ color: 'var(--text-tertiary)', fontSize: 13, marginLeft: 8 }}>{f.description}</span>
+                            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', display: 'block' }}>{f.name}</span>
+                            {f.description && f.description !== f.name && (
+                              <span style={{ color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5, display: 'block', marginTop: 4 }}>{f.description}</span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -471,6 +548,8 @@ function RFPSection({ number, title, content }: { number: number; title: string;
         color: 'var(--text-secondary)',
         marginTop: 'var(--space-sm)',
         paddingLeft: 'calc(24px + var(--space-sm))',
+        whiteSpace: 'pre-wrap',
+        lineHeight: 1.6,
       }}>
         {content}
       </p>
