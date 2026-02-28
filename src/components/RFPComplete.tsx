@@ -40,22 +40,35 @@ interface RFPSection {
 }
 
 const SECTION_ICONS: Record<string, { icon: string; color: string; bg: string }> = {
+  '한 줄 요약': { icon: '📌', color: C.blue, bg: C.blueBg },
+  '개요': { icon: '🎯', color: C.blue, bg: C.blueBg },
+  '스코프': { icon: '📐', color: C.purple, bg: C.purpleBg },
+  '작업 타입': { icon: '🔧', color: C.orange, bg: C.orangeBg },
+  '기능 목록': { icon: '⚙️', color: C.green, bg: C.greenBg },
+  '기능 요구': { icon: '⚙️', color: C.green, bg: C.greenBg },
+  '화면': { icon: '📱', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.08)' },
+  '사용자 흐름': { icon: '📱', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.08)' },
+  '비즈니스 규칙': { icon: '📋', color: C.purple, bg: C.purpleBg },
+  '비기능': { icon: '💻', color: C.blue, bg: C.blueBg },
+  '일정': { icon: '📅', color: C.orange, bg: C.orangeBg },
+  '예산': { icon: '💰', color: C.green, bg: C.greenBg },
+  '참고 자료': { icon: '🔍', color: C.orange, bg: C.orangeBg },
+  '참고 서비스': { icon: '🔍', color: C.orange, bg: C.orangeBg },
+  '미결': { icon: '❓', color: C.red, bg: C.redBg },
+  '리스크': { icon: '⚠️', color: C.red, bg: C.redBg },
+  '산출물': { icon: '✅', color: C.green, bg: C.greenBg },
+  '계약': { icon: '✅', color: C.green, bg: C.greenBg },
+  '다음 단계': { icon: '🚀', color: C.blue, bg: C.blueBg },
   'executive': { icon: '📊', color: C.blue, bg: C.blueBg },
   '프로젝트 개요': { icon: '🎯', color: C.blue, bg: C.blueBg },
   '서비스 대상': { icon: '👥', color: C.purple, bg: C.purpleBg },
-  '기능 요구': { icon: '⚙️', color: C.green, bg: C.greenBg },
-  '참고 서비스': { icon: '🔍', color: C.orange, bg: C.orangeBg },
   '기술 요구': { icon: '💻', color: C.purple, bg: C.purpleBg },
   '디자인': { icon: '🎨', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.08)' },
-  '일정': { icon: '📅', color: C.orange, bg: C.orangeBg },
-  '예산': { icon: '💰', color: C.green, bg: C.greenBg },
   '기타': { icon: '📋', color: C.textSecondary, bg: 'rgba(100, 116, 139, 0.08)' },
   'AI 전문가': { icon: '🤖', color: C.blue, bg: C.blueBg },
   'MVP': { icon: '🚀', color: C.green, bg: C.greenBg },
   '예산 최적화': { icon: '💡', color: C.orange, bg: C.orangeBg },
-  '리스크': { icon: '⚠️', color: C.red, bg: C.redBg },
   '개발사 선정': { icon: '🏢', color: C.purple, bg: C.purpleBg },
-  '계약': { icon: '✅', color: C.green, bg: C.greenBg },
 };
 
 function getSectionMeta(title: string): { icon: string; color: string; bg: string } {
@@ -138,7 +151,7 @@ function parseRFPSections(text: string): RFPSection[] {
   if (headerContent.trim() && sections.length > 0) {
     sections.unshift({
       id: 'section-header',
-      title: '소프트웨어 개발 제안요청서 (RFP)',
+      title: '소프트웨어 개발 PRD (Product Requirements Document)',
       content: headerContent.trim(),
       icon: '📋',
       color: C.blue,
@@ -160,22 +173,123 @@ interface MetricCard {
 function extractMetrics(text: string): MetricCard[] {
   const metrics: MetricCard[] = [];
 
-  const budgetMatch = text.match(/평균 예산[:\s]*([^\n]+)/);
-  if (budgetMatch) metrics.push({ label: '평균 예산', value: budgetMatch[1].trim(), icon: '💰', color: C.green });
-
-  const durationMatch = text.match(/(?:평균 기간|예상 기간)[:\s]*([^\n,]+)/);
+  const durationMatch = text.match(/예상 기간[:\s]*([^\n,]+)/);
   if (durationMatch) metrics.push({ label: '예상 기간', value: durationMatch[1].trim(), icon: '📅', color: C.orange });
 
-  const featureMatch = text.match(/총\s*(\d+)\s*개\s*기능/);
+  const featureMatch = text.match(/핵심 기능[:\s]*(\d+)개/);
   if (featureMatch) metrics.push({ label: '기능 수', value: `${featureMatch[1]}개`, icon: '⚙️', color: C.purple });
 
   const complexityMatch = text.match(/복잡도[:\s]*(.*?)[\s(]/);
   if (complexityMatch) metrics.push({ label: '복잡도', value: complexityMatch[1].trim().replace(/['"]/g, ''), icon: '📊', color: C.blue });
 
-  const successMatch = text.match(/성공률[:\s]*([^\n]+)/);
-  if (successMatch) metrics.push({ label: '성공률', value: successMatch[1].trim(), icon: '✅', color: C.green });
+  const budgetMatch = text.match(/참고 평균 예산[:\s]*([^\n]+)/);
+  if (budgetMatch) metrics.push({ label: '평균 예산', value: budgetMatch[1].trim(), icon: '💰', color: C.green });
 
   return metrics.slice(0, 4);
+}
+
+// ━━━━━ Content Renderer (Tables + Flows + Text) ━━━━━
+function renderSectionContent(content: string): React.ReactNode {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Detect table block: consecutive lines starting with |
+    if (line.trim().startsWith('|') && line.trim().includes('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+
+      // Parse table
+      const rows = tableLines
+        .filter(l => !l.trim().match(/^\|[\s-|]+\|$/)) // skip separator rows
+        .map(l => l.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(cell => cell.trim()));
+
+      if (rows.length > 0) {
+        const headerRow = rows[0];
+        const dataRows = rows.slice(1);
+
+        elements.push(
+          <div key={key++} style={{ overflowX: 'auto', margin: '12px 0' }}>
+            <table style={{
+              width: '100%', borderCollapse: 'collapse', fontSize: 13,
+              border: `1px solid ${C.border}`, borderRadius: 8,
+            }}>
+              <thead>
+                <tr style={{ background: C.bg }}>
+                  {headerRow.map((cell, ci) => (
+                    <th key={ci} style={{
+                      padding: '10px 12px', textAlign: 'left', fontWeight: 600,
+                      color: C.textPrimary, borderBottom: `2px solid ${C.border}`,
+                      fontSize: 12, whiteSpace: 'nowrap',
+                    }}>{cell}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dataRows.map((row, ri) => (
+                  <tr key={ri} style={{ background: ri % 2 === 0 ? C.white : C.bg }}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} style={{
+                        padding: '9px 12px', borderBottom: `1px solid ${C.border}`,
+                        color: cell === '✓' ? C.green : cell === '✗' ? C.red : cell === '△' ? C.orange : C.textSecondary,
+                        fontWeight: cell === '✓' || cell === '✗' || cell === '△' ? 600 : 400,
+                        fontSize: 13, lineHeight: 1.5,
+                      }}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      continue;
+    }
+
+    // Detect flow diagram block: lines with → ├─ └─
+    if (line.match(/[→├└│✓✗\[\]]/) && (line.includes('→') || line.includes('├') || line.includes('└'))) {
+      const flowLines: string[] = [];
+      while (i < lines.length && (lines[i].match(/[→├└│✓✗\[\]]/) || lines[i].trim() === '')) {
+        flowLines.push(lines[i]);
+        i++;
+        // Stop if we hit an empty line after content
+        if (lines[i - 1].trim() === '' && flowLines.filter(l => l.trim()).length > 1) {
+          // Check if next line continues the flow
+          if (i < lines.length && !lines[i].match(/[→├└│✓✗\[\]]/)) break;
+        }
+      }
+
+      if (flowLines.filter(l => l.trim()).length > 0) {
+        elements.push(
+          <pre key={key++} style={{
+            margin: '12px 0', padding: '16px', borderRadius: 10,
+            background: '#F1F5F9', border: `1px solid ${C.border}`,
+            fontSize: 12, lineHeight: 1.7, overflowX: 'auto',
+            fontFamily: "'SF Mono', 'Fira Code', Menlo, monospace",
+            color: C.textPrimary, whiteSpace: 'pre',
+          }}>
+            {flowLines.join('\n')}
+          </pre>
+        );
+      }
+      continue;
+    }
+
+    // Regular text line
+    elements.push(
+      <span key={key++} style={{ display: 'block' }}>{line}</span>
+    );
+    i++;
+  }
+
+  return <>{elements}</>;
 }
 
 type Phase = 'generating' | 'result' | 'consultation' | 'done';
@@ -345,7 +459,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `AI_RFP_기획서_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `AI_PRD_기획서_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -365,7 +479,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
   // ━━━━━ Phase: Generating ━━━━━
   if (phase === 'generating') {
-    const steps = ['프로젝트 분석', '시장 데이터 조회', '기능 분석', '리스크 평가', 'RFP 생성'];
+    const steps = ['프로젝트 분석', '시장 데이터 조회', '기능 상세 분석', '화면/흐름 설계', 'PRD 생성'];
     const activeStep = Math.min(Math.floor(genProgress / 20), 4);
 
     return (
@@ -384,7 +498,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           </div>
 
           <h2 style={{ fontSize: 24, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>
-            AI가 전문 RFP를 작성하고 있습니다
+            AI가 전문 PRD를 작성하고 있습니다
           </h2>
           <p style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.6, marginBottom: 32 }}>
             위시켓 13년 외주 데이터를 기반으로 분석 중입니다
@@ -510,9 +624,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
           }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.blue, letterSpacing: 1 }}>WISHKET AI RFP BUILDER</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.blue, letterSpacing: 1 }}>WISHKET AI PRD BUILDER</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.textPrimary, marginTop: 2 }}>
-                RFP 기획서 완성
+                PRD 기획서 완성
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -556,7 +670,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
               <span style={{ fontSize: 13, color: '#15803D', fontWeight: 500 }}>
-                RFP 기획서가 <strong>{email}</strong>로 발송되었습니다
+                PRD 기획서가 <strong>{email}</strong>로 발송되었습니다
               </span>
             </div>
           )}
@@ -631,7 +745,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                   fontSize: 14, lineHeight: 1.85, color: C.textSecondary,
                   whiteSpace: 'pre-wrap', wordBreak: 'keep-all',
                 }}>
-                  {section.content}
+                  {renderSectionContent(section.content)}
                 </div>
               </div>
             ))}
@@ -644,7 +758,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             border: `1px solid rgba(37, 99, 235, 0.1)`,
           }}>
             <p style={{ fontSize: 12, color: C.blue, fontWeight: 500 }}>
-              위시켓 AI RFP Builder · 13년 외주 경험 기반 · 7만+ 프로젝트 매칭 데이터
+              위시켓 AI PRD Builder · 13년 외주 경험 기반 · 7만+ 프로젝트 매칭 데이터
             </p>
           </div>
 
@@ -658,11 +772,11 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: 20 }}>📩</span>
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: C.white, margin: 0 }}>
-                  기획서를 이메일로 받아보세요
+                  PRD를 이메일로 받아보세요
                 </h3>
               </div>
               <p style={{ fontSize: 14, color: C.blueSoft, lineHeight: 1.5, marginBottom: 16 }}>
-                완성된 RFP를 정리하여 이메일로 보내드립니다. 개발사에 바로 전달할 수 있어요.
+                완성된 PRD를 이메일로 보내드립니다. 개발사에 바로 전달할 수 있어요.
               </p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
@@ -699,7 +813,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
               <span style={{ fontSize: 13, color: '#15803D', fontWeight: 500 }}>
-                RFP 기획서가 <strong>{guestEmail}</strong>로 발송되었습니다
+                PRD 기획서가 <strong>{guestEmail}</strong>로 발송되었습니다
               </span>
             </div>
           )}
@@ -799,7 +913,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                 </div>
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>무료 상담신청</h3>
                 <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 16 }}>
-                  이 RFP를 위시켓 전문가와 함께 검토하고, 최적의 진행 방안을 상담받으세요.
+                  이 PRD를 위시켓 전문가와 함께 검토하고, 최적의 진행 방안을 상담받으세요.
                 </p>
 
                 {phase === 'consultation' ? (

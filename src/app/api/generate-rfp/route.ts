@@ -1,6 +1,6 @@
-// AI RFP Builder — RFP Document Generation v6 (FORGE 20 Iteration)
-// 결과물 = 외주 컨설팅펌 시니어 PM이 작성한 수준
-// Fallback도 WOW 수준이어야 함
+// AI RFP Builder — PRD Generation v7 (CEO PRD Standard)
+// 결과물 = 개발사가 바로 WBS 작성 가능한 수준의 PRD
+// Minimum 5 pages, 실제 외주 개발 가능한 PRD 수준
 
 import { NextRequest, NextResponse } from 'next/server';
 import { RFP_GENERATION_PROMPT } from '@/lib/prompts';
@@ -12,7 +12,7 @@ const HAS_API_KEY =
   process.env.ANTHROPIC_API_KEY !== 'placeholder';
 
 // ═══════════════════════════════════════════
-// 프로젝트 유형 + 시장 인텔리전스
+// 프로젝트 유형 DB
 // ═══════════════════════════════════════════
 
 interface ProjectTypeInfo {
@@ -24,6 +24,7 @@ interface ProjectTypeInfo {
   keyRisks: string[];
   mustHaveFeatures: string[];
   marketInsight: string;
+  commonIntegrations: string[];
 }
 
 const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
@@ -32,50 +33,55 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     avgBudget: '2,000~5,000만원 (MVP 기준)',
     avgDuration: '8~14주',
     successRate: '위시켓 기준 1차 출시 성공률 78%',
-    commonStack: 'Flutter/React Native(크로스플랫폼) 또는 Swift(iOS)+Kotlin(Android)',
+    commonStack: 'Flutter/React Native + NestJS + PostgreSQL',
     keyRisks: ['앱스토어 심사 리젝(평균 1~3회)', '크로스플랫폼 네이티브 기능 호환성', '푸시알림 설정 복잡도'],
-    mustHaveFeatures: ['사용자 인증(소셜 로그인)', '푸시 알림', '앱 업데이트 관리'],
-    marketInsight: '2025년 국내 모바일 앱 시장에서 크로스플랫폼(Flutter) 채택률이 60% 이상으로, 네이티브 대비 30~40% 비용 절감이 가능합니다.',
+    mustHaveFeatures: ['사용자 인증(소셜 로그인)', '푸시 알림', '앱 업데이트 관리', '오프라인 모드 기본 대응'],
+    marketInsight: '2025년 국내 모바일 앱 시장에서 크로스플랫폼(Flutter) 채택률 60% 이상',
+    commonIntegrations: ['Firebase(FCM)', 'Kakao SDK', 'Google OAuth', 'Apple Sign-In'],
   },
   '웹 서비스': {
     type: '웹 서비스',
     avgBudget: '1,500~4,000만원 (MVP 기준)',
     avgDuration: '6~10주',
     successRate: '위시켓 기준 1차 출시 성공률 85%',
-    commonStack: 'Next.js(프론트) + Node.js/NestJS(백엔드) + PostgreSQL',
+    commonStack: 'Next.js + NestJS + PostgreSQL',
     keyRisks: ['브라우저 호환성(IE 지원 범위 확인)', '모바일 반응형 미흡', 'SEO 최적화 누락'],
-    mustHaveFeatures: ['반응형 웹 디자인', 'SEO 기본 설정', 'SSL 인증서'],
-    marketInsight: 'Next.js가 웹 서비스 프레임워크 시장 점유율 1위(2025)로, SSR/SSG를 통한 SEO 최적화와 빠른 로딩 속도가 강점입니다.',
+    mustHaveFeatures: ['반응형 웹 디자인', 'SEO 기본 설정', 'SSL 인증서', 'Google Analytics'],
+    marketInsight: 'Next.js가 웹 서비스 프레임워크 시장 점유율 1위(2025)',
+    commonIntegrations: ['Google Analytics', 'Sentry', 'SendGrid/Mailgun'],
   },
   '이커머스 플랫폼': {
     type: '이커머스 플랫폼',
     avgBudget: '3,000~8,000만원',
     avgDuration: '12~20주',
     successRate: '위시켓 기준 1차 출시 성공률 72%',
-    commonStack: 'Next.js + NestJS + PostgreSQL + Redis + 토스페이먼츠/이니시스',
+    commonStack: 'Next.js + NestJS + PostgreSQL + Redis + 토스페이먼츠',
     keyRisks: ['PG 연동 인증(2~3주 별도 소요)', '재고 관리 시스템 복잡도', '개인정보보호법/전자상거래법 준수'],
-    mustHaveFeatures: ['PG 결제(카드/계좌이체/간편결제)', '주문/배송 관리', '상품 관리(카테고리/검색/필터)', '회원 등급/포인트'],
-    marketInsight: '국내 이커머스는 간편결제(카카오페이, 네이버페이) 미지원 시 결제 전환율이 40% 이상 하락합니다. 반드시 포함하세요.',
+    mustHaveFeatures: ['PG 결제(카드/간편결제)', '주문/배송 관리', '상품 관리', '회원 등급/포인트'],
+    marketInsight: '간편결제(카카오페이, 네이버페이) 미지원 시 결제 전환율 40% 이상 하락',
+    commonIntegrations: ['토스페이먼츠', '카카오페이', '네이버페이', 'CJ대한통운 API', 'AWS S3'],
   },
   '플랫폼': {
     type: '플랫폼 서비스',
     avgBudget: '5,000만~1.5억원',
     avgDuration: '14~24주',
     successRate: '위시켓 기준 1차 출시 성공률 68%',
-    commonStack: 'Next.js + NestJS + PostgreSQL + Redis + ElasticSearch + AWS',
-    keyRisks: ['양면 시장(공급-수요) 콜드스타트', '검색/매칭 알고리즘 정확도', '수수료 모델 설계'],
-    mustHaveFeatures: ['공급자/수요자 이중 회원 체계', '검색/필터/매칭', '리뷰/평점 시스템', '대시보드(양측)'],
-    marketInsight: '플랫폼은 "닭과 달걀" 문제가 가장 큰 리스크입니다. MVP에서는 공급자 측을 먼저 확보하고, 수동 매칭으로 시작하는 전략이 유효합니다.',
+    commonStack: 'Next.js + NestJS + PostgreSQL + Redis + ElasticSearch',
+    keyRisks: ['양면 시장 콜드스타트', '검색/매칭 알고리즘 정확도', '수수료 모델 설계'],
+    mustHaveFeatures: ['공급자/수요자 이중 회원 체계', '검색/매칭', '리뷰/평점', '대시보드'],
+    marketInsight: 'MVP에서는 공급자 측을 먼저 확보하고, 수동 매칭으로 시작하는 전략이 유효',
+    commonIntegrations: ['ElasticSearch', 'Redis', 'SendBird/채팅 SDK', '토스페이먼츠'],
   },
   'SaaS': {
     type: 'SaaS 서비스',
     avgBudget: '3,000~8,000만원',
     avgDuration: '10~16주',
     successRate: '위시켓 기준 1차 출시 성공률 75%',
-    commonStack: 'React/Next.js + Python(Django/FastAPI) + PostgreSQL + Stripe/토스',
+    commonStack: 'React/Next.js + Python(FastAPI) + PostgreSQL + Stripe',
     keyRisks: ['구독 결제 시스템 복잡도', '멀티테넌시 아키텍처', 'API 설계/문서화'],
     mustHaveFeatures: ['구독 관리(플랜/과금/해지)', '대시보드/리포트', '팀 관리(권한)', 'API 연동'],
-    marketInsight: 'SaaS는 무료 체험 → 유료 전환이 핵심입니다. 온보딩 UX에 전체 예산의 15%를 투자하는 것이 LTV 극대화에 효과적입니다.',
+    marketInsight: '무료 체험 → 유료 전환이 핵심. 온보딩 UX에 전체 예산의 15% 투자 권장',
+    commonIntegrations: ['Stripe/토스', 'Intercom', 'Slack Webhook', 'REST API'],
   },
   '매칭 플랫폼': {
     type: '매칭 플랫폼',
@@ -84,8 +90,9 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     successRate: '위시켓 기준 1차 출시 성공률 65%',
     commonStack: 'Next.js + NestJS + PostgreSQL + Redis + ElasticSearch',
     keyRisks: ['매칭 알고리즘 정확도', '양면 시장 부트스트래핑', '분쟁 해결 프로세스'],
-    mustHaveFeatures: ['프로필/포트폴리오', '검색/필터/매칭', '실시간 채팅', '리뷰/평점', '결제/정산'],
-    marketInsight: '매칭 플랫폼 MVP는 "수동 매칭 + 자동화 UI"로 시작하세요. 알고리즘은 데이터 축적 후 고도화하는 것이 효율적입니다.',
+    mustHaveFeatures: ['프로필/포트폴리오', '검색/매칭', '실시간 채팅', '리뷰/평점', '결제/정산'],
+    marketInsight: 'MVP는 수동 매칭 + 자동화 UI로 시작. 알고리즘은 데이터 축적 후 고도화',
+    commonIntegrations: ['ElasticSearch', 'SendBird', '토스페이먼츠', 'Firebase FCM'],
   },
 };
 
@@ -94,8 +101,8 @@ function getProjectTypeInfo(overview: string): ProjectTypeInfo {
   const mapping: [string, string][] = [
     ['앱', '모바일 앱'], ['어플', '모바일 앱'], ['모바일', '모바일 앱'],
     ['쇼핑몰', '이커머스 플랫폼'], ['커머스', '이커머스 플랫폼'], ['쇼핑', '이커머스 플랫폼'],
-    ['플랫폼', '플랫폼'], ['마켓', '플랫폼'], ['중개', '매칭 플랫폼'],
-    ['매칭', '매칭 플랫폼'], ['연결', '매칭 플랫폼'],
+    ['매칭', '매칭 플랫폼'], ['연결', '매칭 플랫폼'], ['중개', '매칭 플랫폼'],
+    ['플랫폼', '플랫폼'], ['마켓', '플랫폼'],
     ['saas', 'SaaS'], ['구독', 'SaaS'], ['b2b', 'SaaS'],
     ['웹', '웹 서비스'], ['사이트', '웹 서비스'], ['홈페이지', '웹 서비스'],
   ];
@@ -106,80 +113,342 @@ function getProjectTypeInfo(overview: string): ProjectTypeInfo {
 }
 
 // ═══════════════════════════════════════════
-// 기능별 상세 분석 엔진
+// Feature Analysis DB
 // ═══════════════════════════════════════════
 
 interface FeatureAnalysis {
   name: string;
   description: string;
   priority: string;
-  complexity: number; // 1-5
+  complexity: number;
   estimatedWeeks: string;
   subFeatures: string[];
-  considerations: string[];
   acceptanceCriteria: string[];
 }
 
-const FEATURE_DB: Record<string, Partial<FeatureAnalysis>> = {
+interface FeatureBlueprintData {
+  complexity: number;
+  estimatedWeeks: string;
+  subFeatures: string[];
+  acceptanceCriteria: string[];
+  flowDiagram: string;
+  screenSpecs: { id: string; name: string; purpose: string; elements: string[]; scenarios: string[][] }[];
+  businessRules: string[];
+  dataEntities: { name: string; fields: string }[];
+  errorCases: string[];
+}
+
+const FEATURE_DB: Record<string, FeatureBlueprintData> = {
   '로그인': {
     complexity: 2, estimatedWeeks: '1~2주',
-    subFeatures: ['이메일/비밀번호 인증', '소셜 로그인(카카오/구글/애플)', '자동 로그인(토큰 관리)', '비밀번호 찾기/재설정'],
-    considerations: ['소셜 로그인 API 키 발급(각 플랫폼별 3~5일)', 'JWT vs Session 기반 인증 결정', '개인정보 수집 동의 UI 필수'],
-    acceptanceCriteria: ['3가지 이상 소셜 로그인 동작', '토큰 만료 시 자동 갱신', '비밀번호 재설정 이메일 발송 확인'],
+    subFeatures: ['이메일/비밀번호 인증', '소셜 로그인(카카오/구글/애플)', '자동 로그인(토큰)', '비밀번호 찾기/재설정'],
+    acceptanceCriteria: ['소셜 로그인 3종(카카오/구글/애플) 정상 동작', '토큰 만료 시 자동 갱신(Refresh Token)', '비밀번호 재설정 이메일 5분 이내 발송', '로그인 실패 5회 시 계정 잠금(30분)'],
+    flowDiagram: `[앱 진입] → [로그인 상태 확인]
+  ├─ 로그인됨 → [홈 화면]
+  └─ 비로그인 → [로그인 화면]
+      ├─ [이메일 로그인] → 이메일/비번 입력 → 인증 요청
+      │   ├─ ✓ 성공 → JWT 발급 → [홈 화면]
+      │   └─ ✗ 실패 → 에러 메시지 → [재시도 / 비번 찾기]
+      ├─ [소셜 로그인] → OAuth 팝업 → 인증
+      │   ├─ ✓ 기존 회원 → JWT 발급 → [홈 화면]
+      │   ├─ ✓ 신규 회원 → [추가 정보 입력] → [홈 화면]
+      │   └─ ✗ 인증 취소 → [로그인 화면]
+      └─ [회원가입] → 정보 입력 → 약관 동의 → 인증메일 발송
+          ├─ ✓ 인증 완료 → [프로필 설정] → [홈 화면]
+          └─ ✗ 미인증 → 재발송 안내`,
+    screenSpecs: [
+      {
+        id: 'SCR-AUTH-001', name: '로그인', purpose: '기존 사용자 서비스 인증',
+        elements: ['이메일 입력 필드', '비밀번호 입력 필드 (마스킹 토글)', '로그인 버튼 (이메일+비번 입력 시 활성화)', '소셜 로그인 버튼 3종', '"비밀번호 찾기" 링크', '"회원가입" 링크'],
+        scenarios: [
+          ['정상 로그인', '유효한 계정', '이메일/비번 입력 → 로그인 탭', 'JWT 발급, 홈 이동', '✓'],
+          ['비밀번호 오류', '이메일 유효', '잘못된 비번 입력', '"비밀번호가 올바르지 않습니다" 표시', '✗'],
+          ['미가입 이메일', '계정 미존재', '이메일/비번 입력', '"등록되지 않은 이메일입니다" 표시', '✗'],
+          ['소셜 로그인', '카카오 계정 보유', '카카오 로그인 탭', 'OAuth → JWT 발급 → 홈 이동', '✓'],
+          ['5회 실패', '5회 연속 오류', '로그인 시도', '"계정이 잠겼습니다. 30분 후 재시도" 표시', '✗'],
+        ],
+      },
+      {
+        id: 'SCR-AUTH-002', name: '회원가입', purpose: '신규 사용자 계정 생성',
+        elements: ['이메일 입력 (중복 실시간 검증)', '비밀번호 입력 (강도 표시)', '비밀번호 확인', '이름 입력', '전체 동의 체크박스', '개별 약관 토글 (필수/선택 구분)', '가입하기 버튼'],
+        scenarios: [
+          ['정상 가입', '모든 필드 유효', '정보 입력 → 가입 탭', '인증 메일 발송 → 완료 안내', '✓'],
+          ['이메일 중복', '이미 등록된 이메일', '이메일 입력', '"이미 사용 중인 이메일" 실시간 표시', '✗'],
+          ['비밀번호 불일치', '확인 불일치', '비밀번호 확인 입력', '"비밀번호가 일치하지 않습니다" 표시', '✗'],
+          ['필수 약관 미동의', '필수 체크 누락', '가입 탭', '미동의 약관 하이라이트', '✗'],
+        ],
+      },
+    ],
+    businessRules: ['비밀번호: 최소 8자, 영문+숫자+특수문자 조합', '로그인 실패 5회 시 30분 계정 잠금', 'JWT 만료: Access 1시간, Refresh 14일', '소셜 로그인 시 이메일 미제공 → 이메일 별도 입력 요구'],
+    dataEntities: [{ name: 'users', fields: 'id, email, password_hash, name, phone, profile_image, role, status, login_count, last_login_at, created_at' }],
+    errorCases: ['네트워크 오류 시 "인터넷 연결을 확인해주세요" 표시', 'OAuth 서버 오류 시 "소셜 로그인 일시 불가. 이메일로 로그인해주세요" 표시', '인증 메일 미수신 시 "재발송" 버튼 제공 (60초 쿨타임)'],
   },
   '회원': {
     complexity: 2, estimatedWeeks: '1~2주',
-    subFeatures: ['회원가입/탈퇴', '프로필 관리(사진/정보 수정)', '회원 등급/포인트', '이용약관/개인정보처리방침'],
-    considerations: ['회원 유형이 2개 이상이면 복잡도 2배', '개인정보보호법 준수 필수', '탈퇴 시 데이터 처리 정책'],
-    acceptanceCriteria: ['회원가입 → 인증 → 프로필 완성 플로우', '탈퇴 시 개인정보 즉시 삭제'],
+    subFeatures: ['프로필 관리(사진/정보 수정)', '회원 등급/포인트', '이용약관/개인정보처리방침', '회원 탈퇴(데이터 처리)'],
+    acceptanceCriteria: ['프로필 이미지 업로드(5MB 이하, JPG/PNG)', '프로필 정보 수정 즉시 반영', '탈퇴 시 개인정보 즉시 삭제(법적 보관 데이터 제외)', '회원 등급별 혜택 정상 적용'],
+    flowDiagram: `[마이페이지] → [프로필 관리]
+  ├─ [정보 수정] → 이름/연락처/프로필사진 변경 → 저장
+  │   ├─ ✓ 성공 → "수정 완료" 토스트
+  │   └─ ✗ 실패 → 에러 메시지
+  ├─ [비밀번호 변경] → 현재 비번 확인 → 새 비번 입력 → 저장
+  └─ [회원 탈퇴] → 탈퇴 사유 선택 → 비밀번호 확인 → "탈퇴하시겠습니까?" 최종 확인
+      ├─ ✓ 확인 → 계정 비활성화 → 데이터 삭제 → [시작 화면]
+      └─ ✗ 취소 → [마이페이지]`,
+    screenSpecs: [
+      {
+        id: 'SCR-PROF-001', name: '마이페이지', purpose: '사용자 개인 정보 및 활동 허브',
+        elements: ['프로필 사진 + 이름', '회원 등급 배지', '활동 요약 (작성 글, 포인트 등)', '메뉴 리스트 (프로필 수정, 알림 설정, 문의하기, 로그아웃 등)'],
+        scenarios: [
+          ['진입', '로그인 상태', '마이페이지 탭', '사용자 정보 + 메뉴 표시', '✓'],
+          ['프로필 수정', '로그인 상태', '프로필 수정 탭', '편집 화면 이동', '✓'],
+          ['로그아웃', '로그인 상태', '로그아웃 탭', '확인 팝업 → 토큰 삭제 → 로그인 화면', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['프로필 이미지: 최대 5MB, JPG/PNG만 허용, 자동 리사이즈(400x400)', '탈퇴 후 개인정보 즉시 삭제, 거래 기록은 전자상거래법 5년 보관', '회원 등급: 활동 포인트 기반 자동 산정 (월 1회 갱신)'],
+    dataEntities: [{ name: 'user_profiles', fields: 'user_id, nickname, bio, grade, points, preferences, updated_at' }],
+    errorCases: ['이미지 5MB 초과 시 "파일 크기를 줄여주세요" 표시', '탈퇴 진행 중 네트워크 오류 시 재시도 안내'],
   },
   '결제': {
     complexity: 4, estimatedWeeks: '2~4주',
-    subFeatures: ['PG 연동(토스페이먼츠/이니시스)', '카드/계좌이체/간편결제', '결제 취소/환불 처리', '에스크로(필요 시)', '정산 시스템(플랫폼인 경우)'],
-    considerations: ['PG사 인증에 2~3주 별도 소요 (사업자등록증 필수)', '간편결제(카카오페이/네이버페이) 미지원 시 전환율 40% 하락', '정기결제(구독)는 별도 모듈 필요'],
-    acceptanceCriteria: ['카드 결제 → 승인 → 확인 알림', '결제 취소/환불 정상 동작', 'PG 대시보드와 금액 일치'],
+    subFeatures: ['PG 연동(토스페이먼츠)', '카드/계좌이체/간편결제', '결제 취소/환불', '영수증 발급', '정산(플랫폼)'],
+    acceptanceCriteria: ['카드/계좌이체/간편결제(카카오페이, 네이버페이) 정상 동작', '결제 완료 후 3초 이내 확인 화면 표시', '부분/전체 환불 처리 정상 동작', 'PG 대시보드와 결제 금액 100% 일치', '결제 실패 시 재시도 UX 제공'],
+    flowDiagram: `[상품/서비스 선택] → [주문서 작성]
+  → [배송지 입력 (해당 시)] → [결제 수단 선택]
+    ├─ [카드 결제] → PG 결제창 → 카드 인증
+    │   ├─ ✓ 승인 → [결제 완료] → 확인 알림 → [주문 상세]
+    │   └─ ✗ 실패 → "결제에 실패했습니다" → [재시도 / 수단 변경]
+    ├─ [간편결제] → 카카오페이/네이버페이 앱 호출
+    │   ├─ ✓ 승인 → [결제 완료]
+    │   └─ ✗ 취소 → [결제 수단 선택]
+    └─ [계좌이체] → PG 계좌이체 → 인증
+        ├─ ✓ 입금 확인 → [결제 완료]
+        └─ ✗ 시간 초과 → [결제 취소 안내]
+
+[결제 취소/환불]
+  [주문 상세] → [취소 요청] → [사유 선택]
+    → [관리자 확인 (해당 시)] → PG 환불 요청
+      ├─ ✓ 환불 완료 → 알림 발송 → [환불 내역]
+      └─ ✗ 환불 실패 → 수동 처리 안내`,
+    screenSpecs: [
+      {
+        id: 'SCR-PAY-001', name: '결제 화면', purpose: '결제 수단 선택 및 결제 실행',
+        elements: ['주문 요약 (상품명, 수량, 금액)', '결제 수단 선택 (카드/계좌/간편결제)', '쿠폰/포인트 적용', '최종 결제 금액 표시', '결제하기 버튼', '이용약관 동의'],
+        scenarios: [
+          ['카드 결제 성공', '유효한 카드', '카드 선택 → 결제 탭', 'PG 인증 → 승인 → 완료 화면', '✓'],
+          ['잔액 부족', '한도 초과', '결제 시도', '"한도 초과" PG 에러 표시', '✗'],
+          ['간편결제', '카카오페이 등록됨', '카카오페이 선택', '앱 호출 → 인증 → 완료', '✓'],
+          ['네트워크 오류', '결제 중 단절', '결제 진행', '"결제 상태 확인 중" → 결과 폴링', '△'],
+        ],
+      },
+      {
+        id: 'SCR-PAY-002', name: '결제 완료', purpose: '결제 성공 확인 및 다음 안내',
+        elements: ['성공 아이콘 + 메시지', '주문 번호', '결제 금액', '결제 수단/일시', '영수증 보기 버튼', '주문 상세 보기 버튼', '홈으로 버튼'],
+        scenarios: [
+          ['결제 직후', '결제 승인됨', '자동 이동', '주문 정보 + 다음 안내 표시', '✓'],
+          ['영수증 조회', '결제 완료', '영수증 보기 탭', '영수증 PDF/화면 표시', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['결제 금액: 최소 100원, 최대 1,000만원', '결제 후 주문 상태: 결제완료 → 준비중 → 배송중 → 배송완료', '환불: 결제일 7일 이내 전액 환불, 이후 부분 환불 (수수료 차감)', '정산: 거래 완료 후 D+7 영업일 자동 정산 (플랫폼 수수료 차감)'],
+    dataEntities: [
+      { name: 'payments', fields: 'id, user_id, order_id, amount, method, status, pg_tid, pg_response, refund_amount, created_at' },
+      { name: 'orders', fields: 'id, user_id, items, total_amount, discount, final_amount, status, shipping_address, created_at' },
+    ],
+    errorCases: ['PG 타임아웃(30초) 시 결제 상태 폴링 후 결과 표시', '이중결제 방지: 결제 버튼 연타 차단 (3초 디바운스)', '결제 중 앱 종료 시 다음 진입 시 미완료 결제 안내'],
   },
   '채팅': {
     complexity: 4, estimatedWeeks: '2~3주',
-    subFeatures: ['1:1 실시간 채팅', '그룹 채팅(필요 시)', '파일/이미지 전송', '읽음 확인', '채팅 알림(푸시)'],
-    considerations: ['WebSocket 서버 인프라 비용 별도', 'SendBird/Firebase Chat SDK 사용 시 개발 50% 단축 (월 비용 발생)', '동시 접속자 수에 따른 서버 스케일링'],
-    acceptanceCriteria: ['메시지 전송 지연 < 500ms', '오프라인 → 온라인 시 미수신 메시지 동기화', '파일 전송(10MB 이하) 정상 동작'],
+    subFeatures: ['1:1 실시간 채팅', '파일/이미지 전송', '읽음 확인', '채팅 알림(푸시)', '채팅 목록/검색'],
+    acceptanceCriteria: ['메시지 전송 지연 500ms 이내', '이미지 전송(10MB 이하) 정상 동작', '읽음 확인 표시 실시간 업데이트', '오프라인 → 온라인 시 미수신 메시지 동기화'],
+    flowDiagram: `[채팅 목록] → [상대방 선택] → [채팅방 진입]
+  ├─ [메시지 전송] → 텍스트 입력 → 전송 버튼
+  │   ├─ ✓ 전송 성공 → 상대에게 실시간 표시 + 푸시 알림
+  │   └─ ✗ 전송 실패 → "재전송" 버튼 표시
+  ├─ [파일 전송] → 첨부 버튼 → 파일 선택 → 업로드
+  │   ├─ ✓ 성공 → 파일 미리보기 표시
+  │   └─ ✗ 용량 초과 → "10MB 이하 파일만 전송 가능" 표시
+  └─ [채팅 나가기] → 확인 팝업
+      ├─ ✓ 확인 → 채팅방 삭제 → [채팅 목록]
+      └─ ✗ 취소 → [채팅방]`,
+    screenSpecs: [
+      {
+        id: 'SCR-CHAT-001', name: '채팅 목록', purpose: '진행 중인 대화 목록 관리',
+        elements: ['채팅방 리스트 (프로필, 최근 메시지, 시간, 읽지않음 배지)', '검색 바', '정렬 (최신순/안읽음순)'],
+        scenarios: [
+          ['목록 조회', '채팅방 존재', '화면 진입', '시간순 채팅방 목록 표시', '✓'],
+          ['새 메시지', '상대가 전송', '목록 화면', '해당 채팅방 최상단 이동 + 배지 갱신', '✓'],
+          ['채팅방 없음', '신규 사용자', '화면 진입', '빈 상태 안내 메시지', '✓'],
+        ],
+      },
+      {
+        id: 'SCR-CHAT-002', name: '채팅방', purpose: '1:1 실시간 대화',
+        elements: ['메시지 버블 (내 메시지 우측, 상대 좌측)', '읽음 확인 표시', '텍스트 입력 필드', '전송 버튼', '첨부 버튼', '상단 바 (상대 프로필, 뒤로가기, 메뉴)'],
+        scenarios: [
+          ['메시지 전송', '채팅방 진입', '텍스트 입력 → 전송', '메시지 표시 + 상대 실시간 수신', '✓'],
+          ['이미지 전송', '채팅방 진입', '첨부 → 이미지 선택', '이미지 업로드 → 미리보기 표시', '✓'],
+          ['읽음 확인', '메시지 전송됨', '상대가 채팅방 진입', '"읽음" 표시 업데이트', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['메시지 저장 기간: 1년 (이후 자동 삭제 or 아카이브)', '파일 전송: 최대 10MB, 이미지/PDF/문서 허용', '차단된 사용자와 채팅 불가, 기존 메시지 "삭제된 사용자" 표시', '채팅방 최대 참여자: 1:1 기본 (그룹 채팅은 2차 개발)'],
+    dataEntities: [
+      { name: 'chat_rooms', fields: 'id, type, participant_ids, last_message, last_message_at, created_at' },
+      { name: 'messages', fields: 'id, room_id, sender_id, content, type(text/image/file), file_url, read_at, created_at' },
+    ],
+    errorCases: ['WebSocket 연결 끊김 시 자동 재연결 (최대 5회, 백오프)', '파일 업로드 실패 시 로컬 저장 후 "재시도" 제공', '메시지 순서 보장: 서버 타임스탬프 기준 정렬'],
   },
   '관리자': {
     complexity: 3, estimatedWeeks: '2~3주',
-    subFeatures: ['대시보드(핵심 지표)', '회원 관리(목록/검색/상태 변경)', '콘텐츠 관리(등록/수정/삭제)', '주문/결제 관리', '통계/리포트'],
-    considerations: ['관리자 화면은 디자인 간소화로 비용 절감 가능', '권한 관리(슈퍼관리자/일반관리자) 필요 여부 확인', '대시보드 데이터 실시간 vs 배치 결정'],
-    acceptanceCriteria: ['핵심 KPI 대시보드 로딩 < 3초', '회원 목록 검색/필터 동작', '데이터 export(CSV/Excel)'],
+    subFeatures: ['대시보드(핵심 KPI)', '회원 관리', '콘텐츠/상품 관리', '주문/결제 관리', '통계/리포트'],
+    acceptanceCriteria: ['대시보드 로딩 3초 이내', '회원 검색/필터 정상 동작', '데이터 CSV/Excel 내보내기 동작', '권한 기반 메뉴 접근 제어'],
+    flowDiagram: `[관리자 로그인] → [대시보드]
+  ├─ [회원 관리] → 회원 목록/검색 → 상세 조회
+  │   ├─ 상태 변경 (활성/정지/탈퇴)
+  │   └─ 포인트/등급 수동 조정
+  ├─ [콘텐츠 관리] → 목록 → 등록/수정/삭제
+  ├─ [주문 관리] → 주문 목록 → 상태 변경 → 환불 처리
+  └─ [통계] → 기간 선택 → 리포트 조회 → Excel 다운로드`,
+    screenSpecs: [
+      {
+        id: 'SCR-ADM-001', name: '관리자 대시보드', purpose: '서비스 현황 한눈에 파악',
+        elements: ['핵심 KPI 카드 (DAU, 매출, 신규가입, 전환율)', '기간별 추이 차트', '최근 활동 로그', '빠른 바로가기 메뉴'],
+        scenarios: [
+          ['대시보드 진입', '관리자 로그인', '메인 접속', 'KPI 카드 + 차트 표시', '✓'],
+          ['기간 변경', '대시보드 표시됨', '날짜 범위 선택', '해당 기간 데이터로 갱신', '✓'],
+          ['Excel 내보내기', '데이터 조회됨', '내보내기 버튼', 'CSV/Excel 파일 다운로드', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['관리자 권한: 슈퍼관리자(전체) / 운영관리자(콘텐츠+회원) / CS관리자(문의+주문)', '관리자 행위 로그 전체 기록 (감사 추적)', '회원 데이터 열람 시 마스킹 처리 (이메일: a***@, 전화: 010-****-1234)'],
+    dataEntities: [{ name: 'admin_logs', fields: 'id, admin_id, action, target_type, target_id, details, ip_address, created_at' }],
+    errorCases: ['권한 없는 메뉴 접근 시 "접근 권한이 없습니다" 표시 + 로그 기록', '대용량 데이터 내보내기 시 백그라운드 처리 + 완료 알림'],
   },
   '알림': {
     complexity: 2, estimatedWeeks: '1~2주',
-    subFeatures: ['앱 푸시 알림(FCM/APNs)', '이메일 알림', 'SMS 알림(선택)', '인앱 알림(알림 센터)'],
-    considerations: ['푸시 알림 허용률이 50% 미만이므로 인앱 알림 병행 필수', 'SMS는 건당 비용(15~20원) 발생', '알림 빈도가 너무 높으면 앱 삭제율 증가'],
-    acceptanceCriteria: ['알림 전송 후 30초 이내 수신', '알림 종류별 on/off 설정', '알림 히스토리 조회'],
+    subFeatures: ['앱 푸시 알림(FCM/APNs)', '이메일 알림', '인앱 알림(알림 센터)', '알림 설정(종류별 on/off)'],
+    acceptanceCriteria: ['푸시 알림 전송 후 30초 이내 수신', '알림 종류별 on/off 설정 동작', '알림 히스토리 목록 조회', '읽음/안읽음 상태 구분'],
+    flowDiagram: `[이벤트 발생] → [알림 서버]
+  ├─ [푸시 알림] → FCM/APNs → 기기 수신
+  │   ├─ ✓ 수신 → 알림 센터 + 앱 배지
+  │   └─ ✗ 수신 불가 → 인앱 알림으로 fallback
+  ├─ [이메일 알림] → 메일 서버 → 발송
+  └─ [인앱 알림] → 알림 센터에 저장
+
+[사용자] → [알림 센터 진입] → 알림 목록 조회
+  ├─ 알림 탭 → 해당 화면으로 이동 + 읽음 처리
+  └─ 알림 설정 → 종류별 on/off 토글`,
+    screenSpecs: [
+      {
+        id: 'SCR-NOTI-001', name: '알림 센터', purpose: '전체 알림 히스토리 관리',
+        elements: ['알림 목록 (아이콘, 제목, 내용, 시간)', '읽음/안읽음 구분 (배경색)', '전체 읽음 처리 버튼', '알림 설정 바로가기'],
+        scenarios: [
+          ['알림 목록', '알림 존재', '화면 진입', '최신순 알림 목록 표시 (안읽음 상단)', '✓'],
+          ['알림 탭', '특정 알림 존재', '알림 항목 탭', '읽음 처리 + 해당 화면 이동', '✓'],
+          ['전체 읽음', '안읽은 알림 존재', '전체 읽음 탭', '모든 알림 읽음 처리', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['알림 보관 기간: 90일 (이후 자동 삭제)', '푸시 알림 허용 미설정 사용자 → 인앱 알림으로 대체', '야간 푸시(22:00~08:00) 자동 차단 (설정에서 해제 가능)', '알림 발송 빈도: 동일 유형 최소 5분 간격'],
+    dataEntities: [{ name: 'notifications', fields: 'id, user_id, type, title, body, data, is_read, created_at' }],
+    errorCases: ['FCM 토큰 만료 시 앱 재실행 시 갱신', '이메일 발송 실패 시 최대 3회 재시도 (5분/30분/2시간)'],
   },
   '검색': {
     complexity: 3, estimatedWeeks: '1~2주',
-    subFeatures: ['키워드 검색', '필터(카테고리/가격/날짜 등)', '정렬(최신/인기/가격순)', '자동완성', '검색 결과 하이라이팅'],
-    considerations: ['데이터 1만건 이상이면 ElasticSearch 도입 권장', '한국어 형태소 분석기(Nori) 필수', '검색 속도 < 200ms 목표'],
-    acceptanceCriteria: ['검색 결과 200ms 이내 반환', '필터 조합 정상 동작', '검색어 하이라이팅'],
+    subFeatures: ['키워드 검색', '필터(카테고리/가격/날짜)', '정렬(최신/인기/가격순)', '자동완성', '최근 검색어'],
+    acceptanceCriteria: ['검색 결과 200ms 이내 반환', '필터 조합 정상 동작', '자동완성 300ms 이내 제안 표시', '검색 결과 0건 시 대안 키워드 제안'],
+    flowDiagram: `[검색 화면] → 키워드 입력
+  ├─ [자동완성] → 300ms 디바운스 → 추천 키워드 표시
+  │   └─ 추천 항목 탭 → [검색 결과]
+  ├─ [검색 실행] → 엔터/검색 버튼 → [검색 결과]
+  │   ├─ 결과 있음 → 목록 표시 → [필터/정렬 적용]
+  │   └─ 결과 없음 → "검색 결과가 없습니다" + 대안 키워드 제안
+  └─ [필터 적용] → 필터 패널 열기 → 조건 선택 → 적용
+      → 결과 실시간 갱신`,
+    screenSpecs: [
+      {
+        id: 'SCR-SRCH-001', name: '검색', purpose: '콘텐츠/상품 탐색',
+        elements: ['검색 입력 필드 (자동완성)', '최근 검색어 태그', '인기 검색어', '카테고리 바로가기'],
+        scenarios: [
+          ['키워드 검색', '검색어 입력', '검색 실행', '결과 목록 표시', '✓'],
+          ['자동완성', '2글자 이상 입력', '타이핑', '300ms 후 추천 목록 표시', '✓'],
+          ['결과 없음', '존재하지 않는 키워드', '검색 실행', '"결과 없음" + 대안 제안', '✓'],
+          ['필터 적용', '검색 결과 표시됨', '필터 선택', '결과 실시간 갱신', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['자동완성: 2글자 이상 입력 시 300ms 디바운스로 호출', '최근 검색어: 최대 10개, 개별/전체 삭제 가능', '검색어 로깅: 인기 검색어 집계 (일별/주별)', '데이터 1만건 이상 시 ElasticSearch + Nori 형태소 분석기 권장'],
+    dataEntities: [{ name: 'search_logs', fields: 'id, user_id, query, result_count, filters, created_at' }],
+    errorCases: ['ElasticSearch 장애 시 DB 직접 검색 fallback', '너무 긴 검색어(100자 초과) 자동 절사'],
   },
   '지도': {
     complexity: 3, estimatedWeeks: '1~2주',
-    subFeatures: ['지도 표시(카카오맵/네이버맵/구글맵)', '위치 검색/마커 표시', '현재 위치 기반 검색', '경로 안내(선택)'],
-    considerations: ['카카오맵이 국내 서비스에 최적(무료 쿼터 넉넉)', '위치 권한 거부 시 대체 UX 필요', 'GPS 배터리 소모 최적화'],
-    acceptanceCriteria: ['지도 로딩 < 2초', '마커 클릭 시 상세 정보 표시', '현재 위치 기반 반경 검색'],
+    subFeatures: ['지도 표시(카카오맵)', '위치 검색/마커', '현재 위치 기반 검색', '상세 정보 바텀시트'],
+    acceptanceCriteria: ['지도 로딩 2초 이내', '마커 클릭 시 상세 정보 바텀시트 표시', '현재 위치 기반 반경(1/3/5km) 검색', '지도 이동 시 자동 재검색'],
+    flowDiagram: `[지도 화면] → 현재 위치 로딩
+  ├─ [위치 허용] → 현재 위치 중심 지도 표시 → 주변 마커 로딩
+  │   ├─ [마커 탭] → 바텀시트(상세 정보) 표시
+  │   │   └─ [상세 보기] → 상세 페이지 이동
+  │   └─ [지도 이동] → 영역 내 데이터 재검색 → 마커 갱신
+  └─ [위치 거부] → 기본 위치(서울) 표시 → 수동 검색 안내`,
+    screenSpecs: [
+      {
+        id: 'SCR-MAP-001', name: '지도', purpose: '위치 기반 탐색',
+        elements: ['전체 화면 지도', '현재 위치 버튼', '검색 바 (상단)', '마커 클러스터', '반경 선택 (1/3/5km)', '바텀시트 (마커 선택 시)'],
+        scenarios: [
+          ['초기 로딩', '위치 허용', '화면 진입', '현재 위치 + 주변 마커 표시', '✓'],
+          ['마커 선택', '마커 존재', '마커 탭', '바텀시트에 상세 정보 표시', '✓'],
+          ['위치 거부', '권한 미허용', '화면 진입', '기본 위치 + 수동 검색 안내', '✓'],
+        ],
+      },
+    ],
+    businessRules: ['지도 API: 카카오맵 (국내 최적, 무료 쿼터 30만회/일)', '위치 데이터: 위도/경도 소수점 6자리 저장', '마커 50개 이상 → 클러스터링 자동 적용', 'GPS 정확도: 반경 50m 이내'],
+    dataEntities: [{ name: 'locations', fields: 'id, name, address, latitude, longitude, category, details, created_at' }],
+    errorCases: ['위치 서비스 비활성화 시 활성화 안내 팝업', 'GPS 정확도 낮을 시 "정확한 위치를 확인할 수 없습니다" 표시', '카카오맵 API 장애 시 "지도 로딩 실패. 잠시 후 다시 시도해주세요" 표시'],
   },
   'AI': {
     complexity: 5, estimatedWeeks: '3~6주',
-    subFeatures: ['AI 모델 선정/연동(GPT/Claude/자체 모델)', '프롬프트 엔지니어링', 'API 비용 관리', '응답 캐싱/최적화'],
-    considerations: ['AI API 호출 비용이 트래픽에 비례하여 증가', '응답 지연(2~5초)에 대한 UX 설계 필수', '환각(hallucination) 방지를 위한 가드레일 설계'],
-    acceptanceCriteria: ['AI 응답 지연 < 5초', '부적절한 응답 필터링 동작', 'API 비용 모니터링 대시보드'],
+    subFeatures: ['AI 모델 연동(GPT/Claude)', '프롬프트 엔지니어링', 'API 비용 관리', '응답 캐싱', '가드레일(부적절 응답 필터링)'],
+    acceptanceCriteria: ['AI 응답 5초 이내', '부적절 응답 필터링 동작', 'API 비용 월별 모니터링', '동일 입력 캐시 히트율 30% 이상'],
+    flowDiagram: `[사용자 입력] → [가드레일 검증] → [캐시 확인]
+  ├─ 캐시 히트 → [캐시 응답 반환]
+  └─ 캐시 미스 → [AI API 호출] → [응답 수신]
+      → [후처리 필터링] → [응답 표시]
+      ├─ ✓ 적절한 응답 → 캐시 저장 → [사용자에게 표시]
+      └─ ✗ 부적절 응답 → "다시 시도해주세요" + 로그 기록`,
+    screenSpecs: [
+      {
+        id: 'SCR-AI-001', name: 'AI 인터페이스', purpose: 'AI 기반 기능 사용',
+        elements: ['입력 필드/프롬프트', 'AI 응답 영역', '로딩 인디케이터 (스켈레톤/타이핑)', '재생성 버튼', '피드백(좋아요/싫어요)'],
+        scenarios: [
+          ['정상 응답', '입력 제공', '요청 전송', '2~5초 후 AI 응답 표시', '✓'],
+          ['긴 응답', '복잡한 입력', '요청 전송', '스트리밍으로 점진 표시', '✓'],
+          ['응답 실패', 'API 오류', '요청 전송', '"일시적 오류" + 재시도 버튼', '✗'],
+        ],
+      },
+    ],
+    businessRules: ['AI API 호출 제한: 사용자당 일 100회', 'API 비용 알림: 월 예산 80% 도달 시 관리자 알림', '응답 캐시: 동일 입력 24시간 캐시', '가드레일: 개인정보/민감정보 포함 응답 자동 필터링'],
+    dataEntities: [
+      { name: 'ai_requests', fields: 'id, user_id, input, output, model, tokens_used, latency_ms, cached, created_at' },
+    ],
+    errorCases: ['AI API 타임아웃(30초) 시 "응답 시간이 초과되었습니다" 표시', 'API 할당량 초과 시 "오늘 사용량을 초과했습니다. 내일 다시 시도해주세요" 표시', 'Rate limit 시 지수 백오프 재시도 (최대 3회)'],
   },
   '추천': {
     complexity: 4, estimatedWeeks: '2~4주',
-    subFeatures: ['협업 필터링(사용자 기반)', '콘텐츠 기반 필터링', '하이브리드 추천', '개인화 피드'],
-    considerations: ['초기 데이터 부족(콜드스타트) 시 규칙 기반 추천으로 시작', '추천 정확도 평가 기준 사전 정의', 'A/B 테스트 인프라 병행 구축'],
-    acceptanceCriteria: ['추천 결과 3초 이내 반환', '신규 사용자에게도 추천 결과 제공', '추천 클릭률 추적 가능'],
+    subFeatures: ['콘텐츠 기반 추천', '협업 필터링', '개인화 피드', 'A/B 테스트'],
+    acceptanceCriteria: ['추천 결과 3초 이내 반환', '신규 사용자에게도 추천 제공(인기 기반 fallback)', '추천 클릭률 추적', '추천 품질 주간 리포트'],
+    flowDiagram: `[사용자 행동 수집] → [추천 엔진]
+  ├─ [신규 사용자] → 인기도/트렌드 기반 추천
+  └─ [기존 사용자] → 행동 데이터 분석 → 개인화 추천
+      → [추천 결과 표시] → 사용자 반응 수집 → 모델 피드백`,
+    screenSpecs: [],
+    businessRules: ['추천 갱신 주기: 실시간(행동 발생 시) + 배치(일 1회 전체 재계산)', '콜드스타트: 가입 후 3일간 인기도 기반, 이후 개인화', '추천 결과 최소 5개, 최대 20개', '다양성 보장: 동일 카테고리 최대 60%'],
+    dataEntities: [
+      { name: 'user_actions', fields: 'id, user_id, action_type, target_id, context, created_at' },
+      { name: 'recommendations', fields: 'id, user_id, items, algorithm, score, clicked, created_at' },
+    ],
+    errorCases: ['추천 엔진 장애 시 인기순 fallback', '데이터 부족 시 카테고리 기반 기본 추천'],
   },
 };
 
@@ -187,8 +456,7 @@ function analyzeFeature(feature: FeatureItem): FeatureAnalysis {
   const name = feature.name;
   const lower = name.toLowerCase();
 
-  // DB에서 매칭되는 기능 찾기
-  let matched: Partial<FeatureAnalysis> = {};
+  let matched: FeatureBlueprintData | null = null;
   for (const [key, val] of Object.entries(FEATURE_DB)) {
     if (lower.includes(key.toLowerCase()) || lower.includes(key)) {
       matched = val;
@@ -200,16 +468,369 @@ function analyzeFeature(feature: FeatureItem): FeatureAnalysis {
     name: feature.name,
     description: feature.description || feature.name,
     priority: feature.priority,
-    complexity: matched.complexity || 3,
-    estimatedWeeks: matched.estimatedWeeks || '2~3주',
-    subFeatures: matched.subFeatures || [`${feature.name} 기본 기능`, '관련 UI/UX 설계', '테스트/QA'],
-    considerations: matched.considerations || ['구현 범위를 사전에 명확히 정의하세요', '유사 서비스의 해당 기능을 벤치마크하세요'],
-    acceptanceCriteria: matched.acceptanceCriteria || [`${feature.name} 기능 정상 동작`, 'UI/UX 사용성 테스트 통과', '에러 핸들링 완료'],
+    complexity: matched?.complexity || 3,
+    estimatedWeeks: matched?.estimatedWeeks || '2~3주',
+    subFeatures: matched?.subFeatures || [`${feature.name} 기본 기능`, '관련 UI/UX 설계', '테스트/QA'],
+    acceptanceCriteria: matched?.acceptanceCriteria || [`${feature.name} 기능 정상 동작`, 'UI/UX 사용성 테스트 통과', '에러 핸들링 완료'],
   };
 }
 
+function getFeatureBlueprint(featureName: string): FeatureBlueprintData | null {
+  const lower = featureName.toLowerCase();
+  for (const [key, val] of Object.entries(FEATURE_DB)) {
+    if (lower.includes(key.toLowerCase())) return val;
+  }
+  return null;
+}
+
 // ═══════════════════════════════════════════
-// WOW 수준 Fallback RFP 문서 생성
+// PRD Section Generators
+// ═══════════════════════════════════════════
+
+function generateOneLiner(rfpData: RFPData, projectInfo: ProjectTypeInfo): string {
+  const target = rfpData.targetUsers || '사용자';
+  const overview = rfpData.overview || '';
+  const firstLine = overview.split('\n')[0]?.trim().slice(0, 60) || '서비스';
+  return `"${firstLine}"은(는) ${target}을 위한 ${projectInfo.type}으로, 핵심 기능 ${(rfpData.coreFeatures || []).length}개를 포함하는 ${rfpData.coreFeatures?.some(f => f.priority === 'P1') ? 'MVP' : ''} 프로젝트입니다.`;
+}
+
+function generateOverview(rfpData: RFPData, projectInfo: ProjectTypeInfo): string {
+  const overview = rfpData.overview || '(프로젝트 개요 미입력)';
+  const target = rfpData.targetUsers || '일반 사용자';
+
+  const whySection = `왜 만드는가
+  ${overview}
+
+  ${projectInfo.marketInsight}`;
+
+  const whoSection = `누가 쓰는가
+  주 사용자: ${target}
+  ${target.includes('B2B') || target.includes('기업') ? '  사용 환경: 데스크톱 중심 (업무 시간 내 사용)\n  핵심 니즈: 효율성, 데이터 정확성, 권한 관리' : ''}${target.includes('MZ') || target.includes('20') || target.includes('30') ? '  사용 환경: 모바일 퍼스트\n  핵심 니즈: 빠른 온보딩, 직관적 UX, 소셜 연동' : ''}${!target.includes('B2B') && !target.includes('MZ') && !target.includes('20') && !target.includes('30') && !target.includes('기업') ? '  사용 환경: 모바일/데스크톱 병행\n  핵심 니즈: 직관적인 사용성, 빠른 응답 속도' : ''}`;
+
+  const features = rfpData.coreFeatures || [];
+  const whatSection = `무엇이 좋아지는가
+  • ${features.length > 0 ? features.slice(0, 3).map(f => f.name).join(', ') + ' 등 핵심 기능을 통해 사용자 경험 혁신' : '핵심 기능을 통한 사용자 경험 개선'}
+  • 기존 수동 프로세스의 자동화 및 디지털 전환
+  • 데이터 기반 의사결정 지원`;
+
+  return `${whySection}
+
+${whoSection}
+
+${whatSection}`;
+}
+
+function generateScope(rfpData: RFPData, features: FeatureItem[], projectInfo: ProjectTypeInfo): string {
+  const included = features.map(f => `  ✅ ${f.name}${f.description ? ` — ${f.description}` : ''}`).join('\n');
+
+  // Auto-detect missing common features
+  const featureNames = features.map(f => f.name.toLowerCase()).join(' ');
+  const excluded: string[] = [];
+
+  const checkMissing = (keyword: string, label: string) => {
+    if (!featureNames.includes(keyword)) excluded.push(`  ❌ ${label} — 이번 스코프에 미포함`);
+  };
+
+  for (const must of projectInfo.mustHaveFeatures) {
+    const kw = must.split('(')[0].trim().toLowerCase();
+    if (!featureNames.includes(kw.slice(0, 3))) {
+      excluded.push(`  ❌ ${must} — 이번 스코프에 미포함 (향후 검토 필요)`);
+    }
+  }
+  checkMissing('다국어', '다국어 지원 (i18n)');
+  checkMissing('접근성', '접근성 고도화 (WCAG AAA)');
+  checkMissing('오프라인', '오프라인 모드');
+
+  if (excluded.length === 0) {
+    excluded.push('  ❌ 고급 분석/BI 대시보드 — 향후 검토');
+    excluded.push('  ❌ 다국어 지원 — 향후 검토');
+  }
+
+  return `포함 ✅
+${included}
+
+미포함 ❌
+${excluded.join('\n')}
+
+  ※ 미포함 항목은 1차 출시 이후 우선순위에 따라 추가 개발 가능`;
+}
+
+function generateWorkType(rfpData: RFPData): string {
+  return `  유형: 신규 개발 (New Development)
+  UI 디자인: 포함 (별도 디자이너 or 개발사 내부)
+  플랫폼: ${rfpData.techRequirements?.includes('앱') ? '모바일 앱 (iOS + Android)' : rfpData.techRequirements?.includes('웹') ? '웹 서비스 (반응형)' : '웹 + 모바일 (반응형 우선)'}`;
+}
+
+function generateFeatureTable(analyzedFeatures: FeatureAnalysis[]): string {
+  let table = `| # | 기능명 | 설명 | 우선순위 | 예상 공수 | 수용 기준 |
+| --- | --- | --- | --- | --- | --- |
+`;
+
+  analyzedFeatures.forEach((f, i) => {
+    const criteria = f.acceptanceCriteria.slice(0, 2).join(' / ');
+    const priority = f.priority === 'P1' ? 'P0 (필수)' : f.priority === 'P2' ? 'P1 (우선)' : 'P2 (선택)';
+    table += `| ${i + 1} | ${f.name} | ${f.description} | ${priority} | ${f.estimatedWeeks} | ${criteria} |\n`;
+  });
+
+  // Detailed breakdown per feature
+  let details = '\n\n  ── 기능별 상세 명세 ──\n';
+  analyzedFeatures.forEach((f, i) => {
+    details += `
+  ${i + 1}. ${f.name} [${f.priority === 'P1' ? 'P0' : f.priority === 'P2' ? 'P1' : 'P2'}]
+     설명: ${f.description}
+     서브 기능:
+${f.subFeatures.map(sf => `       • ${sf}`).join('\n')}
+     수용 기준 (Acceptance Criteria):
+${f.acceptanceCriteria.map(ac => `       ✓ ${ac}`).join('\n')}
+`;
+  });
+
+  return table + details;
+}
+
+function generateFlowsAndScreens(features: FeatureItem[], rfpData: RFPData): string {
+  let content = '';
+
+  // 5.1 Overall flow
+  const featureNames = features.map(f => f.name).join(', ');
+  content += `  5.1 전체 흐름
+
+  기호 설명: → 이동 | ✓ 성공 | ✗ 실패 | [조건] 분기
+
+  [서비스 진입] → [로그인/회원가입] → [홈 화면]
+    → [핵심 기능 사용 (${featureNames})]
+    → [결과 확인/관리] → [마이페이지]
+`;
+
+  // 5.2 Detailed flows per feature
+  content += '\n  5.2 주요 흐름 상세\n';
+
+  features.forEach((f) => {
+    const bp = getFeatureBlueprint(f.name);
+    if (bp && bp.flowDiagram) {
+      content += `
+  ── ${f.name} 흐름 ──
+
+${bp.flowDiagram.split('\n').map(l => `  ${l}`).join('\n')}
+`;
+    } else {
+      // Generic flow for unmatched features
+      content += `
+  ── ${f.name} 흐름 ──
+
+  [${f.name} 진입] → [목록/메인 화면] → [항목 선택]
+    → [상세 화면] → [작업 수행]
+      ├─ ✓ 성공 → 결과 표시 → [완료]
+      └─ ✗ 실패 → 에러 메시지 → [재시도]
+`;
+    }
+  });
+
+  // 5.3 Screen details
+  content += '\n  5.3 화면 상세\n';
+
+  let screenCount = 0;
+  features.forEach((f) => {
+    const bp = getFeatureBlueprint(f.name);
+    if (bp && bp.screenSpecs.length > 0) {
+      bp.screenSpecs.forEach((screen) => {
+        screenCount++;
+        content += `
+  ── ${screen.id}: ${screen.name} ──
+  목적: ${screen.purpose}
+  주요 UI 요소:
+${screen.elements.map(e => `    • ${e}`).join('\n')}
+
+| 시나리오 | 사전 조건 | 사용자 동작 | 시스템 반응 | 결과 |
+| --- | --- | --- | --- | --- |
+${screen.scenarios.map(s => `| ${s[0]} | ${s[1]} | ${s[2]} | ${s[3]} | ${s[4]} |`).join('\n')}
+`;
+      });
+    } else {
+      // Generic screen for unmatched features
+      screenCount++;
+      content += `
+  ── SCR-${String(screenCount).padStart(3, '0')}: ${f.name} 메인 ──
+  목적: ${f.description || f.name + ' 기능 제공'}
+  주요 UI 요소:
+    • ${f.name} 목록/메인 콘텐츠
+    • 검색/필터 (해당 시)
+    • 상세 보기
+    • 작업 버튼 (등록/수정/삭제)
+
+| 시나리오 | 사전 조건 | 사용자 동작 | 시스템 반응 | 결과 |
+| --- | --- | --- | --- | --- |
+| 목록 조회 | 로그인 상태 | 화면 진입 | 데이터 목록 표시 | ✓ |
+| 상세 조회 | 항목 존재 | 항목 탭 | 상세 정보 표시 | ✓ |
+| 등록/생성 | 로그인 상태 | 등록 버튼 → 정보 입력 → 저장 | 생성 완료 → 목록 갱신 | ✓ |
+| 데이터 없음 | 데이터 0건 | 화면 진입 | 빈 상태 안내 표시 | ✓ |
+`;
+    }
+  });
+
+  // Add common screens
+  content += `
+  ── SCR-COMMON-001: 홈 화면 ──
+  목적: 서비스 메인 진입점, 핵심 기능 허브
+  주요 UI 요소:
+    • 상단 검색 바
+    • 주요 콘텐츠/기능 바로가기
+    • 최근 활동 / 추천 영역
+    • 하단 탭 바 (홈, 검색, 알림, 마이페이지)
+
+| 시나리오 | 사전 조건 | 사용자 동작 | 시스템 반응 | 결과 |
+| --- | --- | --- | --- | --- |
+| 홈 진입 | 로그인 완료 | 앱/서비스 실행 | 개인화 홈 화면 표시 | ✓ |
+| 기능 탐색 | 홈 표시됨 | 메뉴 탭 | 해당 기능 화면 이동 | ✓ |
+
+  예상 총 화면 수: 약 ${screenCount + 5}개 (공통 화면 포함)`;
+
+  return content;
+}
+
+function generateBusinessRules(rfpData: RFPData, features: FeatureItem[], projectInfo: ProjectTypeInfo): string {
+  let content = '';
+
+  // 6.1 Data Items
+  content += '  6.1 주요 데이터 항목\n\n';
+  content += '| 데이터 | 주요 필드 | 비고 |\n| --- | --- | --- |\n';
+  content += '| 사용자 (users) | id, email, name, phone, role, status, created_at | 핵심 엔티티 |\n';
+
+  features.forEach((f) => {
+    const bp = getFeatureBlueprint(f.name);
+    if (bp) {
+      bp.dataEntities.forEach(de => {
+        content += `| ${de.name} | ${de.fields} | ${f.name} 관련 |\n`;
+      });
+    }
+  });
+
+  // 6.2 Business Rules
+  content += '\n  6.2 주요 비즈니스 규칙\n\n';
+  let ruleNum = 1;
+  features.forEach((f) => {
+    const bp = getFeatureBlueprint(f.name);
+    if (bp) {
+      bp.businessRules.forEach(rule => {
+        content += `  BR-${String(ruleNum++).padStart(3, '0')}: ${rule}\n`;
+      });
+    }
+  });
+  if (ruleNum === 1) {
+    content += '  BR-001: (프로젝트 특성에 따라 상세 규칙 정의 필요)\n';
+  }
+
+  // 6.3 External Integrations
+  content += '\n  6.3 외부 연동\n\n';
+  content += '| 연동 대상 | 용도 | 비고 |\n| --- | --- | --- |\n';
+  const integrations = new Set<string>();
+  projectInfo.commonIntegrations.forEach(i => integrations.add(i));
+  features.forEach(f => {
+    const bp = getFeatureBlueprint(f.name);
+    if (bp) bp.dataEntities.forEach(() => {}); // trigger matching
+    if (f.name.includes('결제')) { integrations.add('토스페이먼츠'); integrations.add('카카오페이'); }
+    if (f.name.includes('채팅')) integrations.add('SendBird 또는 Firebase Chat');
+    if (f.name.includes('알림')) { integrations.add('Firebase FCM'); integrations.add('APNs'); }
+    if (f.name.includes('지도')) integrations.add('카카오맵 API');
+    if (f.name.includes('AI')) integrations.add('Claude/GPT API');
+  });
+  integrations.forEach(intg => {
+    content += `| ${intg} | ${intg.includes('결제') || intg.includes('토스') || intg.includes('카카오페이') ? '결제 처리' : intg.includes('FCM') || intg.includes('APNs') ? '푸시 알림' : intg.includes('Chat') || intg.includes('SendBird') ? '실시간 채팅' : intg.includes('맵') || intg.includes('Map') ? '지도/위치' : intg.includes('Claude') || intg.includes('GPT') ? 'AI 기능' : '서비스 연동'} | 별도 계약/키 발급 필요 |\n`;
+  });
+
+  // 6.4 Error Handling Summary
+  content += '\n  6.4 에러 처리 원칙\n\n';
+  let errNum = 1;
+  features.forEach((f) => {
+    const bp = getFeatureBlueprint(f.name);
+    if (bp) {
+      bp.errorCases.forEach(ec => {
+        content += `  ERR-${String(errNum++).padStart(3, '0')}: ${ec}\n`;
+      });
+    }
+  });
+  content += `  ERR-${String(errNum++).padStart(3, '0')}: 공통 — 네트워크 오류 시 "인터넷 연결을 확인해주세요" 토스트 표시\n`;
+  content += `  ERR-${String(errNum).padStart(3, '0')}: 공통 — 서버 오류(500) 시 "잠시 후 다시 시도해주세요" 표시 + 자동 재시도(3회)\n`;
+
+  return content;
+}
+
+function generateNFR(projectInfo: ProjectTypeInfo): string {
+  return `| 항목 | 기준 | 측정 방법 |
+| --- | --- | --- |
+| 응답 속도 | API < 500ms, 페이지 로딩 < 3초 | Lighthouse, 서버 모니터링 |
+| 동시 접속 | 최소 1,000명 동시 접속 | 부하 테스트 (k6/JMeter) |
+| 가용성 | 99.5% 이상 (월 3.6시간 이내 다운타임) | 업타임 모니터링 |
+| 확장성 | MAU 10,000명까지 인프라 변경 없이 대응 | 아키텍처 리뷰 |
+| 보안 | HTTPS(TLS 1.3), 개인정보 AES-256 암호화 | 보안 점검 |
+| 인증 | JWT + Refresh Token, 소셜 로그인 | 기능 테스트 |
+| 백업 | 일 1회 자동 백업, 30일 보관 | 백업/복원 테스트 |
+| 접근성 | WCAG 2.1 AA 등급 이상 | 접근성 감사 도구 |
+| 브라우저 | Chrome, Safari, Edge 최신 2개 버전 | 크로스브라우저 테스트 |
+| 모바일 | iOS 15+, Android 12+ | 기기 테스트 |
+| 코드 품질 | 테스트 커버리지 60% 이상, 린트 통과 | CI/CD 파이프라인 |
+| 모니터링 | Sentry(에러 추적) + 서버 모니터링 | 대시보드 구축 |
+
+  [기술 스택 권장]
+  • 프론트엔드: ${projectInfo.commonStack.split('+')[0]?.trim() || 'Next.js'}
+  • 백엔드: ${projectInfo.commonStack.split('+')[1]?.trim() || 'NestJS'}
+  • 데이터베이스: ${projectInfo.commonStack.includes('PostgreSQL') ? 'PostgreSQL + Redis' : 'PostgreSQL'}
+  • 인프라: AWS 또는 Vercel + AWS
+  • CI/CD: GitHub Actions
+  • 모니터링: Sentry + LogRocket/Datadog`;
+}
+
+function generateReferences(rfpData: RFPData): string {
+  let content = '| # | 자료명 | 설명 | 링크/비고 |\n| --- | --- | --- | --- |\n';
+  let refNum = 1;
+
+  if (rfpData.referenceServices && rfpData.referenceServices.trim() && !rfpData.referenceServices.includes('없') && !rfpData.referenceServices.includes('건너')) {
+    const refs = rfpData.referenceServices.split(/[,\n]/).filter(r => r.trim());
+    refs.forEach(ref => {
+      content += `| ${refNum++} | 참고 서비스: ${ref.trim()} | 벤치마크 대상 | 개발사에 화면 캡처 첨부 권장 |\n`;
+    });
+  }
+
+  content += `| ${refNum++} | 본 PRD 문서 | 프로젝트 요구사항 정의서 | 본 문서 |\n`;
+  content += `| ${refNum++} | 와이어프레임 | UI/UX 설계 (개발 착수 전 작성) | Figma 링크 (TBD) |\n`;
+  content += `| ${refNum++} | API 문서 | 백엔드 API 명세 | Swagger/Postman (TBD) |\n`;
+  content += `| ${refNum} | 디자인 시스템 | 컬러/타이포/컴포넌트 가이드 | Figma 링크 (TBD) |\n`;
+
+  content += `\n  [벤치마크 활용 가이드]
+  • 개발사 미팅 시 "이 부분은 참고, 이 부분은 다르게"를 명확히 구분하세요
+  • 화면 캡처 + 메모를 첨부하면 견적 정확도가 크게 올라갑니다`;
+
+  return content;
+}
+
+function generateOpenItems(rfpData: RFPData, features: FeatureItem[], projectInfo: ProjectTypeInfo): string {
+  let content = '| # | 항목 | 설명 | 담당 | 기한 |\n| --- | --- | --- | --- | --- |\n';
+  let itemNum = 1;
+
+  // Auto-detect open items based on missing data
+  if (!rfpData.budgetTimeline || rfpData.budgetTimeline.includes('미정')) {
+    content += `| ${itemNum++} | 예산 확정 | 개발사 견적 수령 후 최종 예산 결정 | 발주사 | 견적 수령 후 1주 내 |\n`;
+  }
+  if (!rfpData.referenceServices || rfpData.referenceServices.includes('없')) {
+    content += `| ${itemNum++} | 참고 서비스 선정 | 유사 서비스 2~3개 벤치마크 분석 | 발주사 | 킥오프 전 |\n`;
+  }
+
+  content += `| ${itemNum++} | 디자인 방향 확정 | 디자인 시안 검토 및 확정 | 발주사 + 디자이너 | M2 종료 시 |\n`;
+  content += `| ${itemNum++} | 테스트 계정 준비 | 외부 서비스 연동용 계정/키 | 발주사 | 개발 착수 전 |\n`;
+
+  const hasPayment = features.some(f => f.name.includes('결제') || f.name.includes('구매'));
+  if (hasPayment) {
+    content += `| ${itemNum++} | PG 사업자 인증 | 사업자등록증 기반 PG 인증 (2~3주 소요) | 발주사 | ASAP |\n`;
+  }
+
+  content += `| ${itemNum++} | 런칭 일정 확정 | 마케팅/운영과 연계한 최종 런칭일 | 발주사 | M4 종료 시 |\n`;
+  content += `| ${itemNum} | 유지보수 계약 | 런칭 후 유지보수 범위/비용 협의 | 양측 | 런칭 2주 전 |\n`;
+
+  return content;
+}
+
+// ═══════════════════════════════════════════
+// Main PRD Document Generator (v7 — CEO PRD Standard)
 // ═══════════════════════════════════════════
 
 function generateFallbackRFP(rfpData: RFPData): string {
@@ -217,520 +838,158 @@ function generateFallbackRFP(rfpData: RFPData): string {
   const projectInfo = getProjectTypeInfo(rfpData.overview);
 
   const features = rfpData.coreFeatures || [];
-  const featuresP1 = features.filter(f => f.priority === 'P1');
-  const featuresP2 = features.filter(f => f.priority === 'P2');
-  const featuresP3 = features.filter(f => f.priority === 'P3');
-
   const analyzedFeatures = features.map(f => analyzeFeature(f));
   const totalComplexity = analyzedFeatures.reduce((sum, f) => sum + f.complexity, 0);
   const complexityLevel = totalComplexity >= 15 ? '높음' : totalComplexity >= 8 ? '중간~높음' : totalComplexity >= 4 ? '중간' : '보통';
 
-  // 총 예상 기간 계산
+  // Calculate timeline
   const weekEstimates = analyzedFeatures.map(f => {
     const match = f.estimatedWeeks.match(/(\d+)~(\d+)/);
     return match ? [parseInt(match[1]), parseInt(match[2])] : [2, 3];
   });
-  const totalWeeksMin = Math.max(weekEstimates.reduce((s, w) => s + w[0], 0) * 0.6, 4); // 병렬 고려
+  const totalWeeksMin = Math.max(weekEstimates.reduce((s, w) => s + w[0], 0) * 0.6, 4);
   const totalWeeksMax = Math.max(weekEstimates.reduce((s, w) => s + w[1], 0) * 0.7, 6);
-
-  // 기능 섹션 생성
-  const formatDetailedFeatures = (featureList: FeatureItem[], label: string) => {
-    if (featureList.length === 0) return '';
-    const analyzed = featureList.map(f => analyzeFeature(f));
-    let section = `\n  *** ${label} ***\n`;
-    analyzed.forEach((f, i) => {
-      const stars = '★'.repeat(f.complexity) + '☆'.repeat(5 - f.complexity);
-      section += `
-  ${i + 1}. ${f.name}
-     상세 설명: ${f.description}
-     서브 기능: ${f.subFeatures.join(' / ')}
-     복잡도: ${stars} (${f.complexity}/5)
-     예상 소요: ${f.estimatedWeeks}
-     핵심 고려사항:
-${f.considerations.map(c => `       → ${c}`).join('\n')}
-     수락 기준:
-${f.acceptanceCriteria.map(c => `       ✓ ${c}`).join('\n')}
-`;
-    });
-    return section;
-  };
-
-  // 타겟 사용자 분석
-  const targetText = rfpData.targetUsers || '';
-  let targetAnalysis = '';
-  if (targetText) {
-    targetAnalysis = `  주 타겟 사용자: ${targetText}`;
-    if (targetText.includes('시니어') || targetText.includes('50') || targetText.includes('60')) {
-      targetAnalysis += `\n\n  [UI/UX 가이드라인 — 시니어 타겟]
-  ▸ 최소 폰트 사이즈: 16px (본문), 20px (제목)
-  ▸ 버튼 최소 크기: 48×48px (터치 영역)
-  ▸ 간결한 네비게이션 (3depth 이내)
-  ▸ 고대비 컬러 사용 (접근성 AAA 등급)
-  ▸ 회원가입 단계 최소화 (전화번호 인증 위주)`;
-    } else if (targetText.includes('MZ') || targetText.includes('20') || targetText.includes('30')) {
-      targetAnalysis += `\n\n  [UI/UX 가이드라인 — MZ세대 타겟]
-  ▸ 모바일 퍼스트 설계 (데스크톱은 반응형으로 대응)
-  ▸ 소셜 로그인 필수 (카카오 > 구글 > 애플)
-  ▸ 다크모드 지원 권장
-  ▸ 마이크로 인터랙션과 모션 UI
-  ▸ 공유 기능 (인스타그램/카카오톡)`;
-    } else if (targetText.includes('B2B') || targetText.includes('기업') || targetText.includes('사업자')) {
-      targetAnalysis += `\n\n  [UI/UX 가이드라인 — B2B 타겟]
-  ▸ 데스크톱 우선 설계 (모바일은 핵심 기능만)
-  ▸ 대시보드/리포트 중심 UI
-  ▸ 다중 사용자 권한 관리 필수
-  ▸ 엔터프라이즈 보안 요구(SSO, 2FA)
-  ▸ API 문서/연동 가이드 제공`;
-    } else {
-      targetAnalysis += `\n\n  [UI/UX 가이드라인]
-  ▸ 모바일/데스크톱 동시 고려 (반응형 설계)
-  ▸ 직관적인 온보딩 (3단계 이내 핵심 가치 전달)
-  ▸ 로딩 시간 최적화 (First Contentful Paint < 2초)`;
-    }
-  } else {
-    targetAnalysis = `  (타겟 미지정 — 일반 사용자 대상으로 가정)
-
-  [UI/UX 가이드라인]
-  ▸ 모바일/데스크톱 반응형 설계
-  ▸ 직관적인 온보딩 (3단계 이내 핵심 가치 전달)
-  ▸ 접근성 AA 등급 이상 권장`;
-  }
-
-  // 기술 스택 추천
-  const techInput = (rfpData.techRequirements || '').toLowerCase();
-  const overviewLower = (rfpData.overview || '').toLowerCase();
-  const isApp = techInput.includes('앱') || techInput.includes('모바일') || overviewLower.includes('앱');
-  const isWeb = techInput.includes('웹') || overviewLower.includes('웹') || overviewLower.includes('사이트');
-  const isBoth = techInput.includes('둘') || (isApp && isWeb);
-
-  let techRecommendation = '';
-  if (isBoth) {
-    techRecommendation = `  ▸ 플랫폼: 웹 + 모바일(iOS/Android)
-
-  [AI 기술 스택 추천 — A안: 비용 효율]
-  • 프론트엔드: Flutter 3.x (모바일) + Next.js 14 (웹)
-    → 하나의 Dart 코드로 iOS/Android 동시 커버, 개발비 35% 절감
-  • 백엔드: NestJS (TypeScript) + PostgreSQL
-    → 프론트와 동일 언어(TS)로 풀스택 개발 가능, 인력 효율 ↑
-  • 인프라: AWS (ECS + RDS + CloudFront + S3)
-    → 초기 월 30~50만원, 트래픽 증가 시 자동 스케일링
-
-  [AI 기술 스택 추천 — B안: 퍼포먼스 우선]
-  • 프론트엔드: React Native (모바일) + Next.js (웹)
-    → React 생태계 통일, 웹-앱 코드 재사용 극대화
-  • 백엔드: Python FastAPI + PostgreSQL + Redis
-    → AI/ML 기능 확장에 유리, 비동기 처리 성능 우수`;
-  } else if (isApp) {
-    techRecommendation = `  ▸ 플랫폼: 모바일 앱 (iOS + Android)
-
-  [AI 기술 스택 추천]
-  • 프론트엔드: Flutter 3.x (크로스플랫폼)
-    → 네이티브 대비 개발 기간 40% 단축, 유지보수 비용 절감
-    → 대안: React Native (JavaScript 생태계 활용 시)
-  • 백엔드: NestJS (TypeScript) 또는 FastAPI (Python)
-  • 데이터베이스: PostgreSQL + Redis (캐시)
-  • 인프라: AWS (ECS Fargate + RDS + S3)
-  • 모니터링: Firebase Crashlytics + Sentry`;
-  } else {
-    techRecommendation = `  ▸ 플랫폼: 웹 서비스 (반응형)
-
-  [AI 기술 스택 추천]
-  • 프론트엔드: Next.js 14+ (React)
-    → SSR/SSG로 SEO 최적화, Vercel 배포 시 자동 CDN
-    → 대안: Nuxt.js (Vue 선호 시)
-  • 백엔드: NestJS (TypeScript) 또는 Django (Python)
-  • 데이터베이스: PostgreSQL + Redis (캐시)
-  • 인프라: Vercel(프론트) + AWS(백엔드) 또는 Railway
-  • 모니터링: Sentry + LogRocket`;
-  }
-
-  // 결제 연동
-  const hasPayment = features.some(f =>
-    f.name.includes('결제') || f.name.includes('구매') || f.name.includes('주문'));
-  if (hasPayment) {
-    techRecommendation += `
-
-  [결제 시스템 상세]
-  • PG사: 토스페이먼츠 (추천) 또는 이니시스
-    → 토스페이먼츠: 개발자 친화적 API, 연동 기간 단축
-    → 이니시스: 국내 점유율 1위, 레퍼런스 풍부
-  • 간편결제: 카카오페이, 네이버페이, 애플페이 (필수 권장)
-  • ⚠️ PG 인증에 사업자등록증 기준 2~3주 별도 소요
-  • ⚠️ 에스크로/정산 기능 포함 시 추가 2~3주`;
-  }
-
-  // 보안 요구사항
-  let securitySection = `
-  [보안 요구사항]
-  • 통신 암호화: HTTPS (TLS 1.3) 필수
-  • 데이터 암호화: 개인정보 AES-256 암호화 저장
-  • 인증: JWT + Refresh Token (만료 시 자동 갱신)
-  • 개인정보: 개인정보보호법 준수 (수집/이용 동의, 처리방침 고지)`;
-
-  if (hasPayment) {
-    securitySection += `
-  • 결제: PCI-DSS 준수 (PG사 위임)
-  • 금융: 전자금융거래법 준수`;
-  }
-
-  // 예산/일정 분석
-  const budgetText = rfpData.budgetTimeline || '';
-  let budgetSection = '';
-  if (budgetText && !budgetText.includes('미정') && budgetText.trim() !== '') {
-    budgetSection = `  사용자 입력: ${budgetText}`;
-  } else {
-    budgetSection = `  예산 미정 — 아래 AI 분석을 참고하세요`;
-  }
-
-  budgetSection += `
-
-  [AI 예산/일정 분석]
-  • ${projectInfo.type} 프로젝트 평균 예산: ${projectInfo.avgBudget}
-  • ${projectInfo.type} 프로젝트 평균 기간: ${projectInfo.avgDuration}
-  • 이 프로젝트 예상 기간: ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주 (기능 ${features.length}개, 복잡도 ${complexityLevel})
-
-  [마일스톤 일정표]
-  M1 (1~2주): 기획/설계
-     산출물: 와이어프레임, 정보구조(IA), DB 스키마
-     ─────────────────────────────────────────
-  M2 (2~3주): UI/UX 디자인
-     산출물: 디자인 시안(주요 화면), 디자인 시스템
-     ─────────────────────────────────────────
-  M3 (${Math.round(totalWeeksMin * 0.4)}~${Math.round(totalWeeksMax * 0.4)}주): 프론트엔드 개발
-     산출물: 주요 화면 구현, API 연동
-     ─────────────────────────────────────────
-  M4 (${Math.round(totalWeeksMin * 0.4)}~${Math.round(totalWeeksMax * 0.4)}주): 백엔드 개발
-     산출물: API 완성, 외부 연동, 데이터 마이그레이션
-     ─────────────────────────────────────────
-  M5 (1~2주): 통합 테스트/QA
-     산출물: 버그 리포트, 성능 테스트 결과
-     ─────────────────────────────────────────
-  M6 (1주): 배포/런칭
-     산출물: 라이브 서비스, 운영 문서
-
-  [결제 조건 추천]
-  • 착수금 30% → 디자인 완료 시 30% → 최종 납품 시 40%
-  • 또는: 마일스톤별 균등 분할 (M1~M6 각 16.7%)
-  • ⚠️ 착수금 50% 이상 요구 시 주의 (업계 표준은 30%)`;
-
-  // 참고 서비스 분석
-  let referenceSection = '';
-  if (rfpData.referenceServices && rfpData.referenceServices.trim() !== '' &&
-      !rfpData.referenceServices.includes('없') && !rfpData.referenceServices.includes('건너')) {
-    referenceSection = `  ${rfpData.referenceServices}
-
-  [벤치마크 활용 가이드]
-  ▸ 개발사 미팅 시 "이 부분은 참고, 이 부분은 다르게"를 명확히 구분하세요
-  ▸ 화면 캡처 + 메모를 첨부하면 견적 정확도가 크게 올라갑니다
-  ▸ "그냥 이것처럼 만들어주세요"는 가장 위험한 요청입니다 — 구체적으로 설명하세요`;
-  } else {
-    referenceSection = `  별도 참고 서비스 없음
-
-  [위시켓 추천]
-  ▸ 유사 서비스 2~3개를 찾아 개발사에 함께 전달하면 커뮤니케이션 오류를 크게 줄일 수 있습니다
-  ▸ 참고 서비스의 스크린샷 + "이 부분을 참고"라는 메모가 가장 효과적입니다`;
-  }
-
-  // 추가 요구사항
-  let additionalSection = rfpData.additionalRequirements || '';
-  if (!additionalSection || additionalSection.includes('없') || additionalSection.trim() === '') {
-    additionalSection = '별도 추가 요구사항 없음';
-  }
-
-  // ═══════════════════════════════════════════
-  // 화면 설계 요약 자동 생성
-  // ═══════════════════════════════════════════
-  const generateScreenList = () => {
-    const screens: string[] = ['스플래시/로딩', '온보딩 (첫 사용 안내)', '로그인/회원가입'];
-    for (const f of features) {
-      const fn = f.name;
-      if (fn.includes('로그인') || fn.includes('회원')) { screens.push('비밀번호 찾기', '프로필 설정/수정'); }
-      if (fn.includes('결제') || fn.includes('구매')) { screens.push('결제 화면', '결제 완료', '결제 내역'); }
-      if (fn.includes('채팅') || fn.includes('메시지')) { screens.push('채팅 목록', '채팅방', '채팅 알림 설정'); }
-      if (fn.includes('관리자')) { screens.push('관리자 대시보드', '사용자 관리', '콘텐츠 관리'); }
-      if (fn.includes('검색')) { screens.push('검색 화면', '검색 결과', '필터/정렬'); }
-      if (fn.includes('예약')) { screens.push('예약 캘린더', '예약 상세', '예약 확인/취소'); }
-      if (fn.includes('리뷰') || fn.includes('평가')) { screens.push('리뷰 작성', '리뷰 목록'); }
-      if (fn.includes('알림')) { screens.push('알림 센터', '알림 설정'); }
-      if (fn.includes('지도') || fn.includes('위치')) { screens.push('지도 화면', '위치 검색 결과'); }
-      if (fn.includes('장바구니')) { screens.push('장바구니', '주문서'); }
-      if (fn.includes('대시보드')) { screens.push('대시보드(메인)', '통계/리포트'); }
-    }
-    screens.push('마이페이지', '설정', '공지사항/FAQ');
-    // deduplicate
-    return [...new Set(screens)];
-  };
-
-  const screenList = generateScreenList();
-
-  // ═══════════════════════════════════════════
-  // 데이터 모델 자동 생성
-  // ═══════════════════════════════════════════
-  const generateDataModel = () => {
-    const tables: { name: string; fields: string }[] = [
-      { name: 'users (사용자)', fields: 'id, email, password_hash, name, phone, profile_image, role, status, created_at' },
-    ];
-    for (const f of features) {
-      const fn = f.name.toLowerCase();
-      if (fn.includes('결제') || fn.includes('구매')) {
-        tables.push({ name: 'payments (결제)', fields: 'id, user_id, amount, status, pg_transaction_id, method, created_at' });
-        tables.push({ name: 'orders (주문)', fields: 'id, user_id, total_amount, status, shipping_address, created_at' });
-      }
-      if (fn.includes('채팅') || fn.includes('메시지')) {
-        tables.push({ name: 'chat_rooms (채팅방)', fields: 'id, type, participants, last_message, created_at' });
-        tables.push({ name: 'messages (메시지)', fields: 'id, room_id, sender_id, content, type, read_at, created_at' });
-      }
-      if (fn.includes('리뷰') || fn.includes('평가')) {
-        tables.push({ name: 'reviews (리뷰)', fields: 'id, user_id, target_id, rating, content, images, created_at' });
-      }
-      if (fn.includes('알림')) {
-        tables.push({ name: 'notifications (알림)', fields: 'id, user_id, type, title, body, is_read, created_at' });
-      }
-      if (fn.includes('예약')) {
-        tables.push({ name: 'reservations (예약)', fields: 'id, user_id, provider_id, date, time_slot, status, created_at' });
-      }
-    }
-    return tables;
-  };
-
-  const dataModel = generateDataModel();
-
-  // ═══════════════════════════════════════════
-  // 최종 RFP 문서 조립 (v6 — 컨설팅펌 시니어급)
-  // ═══════════════════════════════════════════
 
   const projectName = rfpData.overview?.split('\n')[0]?.split('.')[0]?.trim().slice(0, 30) || '프로젝트';
 
+  const featuresP0 = features.filter(f => f.priority === 'P1');
+  const featuresP1 = features.filter(f => f.priority === 'P2');
+  const featuresP2 = features.filter(f => f.priority === 'P3');
+
+  // Budget analysis
+  let budgetText = '';
+  if (rfpData.budgetTimeline && !rfpData.budgetTimeline.includes('미정') && rfpData.budgetTimeline.trim() !== '') {
+    budgetText = rfpData.budgetTimeline;
+  }
+
   return `
-─── 1. Executive Summary ─────────────────────────────────
+─── 한 줄 요약 ─────────────────────────────────
+
+  ${generateOneLiner(rfpData, projectInfo)}
 
   프로젝트명: ${projectName}
   작성일: ${date}
-  문서 버전: v1.0 | 작성 도구: 위시켓 AI RFP Builder (v6)
+  문서 버전: v1.0
+  작성 도구: 위시켓 AI PRD Builder
   기밀 등급: Confidential
 
-  "${projectName}" 프로젝트는 ${projectInfo.type} 형태의 서비스로,
-  ${rfpData.targetUsers || '일반 사용자'}를 대상으로 합니다.
 
-  핵심 기능 ${features.length}개를 포함하며, 프로젝트 복잡도는 "${complexityLevel}"으로
-  평가됩니다. ${projectInfo.type} 프로젝트의 평균 기간은 ${projectInfo.avgDuration}이며,
-  이 프로젝트의 예상 기간은 ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주입니다.
+─── 1. 개요 ─────────────────────────────────────
 
-  ${projectInfo.marketInsight}
+${generateOverview(rfpData, projectInfo)}
 
   [프로젝트 핵심 수치]
+  • 프로젝트 유형: ${projectInfo.type}
   • 예상 기간: ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주
-  • 핵심 기능: ${features.length}개 (P1: ${featuresP1.length} / P2: ${featuresP2.length} / P3: ${featuresP3.length})
+  • 핵심 기능: ${features.length}개 (P0: ${featuresP0.length} / P1: ${featuresP1.length} / P2: ${featuresP2.length})
   • 프로젝트 복잡도: ${complexityLevel} (${totalComplexity}/25점)
   • 참고 평균 예산: ${projectInfo.avgBudget}
-  • 성공률: ${projectInfo.successRate}
 
 
-─── 2. 프로젝트 개요 ─────────────────────────────────────
+─── 2. 스코프 ───────────────────────────────────
 
-  ${rfpData.overview || '(프로젝트 개요)'}
-
-  ▸ 프로젝트 유형: ${projectInfo.type}
-  ▸ 예상 복잡도: ${complexityLevel} (총점 ${totalComplexity}/25)
-    구성: ${analyzedFeatures.map(f => `${f.name}(${'★'.repeat(f.complexity)})`).join(', ')}
-
-  [위시켓 시장 데이터]
-  • 유사 ${projectInfo.type} 프로젝트 평균 예산: ${projectInfo.avgBudget}
-  • 유사 프로젝트 평균 기간: ${projectInfo.avgDuration}
-  • ${projectInfo.successRate}
-
-  [핵심 성공 지표(KPI) 제안]
-  • MAU (월간 활성 사용자): 출시 3개월 내 목표 설정
-  • 리텐션율: D1 > 40%, D7 > 20%, D30 > 10% 목표
-  • 핵심 전환율: 회원가입 → 핵심 액션 전환율 목표 설정
-  • NPS (순추천 지수): 출시 후 분기별 측정, 목표 50 이상
+${generateScope(rfpData, features, projectInfo)}
 
 
-─── 3. 서비스 대상 ───────────────────────────────────────
+─── 3. 작업 타입 ─────────────────────────────────
 
-${targetAnalysis}
-
-
-─── 4. 기능 요구사항 ─────────────────────────────────────
-
-  총 ${features.length}개 기능
-  (필수 ${featuresP1.length}개 · 우선 ${featuresP2.length}개 · 선택 ${featuresP3.length}개)
-${formatDetailedFeatures(featuresP1, '필수 기능 (P1) — MVP에 반드시 포함')}
-${formatDetailedFeatures(featuresP2, '우선 기능 (P2) — 2차 개발 범위')}
-${formatDetailedFeatures(featuresP3, '선택 기능 (P3) — 사용자 피드백 기반 결정')}
-
-  [누락 가능성이 높은 기능 — 위시켓 경험 기반]
-${projectInfo.mustHaveFeatures.map(f => `  ⚠️ ${f}`).join('\n')}
+${generateWorkType(rfpData)}
 
 
-─── 5. 참고 서비스 / 벤치마크 ────────────────────────────
+─── 4. 기능 목록 ─────────────────────────────────
 
-${referenceSection}
+  총 ${features.length}개 기능 (P0 필수: ${featuresP0.length}개 / P1 우선: ${featuresP1.length}개 / P2 선택: ${featuresP2.length}개)
 
-
-─── 6. 기술 요구사항 ─────────────────────────────────────
-
-  ${rfpData.techRequirements || '기술 스택은 개발사 재량에 위임 (아래 AI 추천 참고)'}
-
-${techRecommendation}
-${securitySection}
-
-  [비기능 요구사항]
-  • 성능: 페이지 로딩 < 3초, API 응답 < 500ms
-  • 확장성: MAU 10,000명까지 별도 인프라 변경 없이 대응
-  • 가용성: 99.5% 이상 (월간 다운타임 3.6시간 이내)
-  • 백업: 일 1회 자동 백업, 30일 보관
+${generateFeatureTable(analyzedFeatures)}
 
 
-─── 7. 디자인 요구사항 ───────────────────────────────────
+─── 5. 화면 및 사용자 흐름 ────────────────────────
 
-  • 디자인 포함 여부: 개발사와 협의 (별도 디자이너 or 개발사 내부)
-  • 반응형: 모바일(375px~) / 태블릿(768px~) / 데스크톱(1200px~)
-  • 디자인 시스템: 주요 컬러, 타이포그래피, 컴포넌트 라이브러리 정의
-  • 프로토타입: Figma 기반 인터랙티브 프로토타입 권장
-  • 접근성: WCAG 2.1 AA 등급 이상 준수 권장
-  • 다크모드: 선택사항 (MZ 타겟 시 권장)
+${generateFlowsAndScreens(features, rfpData)}
 
 
-─── 8. 화면 설계 요약 ───────────────────────────────────
+─── 6. 비즈니스 규칙 ─────────────────────────────
 
-  예상 화면 수: 약 ${screenList.length}개
-
-  [주요 화면 목록]
-${screenList.map((s, i) => `  ${String(i + 1).padStart(2, '0')}. ${s}`).join('\n')}
-
-  [화면 설계 산출물]
-  • 와이어프레임 (전체 화면): Figma 또는 Sketch
-  • 주요 화면 디자인 시안: 최소 5~8개 핵심 화면
-  • 인터랙션 프로토타입: 핵심 사용자 플로우 3~5개
-  • 디자인 시스템 문서: 컬러, 타이포, 컴포넌트, 아이콘 가이드
+${generateBusinessRules(rfpData, features, projectInfo)}
 
 
-─── 9. 데이터 설계 (참고) ──────────────────────────────
+─── 7. 비기능 요구사항 ───────────────────────────
 
-  [주요 데이터 테이블 — 개발사 참고용]
-${dataModel.map(t => `  • ${t.name}\n    필드: ${t.fields}`).join('\n')}
-
-  ※ 위 데이터 모델은 AI가 기능 기반으로 추정한 참고 자료입니다.
-  실제 설계는 개발사의 기술 판단에 따라 최적화됩니다.
+${generateNFR(projectInfo)}
 
 
-─── 10. 일정 및 예산 ─────────────────────────────────────
+─── 8. 일정 및 예산 ──────────────────────────────
 
-${budgetSection}
+  ${budgetText ? `예산: ${budgetText}` : `예산 미정 — 개발사 견적 기반 결정`}
+
+  [AI 분석 기반 예상치]
+  • ${projectInfo.type} 평균 예산: ${projectInfo.avgBudget}
+  • ${projectInfo.type} 평균 기간: ${projectInfo.avgDuration}
+  • 이 프로젝트 예상: ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주 (기능 ${features.length}개, 복잡도 ${complexityLevel})
+
+  [마일스톤]
+
+| 단계 | 기간 | 산출물 | 결제 비율 |
+| --- | --- | --- | --- |
+| M1. 기획/설계 | 1~2주 | 와이어프레임, IA, DB 스키마 | 착수금 30% |
+| M2. UI/UX 디자인 | 2~3주 | 디자인 시안, 디자인 시스템 | - |
+| M3. 프론트엔드 개발 | ${Math.round(totalWeeksMin * 0.4)}~${Math.round(totalWeeksMax * 0.4)}주 | 화면 구현, API 연동 | 중도금 30% |
+| M4. 백엔드 개발 | ${Math.round(totalWeeksMin * 0.4)}~${Math.round(totalWeeksMax * 0.4)}주 | API, DB, 외부 연동 | - |
+| M5. 통합 테스트/QA | 1~2주 | 버그 리포트, 성능 테스트 | - |
+| M6. 배포/런칭 | 1주 | 라이브 서비스, 운영 문서 | 잔금 40% |
 
 
-─── 11. 기타 요구사항 ─────────────────────────────────────
+─── 9. 참고 자료 ─────────────────────────────────
 
-  ${additionalSection}
+${generateReferences(rfpData)}
 
-  [필수 확인 사항 — 위시켓 추천]
-  • 소스코드 소유권: 발주사에 귀속 (계약서에 반드시 명시)
-  • 하자보수 기간: 최소 3개월 (6개월 권장)
-  • 유지보수: 월 정액 또는 시간제 유지보수 별도 계약
+
+─── 10. 미결 사항 ────────────────────────────────
+
+${generateOpenItems(rfpData, features, projectInfo)}
+
+
+─── 11. 리스크 및 대응 ───────────────────────────
+
+| # | 리스크 | 발생확률 | 영향도 | 대응 방안 |
+| --- | --- | --- | --- | --- |
+${projectInfo.keyRisks.map((r, i) => `| ${i + 1} | ${r} | 중~높음 | 높음 | 사전 일정 반영 + 대안 기술 검토 |`).join('\n')}
+| ${projectInfo.keyRisks.length + 1} | 스코프 크리프 (요구사항 증가) | 높음 | 매우 높음 | MVP(P0) 우선 출시, 추가 기능은 2차 개발 |
+| ${projectInfo.keyRisks.length + 2} | 커뮤니케이션 단절 | 중간 | 높음 | 주 1~2회 정기 미팅, 마일스톤별 리뷰 |
+
+
+─── 12. 산출물 및 계약 조건 ──────────────────────
+
+  [필수 산출물]
+  • 소스코드 전체 (Git Repository)
+  • 기술 문서 (아키텍처, API 문서)
+  • DB 스키마 문서
+  • 배포 가이드
+  • 관리자 매뉴얼
+
+  [계약 필수 조건]
+  • 소스코드 소유권: 모든 소스코드의 저작재산권은 발주사에 귀속
+  • 하자보수: 납품일로부터 6개월간 무상 하자보수
+  • 추가 개발: 추가 기능 요청 시 개발자 1인/일 단가 기준 협의
+  • 보안/기밀: NDA(비밀유지계약) 별도 체결
   • 커뮤니케이션: 주 1~2회 진행 보고서 + 격주 화상 미팅
-  • 산출물: 소스코드 + 기술문서 + DB 스키마 + API 문서 + 배포 가이드
-
-  [프로젝트 관리 방안]
-  • 프로젝트 관리 도구: Jira, Notion, Linear 등 협업 도구 필수 사용
+  • 프로젝트 관리: Jira/Notion 등 협업 도구 필수 사용
   • 코드 관리: Git 기반 버전 관리, 코드 리뷰 프로세스 적용
-  • 배포: CI/CD 파이프라인 구축 (GitHub Actions / Jenkins)
-  • 모니터링: Sentry(에러 추적) + LogRocket/Datadog(성능 모니터링) 권장
 
 
-─── 위시켓 AI 전문가 분석 & 추천 사항 ─────────────────
+─── 다음 단계 안내 ──────────────────────────────
 
-
-─── MVP 로드맵 ───────────────────────────────────────────
-
-  [1단계 — MVP 출시 (${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax * 0.6)}주)]
-  범위: ${featuresP1.map(f => f.name).join(', ') || '핵심 기능'}
-  목표: 시장 검증 + 초기 사용자 확보 + 핵심 가설 검증
-  예산: 전체의 45~55%
-
-  [2단계 — 기능 확장 (MVP 출시 후 4~6주)]
-  범위: ${featuresP2.map(f => f.name).join(', ') || '우선순위 기능'}
-  목표: 사용자 피드백 반영 + 리텐션 개선
-  예산: 전체의 25~35%
-
-  [3단계 — 고도화 (2단계 이후)]
-  범위: ${featuresP3.map(f => f.name).join(', ') || '선택 기능 + 성능 최적화'}
-  목표: 차별화 + 수익 모델 강화
-  예산: 전체의 15~25%
-
-
-─── 예산 최적화 가이드 ───────────────────────────────────
-
-  1. 크로스플랫폼 활용 → 네이티브 대비 30~40% 절감
-     (Flutter/React Native로 iOS+Android 동시 개발)
-
-  2. MVP 우선 전략 → 초기 리스크 50% 이상 감소
-     (P1 기능만 먼저 출시, 시장 반응 확인 후 확장)
-
-  3. 관리자 화면 간소화 → 전체 비용 10~15% 절감
-     (초기에는 최소 기능만, 필요에 따라 확장)
-
-
-─── 리스크 매트릭스 ──────────────────────────────────────
-
-${projectInfo.keyRisks.map((r, i) => `  ${i + 1}. ${r}
-     발생확률: 중~높음 | 영향도: 높음
-     대응: 사전 일정에 반영 + 대안 기술 검토`).join('\n\n')}
-
-  ${features.length > 5 ? `${projectInfo.keyRisks.length + 1}. 기능 과다에 의한 스코프 크리프
-     발생확률: 높음 | 영향도: 매우 높음
-     대응: MVP(P1) 먼저 출시, 추가 기능은 2차 개발로 분리` : ''}
-
-  ${projectInfo.keyRisks.length + (features.length > 5 ? 2 : 1)}. 커뮤니케이션 단절
-     발생확률: 중간 | 영향도: 높음
-     대응: 주 1~2회 정기 미팅, 마일스톤별 산출물 리뷰
-
-
-─── 개발사 선정 가이드 ───────────────────────────────────
-
-  [이 프로젝트에 적합한 개발사]
-  • 유사 ${projectInfo.type} 포트폴리오 3건 이상
-  • ${projectInfo.commonStack} 경험
-  • 5인 이상 팀 구성 가능 (PM + 디자이너 + 프론트 + 백엔드 + QA)
-
-  [면접 시 반드시 물어볼 질문 5가지]
-  1. "유사 프로젝트를 진행한 경험이 있나요? 결과물을 볼 수 있을까요?"
-  2. "프로젝트 매니저가 전담 배정되나요? 주간 보고는 어떤 형식인가요?"
-  3. "개발 중 요구사항이 변경되면 어떻게 처리하나요? (비용/일정 영향)"
-  4. "QA 프로세스는 어떻게 되나요? 테스트 범위와 기준은?"
-  5. "소스코드와 산출물 인수인계는 어떤 형식으로 진행하나요?"
-
-
-─── 계약 시 체크리스트 ───────────────────────────────────
-
-  ☐ 소스코드 소유권 → "모든 소스코드의 저작재산권은 발주사에 귀속"
-  ☐ 중간 산출물 정의 → 마일스톤별 산출물과 승인 기준 명시
-  ☐ 하자보수 기간 → "납품일로부터 6개월간 무상 하자보수"
-  ☐ 추가 개발 단가 → "추가 기능 요청 시 개발자 1인/일 단가 기준 협의"
-  ☐ 지연 시 패널티 → "귀책 사유에 의한 지연 시 주당 N% 감액" 조건
-  ☐ 보안/기밀유지 → NDA(비밀유지계약) 별도 체결
-  ☐ 분쟁 해결 → "대한상사중재원 중재에 따른다" 등 분쟁 해결 조항
-
-
-─── 다음 단계 안내 ─────────────────────────────────────
-
-  본 RFP는 위시켓 AI RFP Builder (v6)로 생성되었습니다.
+  본 PRD는 위시켓 AI PRD Builder로 생성되었습니다.
   이 문서를 개발사에 바로 전달하여 정확한 견적을 받아보세요.
 
   위시켓 | wishket.com
   13년간 7만+ IT 프로젝트 매칭, 국내 최대 IT 외주 플랫폼
 
   [추천 진행 순서]
-  1단계: 위시켓에 프로젝트 등록 → 평균 48시간 내 3~5곳 개발사 제안 수령
+  1단계: 위시켓에 프로젝트 등록 → 48시간 내 검증된 개발사 3~5곳 제안 수령
   2단계: 개발사 포트폴리오 및 리뷰 확인 → 면접 2~3곳 선정
-  3단계: 개발사 미팅 (이 RFP 기반) → 최종 선정 및 계약
-  4단계: 킥오프 미팅 → 상세 요구사항 확정 → 개발 착수
-
-  [견적 비교 시 핵심 체크포인트]
-  • 단순 "총 금액"이 아닌, 마일스톤별 산출물과 일정을 비교하세요
-  • 가장 낮은 견적이 최선은 아닙니다 — 포트폴리오와 소통 역량이 더 중요
-  • 견적서에 "추가 개발 시 단가"가 명시되어 있는지 반드시 확인
-  • 유지보수 비용이 별도인지, 포함인지 확인`.trim();
+  3단계: 이 PRD 기반 개발사 미팅 → 최종 선정 및 계약
+  4단계: 킥오프 미팅 → 상세 요구사항 확정 → 개발 착수`.trim();
 }
 
 // ═══════════════════════════════════════════
@@ -760,7 +1019,7 @@ export async function POST(req: NextRequest) {
         apiKey: process.env.ANTHROPIC_API_KEY,
       });
 
-      const analyzedFeatures = rfpData.coreFeatures.map(f => analyzeFeature(f));
+      const analyzedFeatures = (rfpData.coreFeatures || []).map(f => analyzeFeature(f));
       const totalComplexity = analyzedFeatures.reduce((s, f) => s + f.complexity, 0);
       const complexityLevel = totalComplexity >= 15 ? '높음' : totalComplexity >= 8 ? '중간~높음' : '중간';
 
@@ -787,7 +1046,7 @@ ${analyzedFeatures.map(f =>
         messages: [
           {
             role: 'user',
-            content: `아래 데이터로 시장 최고 수준의 전문 RFP 문서를 작성해주세요. 맥킨지 수준의 구조화, 실제 개발사 PM이 바로 WBS를 작성할 수 있는 구체성, 비개발자도 이해할 수 있는 완결성이 필요합니다.\n\n${contextData}`,
+            content: `아래 데이터로 개발사가 바로 WBS를 작성할 수 있는 수준의 전문 PRD 문서를 작성해주세요. 최소 5페이지 분량으로, 화면 상세, 사용자 흐름, 수용 기준, 비즈니스 규칙이 모두 포함되어야 합니다.\n\n${contextData}`,
           },
         ],
       });
@@ -800,13 +1059,13 @@ ${analyzedFeatures.map(f =>
       }
     }
 
-    // 세션에 완성된 RFP 문서 저장
+    // Save to Supabase
     if (sessionId) {
       supabase
         .from('rfp_sessions')
         .update({
           rfp_data: rfpData,
-          rfp_document: rfpDocument.slice(0, 30000),
+          rfp_document: rfpDocument.slice(0, 50000),
           completed: true,
           updated_at: new Date().toISOString(),
         })
