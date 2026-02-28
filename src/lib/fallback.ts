@@ -20,6 +20,7 @@ interface FallbackResponse {
   nextAction: string;
   nextStep: number | null;
   quickReplies?: string[];
+  inlineOptions?: string[];
   selectableFeatures?: SelectableFeature[];
   thinkingLabel?: string;
   topicsCovered?: TopicId[];
@@ -757,7 +758,7 @@ function determineNextTopic(rfpData: RFPData, currentTopicStep: number): number 
 //  🆕 맥락 기반 동적 질문 생성
 //  이전 답변을 참조하여 맞춤형 질문 생성
 // ═══════════════════════════════════════════════════════
-function generateContextualQuestion(topicStep: number, rfpData: RFPData): { question: string; quickReplies?: string[]; selectableFeatures?: SelectableFeature[] } {
+function generateContextualQuestion(topicStep: number, rfpData: RFPData): { question: string; quickReplies?: string[]; selectableFeatures?: SelectableFeature[]; inlineOptions?: string[] } {
   const ti = detectedType || DEFAULT_PROJECT_TYPE;
   const topicId = STEP_TO_TOPIC[topicStep];
   const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 20) : '프로젝트';
@@ -770,30 +771,9 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
 
   switch (topicId) {
     case 'targetUsers': {
-      if (detectedProjectType === '플랫폼') {
-        return {
-          question: `플랫폼은 **공급자와 수요자 양쪽의 화면을 별도 설계**해야 합니다.\n\n**${projectName}**에서 매칭되는 양쪽은 각각 누구인가요?\n예: "프리랜서 개발자 ↔ IT 외주를 원하는 기업"`,
-          quickReplies: ti.quickRepliesMap.targetUsers,
-        };
-      } else if (detectedProjectType === '이커머스') {
-        return {
-          question: `타겟 고객에 따라 **상품 노출 방식, UI 톤, 필요 기능**이 완전히 달라집니다.\n\n**${projectName}**의 주 구매자는 어떤 분들인가요?\n연령대, 성별, 주 구매 상황 등을 알려주세요.`,
-          quickReplies: ti.quickRepliesMap.targetUsers,
-        };
-      } else if (detectedProjectType === 'SaaS') {
-        return {
-          question: `SaaS는 **의사결정자와 실사용자가 다른 경우**가 많아, 양쪽의 니즈를 파악해야 기능 설계가 정확해집니다.\n\n**${projectName}**을 사용할 기업 규모와 실사용자는 누구인가요?`,
-          quickReplies: ti.quickRepliesMap.targetUsers,
-        };
-      } else if (detectedProjectType === 'AI 서비스') {
-        return {
-          question: `사용자의 기술 수준에 따라 **UI 복잡도와 결과 표시 방식**이 크게 달라집니다.\n\n**${projectName}**의 사용자는 AI에 익숙한 전문가인가요, 일반인인가요?`,
-          quickReplies: ti.quickRepliesMap.targetUsers,
-        };
-      }
       return {
-        question: `타겟 사용자에 따라 **화면 구성과 기능 우선순위**가 결정됩니다.\n\n**${projectName}**을 주로 누가 사용하게 될까요?\n연령대, 직업, 기술 수준 등을 알려주세요.`,
-        quickReplies: ti.quickRepliesMap.targetUsers,
+        question: '주 사용자는 누구인가요?',
+        inlineOptions: ti.quickRepliesMap.targetUsers,
       };
     }
 
@@ -808,7 +788,7 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
 
       if (serviceMatch) {
         // 서비스 키워드 매칭 성공 → 맞춤 기능 목록
-        const question = `PRD의 핵심은 **기능 정의**입니다.\n\n**"${overviewText.slice(0, 30)}"**에 맞는 **${serviceMatch.label}** 추천 기능을 준비했습니다.\n\n아래에서 필요한 기능을 **선택/해제**한 후 확인해주세요.\n직접 추가할 기능이 있으면 텍스트로 입력하셔도 됩니다.`;
+        const question = `**${serviceMatch.label}** 기반 추천 기능입니다. 필요한 기능을 선택하세요.`;
 
         return {
           question,
@@ -824,7 +804,7 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
           ...quickFeatures.filter(f => !mustHave.includes(f)).map(f => ({ name: f, desc: FEATURE_DB[f.split('(')[0].trim()]?.desc || f, category: 'recommended' as const })),
         ];
 
-        const question = `PRD의 핵심은 **기능 정의**입니다.\n\n**${ti.type}** 프로젝트에서 추천하는 기능 목록입니다.\n\n아래에서 필요한 기능을 **선택/해제**한 후 확인해주세요.\n직접 추가할 기능이 있으면 텍스트로 입력하셔도 됩니다.`;
+        const question = `추천 기능 목록입니다. 필요한 기능을 선택하세요.`;
 
         return {
           question,
@@ -834,31 +814,30 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
     }
 
     case 'referenceServices': {
-      const typeExample = ti.competitorExample;
       return {
-        question: `참고 서비스가 있으면 **디자인 방향과 기능 수준**을 PRD에 구체적으로 명시할 수 있습니다.\n\n비슷하게 만들고 싶은 서비스가 있나요?\n"${typeExample}의 **이 부분처럼**" 식으로 말씀해주시면 가장 좋습니다.`,
-        quickReplies: ti.quickRepliesMap.referenceServices,
+        question: '참고하고 싶은 서비스가 있나요?\n예: "당근마켓의 채팅처럼"',
+        inlineOptions: ['없음', '직접 입력'],
       };
     }
 
     case 'techRequirements': {
       return {
-        question: `웹인지 앱인지에 따라 **기술 스택과 설계 방식**이 완전히 달라집니다.\n\n**${projectName}**을(를) 웹으로 만들까요, 앱으로 만들까요?\n특별한 선호가 없으시면 "개발사 추천에 따름"도 괜찮습니다.`,
-        quickReplies: ti.quickRepliesMap.techRequirements,
+        question: '웹, 앱, 또는 둘 다 필요한가요?',
+        inlineOptions: ti.quickRepliesMap.techRequirements,
       };
     }
 
     case 'budgetTimeline': {
       return {
-        question: `일정과 예산이 PRD에 포함되어야 **실현 가능한 범위**로 기능을 조율할 수 있습니다.\n\n희망하는 완료 시점과 예산 범위가 있으신가요?\n대략적이어도 괜찮고, "미정"이셔도 됩니다.`,
-        quickReplies: ti.quickRepliesMap.budgetTimeline,
+        question: '희망 일정과 예산이 있나요?',
+        inlineOptions: ti.quickRepliesMap.budgetTimeline,
       };
     }
 
     case 'additionalRequirements': {
       return {
-        question: `PRD에 포함할 **추가 조건**이 있으신가요?\n\n예: 소스코드 소유권, 하자보수, 디자인 포함 여부, 특정 보안 요건 등`,
-        quickReplies: ti.quickRepliesMap.additionalRequirements,
+        question: '추가 요구사항이 있나요?\n예: 소스코드 소유권, 디자인 포함 여부',
+        inlineOptions: ti.quickRepliesMap.additionalRequirements,
       };
     }
 
@@ -889,14 +868,14 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
       detectedProjectType = projectType;
 
       return {
-        message: `${typeInfo.insightEmoji} **${typeInfo.type}** 프로젝트로 파악했습니다.`,
+        message: '',
         thinkingLabel: '프로젝트 유형 분석 중...',
       };
     }
 
     case 'targetUsers': {
       return {
-        message: '타겟 사용자를 반영했습니다.',
+        message: '',
         thinkingLabel: '반영 중...',
       };
     }
@@ -924,9 +903,8 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
           priority: (f.category === 'must' ? 'P1' : i < 4 ? 'P2' : 'P3') as 'P1' | 'P2' | 'P3',
         }));
         featureSelectionActive = false;
-        const selectedList = accumulatedFeatures.map(f => `✅ ${f.name}`).join('\n');
         return {
-          message: `**선택 기능 ${accumulatedFeatures.length}개 반영 완료:**\n${selectedList}`,
+          message: '',
           thinkingLabel: '기능 목록 반영 중...',
         };
       } else if (a === '직접 입력할게요') {
@@ -939,50 +917,49 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
         const newFeatures = parseFeatures(a);
         accumulatedFeatures = newFeatures;
         featureSelectionActive = false;
-        const selectedList = accumulatedFeatures.map(f => `✅ ${f.name}`).join('\n');
         return {
-          message: `**입력 기능 ${accumulatedFeatures.length}개 반영 완료:**\n${selectedList}`,
+          message: '',
           thinkingLabel: '기능 목록 반영 중...',
         };
       }
 
       featureSelectionActive = false;
-      return { message: '기능 정보를 반영했습니다.', thinkingLabel: '반영 중...' };
+      return { message: '', thinkingLabel: '반영 중...' };
     }
 
     case 'referenceServices': {
       if (a === '건너뛰기' || a.length < 3) {
-        return { message: '넘어갈게요.' };
+        return { message: '' };
       }
       return {
-        message: '참고 서비스를 반영했습니다.',
+        message: '',
         thinkingLabel: '반영 중...',
       };
     }
 
     case 'techRequirements': {
       return {
-        message: '기술 요구사항을 반영했습니다.',
+        message: '',
         thinkingLabel: '반영 중...',
       };
     }
 
     case 'budgetTimeline': {
       return {
-        message: '일정/예산 정보를 반영했습니다.',
+        message: '',
         thinkingLabel: '반영 중...',
       };
     }
 
     case 'additionalRequirements': {
       return {
-        message: '추가 요구사항을 반영했습니다.',
+        message: '',
         thinkingLabel: '반영 중...',
       };
     }
 
     default:
-      return { message: '답변을 반영했습니다.' };
+      return { message: '' };
   }
 }
 
@@ -1040,7 +1017,11 @@ export function generateFallbackResponse(
   } else if (!isSkip) {
     if (topicId === 'overview') {
       const { typeInfo } = detectProjectType(userMessage);
-      rfpUpdate = { section: topicId, value: `${userMessage.trim()} — ${typeInfo.type} 프로젝트` };
+      // Generate concise project title from user's description
+      const words = userMessage.trim().split(/\s+/).slice(0, 6).join(' ');
+      const titleSuffix = typeInfo.type !== '소프트웨어 서비스' ? ` (${typeInfo.type})` : '';
+      const projectTitle = words.length > 20 ? words.slice(0, 20) + '...' : words;
+      rfpUpdate = { section: topicId, value: `${projectTitle}${titleSuffix}` };
     } else if (topicId === 'targetUsers') {
       rfpUpdate = { section: topicId, value: parseTargetUsers(userMessage) };
     } else if (topicId === 'techRequirements') {
@@ -1105,35 +1086,19 @@ export function generateFallbackResponse(
 
   if (shouldComplete) {
     // 완료 상태
-    const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 30) : '프로젝트';
-    const ti = detectedType;
-
-    message = `${feedback.message}\n\n---\n\n🎉 **"${projectName}" RFP 생성 준비 완료!**\n\n📋 수집된 정보:\n${covered.map(t => {
-      const topic = TOPICS.find(tp => tp.id === t);
-      return topic ? `✅ ${topic.icon} ${topic.label}` : '';
-    }).filter(Boolean).join('\n')}${ti ? `\n\n📊 이 ${ti.type} 프로젝트 추천 MVP: ${ti.mvpScope}` : ''}\n\n아래 버튼을 눌러 **전문 PRD**를 완성하세요!`;
+    message = 'PRD 생성 준비가 완료되었습니다.\n아래 버튼을 눌러 PRD를 완성하세요.';
     thinkingLabel = 'RFP 문서 구조 설계 중...';
   } else {
     // 다음 질문으로 진행
     const nextQ = generateContextualQuestion(nextStepNumber!, simulatedRfpData);
-    const nextTopic = TOPICS.find(t => t.stepNumber === nextStepNumber);
-    const topicLabel = nextTopic ? `${nextTopic.icon} ${nextTopic.label}` : '';
 
-    // 완료 가능 여부 표시
-    const canCompleteNow = isReadyToComplete(simulatedRfpData);
-    const completeHint = canCompleteNow ? '\n\n💬 이미 충분한 정보가 수집되었어요. "RFP 생성"을 눌러 바로 완성할 수도 있습니다.' : '';
-
-    message = `${feedback.message}\n\n---\n\n**${topicLabel}**\n${nextQ.question}${completeHint}`;
-    quickReplies = feedback.quickReplies || nextQ.quickReplies;
+    message = nextQ.question;
+    quickReplies = nextQ.inlineOptions || undefined;
 
     // 🆕 selectableFeatures 전달 (coreFeatures 토픽일 때)
     if (nextQ.selectableFeatures) {
       selectableFeatures = nextQ.selectableFeatures;
       quickReplies = undefined; // selectableFeatures가 있으면 quickReplies 숨김
-    }
-
-    if (canCompleteNow && quickReplies) {
-      quickReplies = ['바로 RFP 생성하기', ...quickReplies];
     }
   }
 
@@ -1143,6 +1108,7 @@ export function generateFallbackResponse(
     nextAction: shouldComplete ? 'complete' : 'continue',
     nextStep: nextStepNumber,
     quickReplies,
+    inlineOptions: quickReplies,
     selectableFeatures,
     thinkingLabel,
     topicsCovered: covered,

@@ -1,10 +1,10 @@
 'use client';
 
-// AI RFP Builder — Result Page v9 (FORGE Rebuild)
+// AI RFP Builder — Result Page v10 (Enhanced with TOC, Features, Share)
 // 핵심 원칙: PRD 문서가 히어로. 탭/아코디언 없이 바로 보여준다.
 // 프로페셔널 문서 레이아웃. 컨설팅 산출물 수준의 WOW.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { RFPData } from '@/types/rfp';
 
 interface RFPCompleteProps {
@@ -21,9 +21,7 @@ const C = {
   textPrimary: '#0F172A', textSecondary: '#475569', textTertiary: '#94A3B8',
   border: '#E2E8F0', borderLight: '#F1F5F9',
   green: '#22C55E', greenBg: 'rgba(34, 197, 94, 0.08)',
-  orange: '#F59E0B',
-  red: '#EF4444',
-  purple: '#8B5CF6',
+  orange: '#F59E0B', red: '#EF4444', purple: '#8B5CF6',
   gradient: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
 };
 
@@ -84,6 +82,152 @@ function extractMetrics(text: string): { label: string; value: string }[] {
   const bud = text.match(/참고 평균 예산[:\s]*([^\n]+)/);
   if (bud) m.push({ label: '참고 예산', value: bud[1].trim() });
   return m.slice(0, 4);
+}
+
+// ━━━━━ Feature Parser & Card ━━━━━
+interface Feature {
+  name: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  description: string;
+  subFeatures: string[];
+  criteria: string[];
+}
+
+function parseFeatures(text: string): Feature[] {
+  const features: Feature[] = [];
+  const lines = text.split('\n');
+  let i = 0;
+
+  // Look for table format first
+  while (i < lines.length) {
+    if (lines[i].trim().startsWith('|') && lines[i].includes('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+
+      const rows = tableLines
+        .filter(l => !l.trim().match(/^\|[\s-|]+\|$/))
+        .map(l => l.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(cell => cell.trim()));
+
+      if (rows.length > 1) {
+        const headerRow = rows[0];
+        const dataRows = rows.slice(1);
+        const nameIdx = headerRow.findIndex(h => h.toLowerCase().includes('기능') || h.toLowerCase().includes('name'));
+        const priorityIdx = headerRow.findIndex(h => h.toLowerCase().includes('우선') || h.toLowerCase().includes('priority'));
+        const descIdx = headerRow.findIndex(h => h.toLowerCase().includes('설명') || h.toLowerCase().includes('desc'));
+
+        for (const row of dataRows) {
+          if (row.length > 0) {
+            const featureName = nameIdx >= 0 && row[nameIdx] ? row[nameIdx] : row[0];
+            const priorityStr = priorityIdx >= 0 && row[priorityIdx] ? row[priorityIdx] : 'P2';
+            const desc = descIdx >= 0 && row[descIdx] ? row[descIdx] : '';
+            const priority = priorityStr.match(/P[0-3]/) ? (priorityStr.match(/P[0-3]/)![0] as 'P0' | 'P1' | 'P2' | 'P3') : 'P2';
+
+            features.push({
+              name: featureName,
+              priority,
+              description: desc,
+              subFeatures: [],
+              criteria: [],
+            });
+          }
+        }
+      }
+      continue;
+    }
+    i++;
+  }
+
+  return features.length > 0 ? features : [];
+}
+
+function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
+  const priorityColors: Record<'P0' | 'P1' | 'P2' | 'P3', string> = {
+    P0: C.red,
+    P1: C.orange,
+    P2: C.textTertiary,
+    P3: '#D1D5DB',
+  };
+
+  const priorityBg: Record<'P0' | 'P1' | 'P2' | 'P3', string> = {
+    P0: 'rgba(239, 68, 68, 0.08)',
+    P1: 'rgba(245, 158, 11, 0.08)',
+    P2: 'rgba(148, 163, 184, 0.08)',
+    P3: 'rgba(209, 213, 219, 0.08)',
+  };
+
+  return (
+    <div style={{
+      background: C.white,
+      border: `1px solid ${C.border}`,
+      borderRadius: 12,
+      padding: '20px',
+      marginBottom: 14,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: C.blueBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 14,
+          fontWeight: 700,
+          color: C.blue,
+          flexShrink: 0,
+        }}>
+          {index + 1}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: 0 }}>
+              {feature.name}
+            </h3>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '4px 10px',
+              borderRadius: 6,
+              background: priorityBg[feature.priority],
+              color: priorityColors[feature.priority],
+            }}>
+              {feature.priority}
+            </span>
+          </div>
+          {feature.description && (
+            <p style={{ fontSize: 14, color: C.textSecondary, margin: '0 0 8px', lineHeight: 1.5 }}>
+              {feature.description}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {feature.subFeatures.length > 0 && (
+        <div style={{ marginTop: 12, paddingLeft: 44 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: C.textTertiary, marginBottom: 6, margin: 0 }}>세부 기능</p>
+          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+            {feature.subFeatures.map((sub, i) => <li key={i}>{sub}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {feature.criteria.length > 0 && (
+        <div style={{ marginTop: 12, paddingLeft: 44 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: C.textTertiary, marginBottom: 6, margin: 0 }}>수락 기준</p>
+          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+            {feature.criteria.map((crit, i) => <li key={i}>{crit}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ━━━━━ Content Renderer ━━━━━
@@ -156,6 +300,15 @@ function SectionContent({ content }: { content: string }) {
   return <>{elements}</>;
 }
 
+// ━━━━━ Generate AI Project Title ━━━━━
+function generateProjectTitle(overview: string): string {
+  if (!overview) return 'PRD 기획서';
+  const firstLine = overview.split('\n')[0].trim();
+  // Take first 6 words, clean it up
+  const words = firstLine.split(/\s+/).slice(0, 6).join(' ');
+  return words.slice(0, 50) || 'PRD 기획서';
+}
+
 type Phase = 'generating' | 'result' | 'consultation' | 'done';
 
 // ━━━━━ Main Component ━━━━━
@@ -175,10 +328,47 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   const [copied, setCopied] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
   const [showCTA, setShowCTA] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const sections = parseRFPSections(rfpDocument);
   const metrics = extractMetrics(rfpDocument);
-  const projectName = rfpData.overview?.split('\n')[0]?.split(' — ')[0]?.slice(0, 40) || 'PRD 기획서';
+  const features = parseFeatures(rfpDocument);
+  const projectName = generateProjectTitle(rfpData.overview);
+
+  // Initialize expanded sections (first 3 expanded)
+  useEffect(() => {
+    if (sections.length > 0 && expandedSections.size === 0) {
+      const initialExpanded = new Set<string>();
+      sections.slice(0, 3).forEach(s => initialExpanded.add(s.id));
+      setExpandedSections(initialExpanded);
+      setActiveSection(sections[0]?.id || '');
+    }
+  }, [sections, expandedSections]);
+
+  // ━━ IntersectionObserver for TOC active tracking ━━
+  useEffect(() => {
+    if (phase !== 'result' && phase !== 'consultation') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute('data-section-id');
+            if (id) setActiveSection(id);
+            break;
+          }
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    document.querySelectorAll('[data-section-id]').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [phase, sections]);
 
   // ━━ Auto-generate RFP ━━
   useEffect(() => { generateRFP(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -211,7 +401,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
   const sendEmailRFP = async (targetEmail: string, doc: string) => {
     try {
-      const res = await fetch('/api/send-rfp-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: targetEmail, rfpDocument: doc, projectName: rfpData.overview?.split('\n')[0]?.slice(0, 50) }) });
+      const res = await fetch('/api/send-rfp-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: targetEmail, rfpDocument: doc, projectName }) });
       const data = await res.json();
       if (data.success) setEmailSent(true);
     } catch { /* ignore */ }
@@ -239,6 +429,23 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
+  const handleCreateShareLink = async () => {
+    setShareLoading(true);
+    try {
+      const res = await fetch('/api/share-prd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rfpDocument, rfpData, projectName }),
+      });
+      const data = await res.json();
+      if (data.share_id) {
+        const url = `${window.location.origin}/share/${data.share_id}`;
+        setShareUrl(url);
+        await copyToClipboard(url);
+      }
+    } catch { /* ignore */ } finally { setShareLoading(false); }
+  };
+
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -257,6 +464,25 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     const a = document.createElement('a'); a.href = url;
     a.download = `PRD_${projectName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click(); URL.revokeObjectURL(url);
+  };
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    const el = document.querySelector(`[data-section-id="${sectionId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -298,7 +524,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     );
   }
 
-  // ━━━━━ Phase: Result — 문서 중심 레이아웃 ━━━━━
+  // ━━━━━ Phase: Result — TOC + Collapsible + Features ━━━━━
   if (phase === 'result' || phase === 'consultation') {
     return (
       <div style={{ minHeight: '100vh', background: C.bg }}>
@@ -310,7 +536,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           borderBottom: `1px solid ${C.border}`,
           padding: '10px 16px',
         }}>
-          <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 240 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 28, height: 28, borderRadius: 7, background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -318,6 +544,17 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               <span style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{projectName}</span>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleCreateShareLink} disabled={shareLoading} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '7px 14px', borderRadius: 8,
+                border: `1.5px solid ${C.blue}`,
+                background: C.blueBg,
+                color: C.blue,
+                fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s',
+              }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                공유 링크
+              </button>
               <button onClick={() => copyToClipboard(rfpDocument)} style={{
                 display: 'flex', alignItems: 'center', gap: 5,
                 padding: '7px 14px', borderRadius: 8,
@@ -345,66 +582,111 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           </div>
         </div>
 
-        {/* ━━ Document Container ━━ */}
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 40px' }}>
+        {/* ━━ Main Layout: TOC + Content ━━ */}
+        <div style={{ display: 'flex', maxWidth: '100%' }}>
 
-          {/* ━━ Email Notification ━━ */}
-          {emailSent && !isGuest && (
-            <div style={{ padding: '10px 14px', marginBottom: 16, borderRadius: 8, background: C.greenBg, border: `1px solid rgba(34, 197, 94, 0.15)`, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
-              <span style={{ fontSize: 13, color: '#15803D', fontWeight: 500 }}><strong>{email}</strong>로 PRD가 발송되었습니다</span>
-            </div>
-          )}
-
-          {/* ━━ Document Hero Header ━━ */}
+          {/* ━━ Table of Contents Sidebar (Desktop only) ━━ */}
           <div style={{
-            background: C.paper, borderRadius: 16, marginBottom: 2,
-            border: `1px solid ${C.border}`, overflow: 'hidden',
-          }}>
-            {/* 상단 컬러 바 */}
-            <div style={{ height: 4, background: C.gradient }} />
+            position: 'sticky',
+            top: 50,
+            width: 240,
+            height: 'calc(100vh - 50px)',
+            overflowY: 'auto',
+            padding: '24px 16px',
+            borderRight: `1px solid ${C.border}`,
+            background: C.white,
+            display: 'none',
+          }} className="toc-sidebar">
+            <h4 style={{ fontSize: 12, fontWeight: 700, color: C.textTertiary, marginBottom: 16, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5 }}>목차</h4>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {sections.map(section => (
+                <button
+                  key={section.id}
+                  onClick={() => scrollToSection(section.id)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: activeSection === section.id ? C.blueBg : 'transparent',
+                    border: 'none',
+                    color: activeSection === section.id ? C.blue : C.textSecondary,
+                    fontSize: 13,
+                    fontWeight: activeSection === section.id ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {section.title}
+                </button>
+              ))}
+            </nav>
+            <style>{`
+              @media (min-width: 1280px) {
+                .toc-sidebar { display: block; }
+              }
+            `}</style>
+          </div>
 
-            <div style={{ padding: '32px 36px 28px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, letterSpacing: 1.5, marginBottom: 12 }}>WISHKET AI PRD BUILDER</div>
-              <h1 style={{ fontSize: 26, fontWeight: 800, color: C.textPrimary, lineHeight: 1.35, marginBottom: 20, wordBreak: 'keep-all' }}>
-                {projectName}
-              </h1>
+          {/* ━━ Document Container ━━ */}
+          <div style={{ flex: 1, padding: '24px 16px 40px' }} ref={contentRef}>
+            <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
-              {/* 핵심 지표 */}
-              {metrics.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                  {metrics.map(m => (
-                    <div key={m.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: C.textTertiary }}>{m.label}</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{m.value}</span>
-                    </div>
-                  ))}
+              {/* ━━ Email Notification ━━ */}
+              {emailSent && !isGuest && (
+                <div style={{ padding: '10px 14px', marginBottom: 16, borderRadius: 8, background: C.greenBg, border: `1px solid rgba(34, 197, 94, 0.15)`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span style={{ fontSize: 13, color: '#15803D', fontWeight: 500 }}><strong>{email}</strong>로 PRD가 발송되었습니다</span>
                 </div>
               )}
 
-              <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: C.textTertiary }}>
-                <span>생성일: {new Date().toLocaleDateString('ko-KR')}</span>
-                <span>·</span>
-                <span>위시켓 13년 · 7만+ 프로젝트 데이터 기반</span>
-              </div>
-            </div>
-          </div>
+              {/* ━━ Share Link Success ━━ */}
+              {shareUrl && (
+                <div style={{ padding: '12px 14px', marginBottom: 16, borderRadius: 8, background: C.blueBg, border: `1px solid rgba(37, 99, 235, 0.15)`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2.5" strokeLinecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  <span style={{ fontSize: 13, color: C.blue, fontWeight: 500 }}>공유 링크가 복사되었습니다</span>
+                </div>
+              )}
 
-          {/* ━━ PRD Document Body — 전체 펼침 ━━ */}
-          <div style={{
-            background: C.paper, border: `1px solid ${C.border}`,
-            borderTop: 'none', borderRadius: '0 0 16px 16px',
-          }}>
-            {sections.map((section, idx) => (
-              <div key={section.id} style={{
-                padding: '28px 36px',
-                borderTop: idx > 0 ? `1px solid ${C.borderLight}` : 'none',
+              {/* ━━ Document Hero Header ━━ */}
+              <div style={{
+                background: C.paper, borderRadius: 16, marginBottom: 2,
+                border: `1px solid ${C.border}`, overflow: 'hidden',
               }}>
-                {/* 섹션 제목 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ height: 4, background: C.gradient }} />
+                <div style={{ padding: '32px 36px 28px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, letterSpacing: 1.5, marginBottom: 12 }}>WISHKET AI PRD BUILDER</div>
+                  <h1 style={{ fontSize: 26, fontWeight: 800, color: C.textPrimary, lineHeight: 1.35, marginBottom: 20, wordBreak: 'keep-all' }}>
+                    {projectName}
+                  </h1>
+
+                  {metrics.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                      {metrics.map(m => (
+                        <div key={m.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 12, color: C.textTertiary }}>{m.label}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{m.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: C.textTertiary }}>
+                    <span>생성일: {new Date().toLocaleDateString('ko-KR')}</span>
+                    <span>·</span>
+                    <span>위시켓 13년 · 7만+ 프로젝트 데이터 기반</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ━━ Features Section (Card-based) ━━ */}
+              {features.length > 0 && (
+                <div style={{
+                  background: C.paper, border: `1px solid ${C.border}`,
+                  borderTop: 'none', padding: '28px 36px',
+                }}>
                   <h2 style={{
                     fontSize: 17, fontWeight: 700, color: C.textPrimary, margin: 0,
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
                   }}>
                     <span style={{
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -412,166 +694,234 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                       background: C.blueBg, color: C.blue,
                       fontSize: 12, fontWeight: 700,
                     }}>
-                      {idx + 1}
+                      🎯
                     </span>
-                    {section.title}
+                    핵심 기능
                   </h2>
+                  <div>
+                    {features.map((feature, idx) => (
+                      <FeatureCard key={idx} feature={feature} index={idx} />
+                    ))}
+                  </div>
                 </div>
-
-                {/* 섹션 본문 */}
-                <div style={{
-                  fontSize: 14.5, lineHeight: 1.9, color: C.textSecondary,
-                  whiteSpace: 'pre-wrap', wordBreak: 'keep-all',
-                  paddingLeft: 36,
-                }}>
-                  <SectionContent content={section.content} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ━━ 문서 끝 — 다음 단계 ━━ */}
-          <div style={{ marginTop: 32 }}>
-
-            {/* 이 문서 활용법 — 한 줄 */}
-            <div style={{
-              padding: '14px 20px', marginBottom: 16, borderRadius: 10,
-              background: C.blueBg, border: `1px solid rgba(37, 99, 235, 0.1)`,
-              fontSize: 14, color: C.blue, fontWeight: 500, textAlign: 'center',
-            }}>
-              이 PRD를 개발사 3~5곳에 동일하게 전달하면 정확한 견적 비교가 가능합니다
-            </div>
-
-            {/* 액션 버튼 그리드 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 20 }}>
-              <button onClick={() => copyToClipboard(rfpDocument)} style={{
-                padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
-                background: C.white, cursor: 'pointer', textAlign: 'center',
-              }}>
-                <div style={{ fontSize: 22, marginBottom: 6 }}>📋</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>전체 복사</div>
-                <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>개발사에 바로 전달</div>
-              </button>
-              <button onClick={handleDownload} style={{
-                padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
-                background: C.white, cursor: 'pointer', textAlign: 'center',
-              }}>
-                <div style={{ fontSize: 22, marginBottom: 6 }}>💾</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>파일 저장</div>
-                <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>TXT 다운로드</div>
-              </button>
-              {isGuest && !emailSent ? (
-                <button onClick={() => setShowCTA(true)} style={{
-                  padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
-                  background: C.white, cursor: 'pointer', textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>📩</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>이메일로 받기</div>
-                  <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>PDF 발송</div>
-                </button>
-              ) : (
-                <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=web&utm_campaign=rfp-complete" target="_blank" rel="noopener noreferrer" style={{
-                  padding: '18px 16px', borderRadius: 12, border: `1.5px solid ${C.blue}`,
-                  background: C.blueBg, cursor: 'pointer', textAlign: 'center', textDecoration: 'none',
-                }}>
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>🚀</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.blue }}>위시켓 등록</div>
-                  <div style={{ fontSize: 12, color: C.blueLight, marginTop: 2 }}>48시간 내 견적 도착</div>
-                </a>
               )}
-            </div>
 
-            {/* Guest 이메일 수집 */}
-            {isGuest && showCTA && !emailSent && (
+              {/* ━━ PRD Document Body — Collapsible Sections ━━ */}
               <div style={{
-                padding: '24px', borderRadius: 14, marginBottom: 20,
-                background: '#0B1120', boxShadow: '0 4px 20px rgba(11, 17, 32, 0.3)',
+                background: C.paper, border: `1px solid ${C.border}`,
+                borderTop: features.length > 0 ? 'none' : 'none', borderRadius: features.length > 0 ? '0 0 16px 16px' : '0 0 16px 16px',
               }}>
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: C.white, marginBottom: 6 }}>PRD를 이메일로 받아보세요</h3>
-                <p style={{ fontSize: 14, color: C.blueSoft, lineHeight: 1.5, marginBottom: 16 }}>완성된 PRD를 이메일로 보내드립니다.</p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="이메일 주소" style={{ ...inputStyle, flex: 1, background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', color: C.white }} />
-                  <button onClick={handleGuestEmailSubmit} disabled={loading || !guestEmail.includes('@')} style={{ padding: '0 24px', borderRadius: 10, border: 'none', background: C.blue, color: C.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', opacity: (!guestEmail.includes('@') || loading) ? 0.5 : 1 }}>
-                    {loading ? '발송 중...' : '발송'}
-                  </button>
-                </div>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>스팸 없음 · 기획서 발송 전용</p>
-              </div>
-            )}
-            {isGuest && emailSent && (
-              <div style={{ padding: '10px 14px', marginBottom: 20, borderRadius: 8, background: C.greenBg, border: `1px solid rgba(34, 197, 94, 0.15)`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
-                <span style={{ fontSize: 13, color: '#15803D', fontWeight: 500 }}><strong>{guestEmail}</strong>로 발송 완료</span>
-              </div>
-            )}
-
-            {/* CTA 영역 */}
-            {!consultationSubmitted && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-                {/* 위시켓 프로젝트 등록 */}
-                <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=web&utm_campaign=rfp-complete" target="_blank" rel="noopener noreferrer" style={{
-                  display: 'block', textDecoration: 'none', background: C.gradient, borderRadius: 14, padding: '22px 24px', color: C.white, boxShadow: '0 4px 16px rgba(37, 99, 235, 0.25)',
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, opacity: 0.7, marginBottom: 6 }}>추천</div>
-                  <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>위시켓에서 개발사 찾기</h3>
-                  <p style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.5, marginBottom: 14 }}>이 PRD로 바로 등록 → 48시간 내 검증된 개발사 제안</p>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 7, background: 'rgba(255,255,255,0.15)', fontWeight: 600, fontSize: 13 }}>
-                    무료로 시작하기 →
-                  </span>
-                </a>
-
-                {/* 무료 상담 */}
-                <div style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 14, padding: '22px 24px' }}>
-                  <h3 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>무료 전문가 상담</h3>
-                  <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>이 PRD를 위시켓 전문가와 함께 검토하고, 최적의 진행 방안을 상담받으세요.</p>
-                  {phase === 'consultation' ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="이름 *" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = C.blue; }} onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }} />
-                      <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="연락처 *" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = C.blue; }} onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }} />
-                      <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="회사명 (선택)" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = C.blue; }} onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }} />
-                      <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} style={{ ...inputStyle, color: preferredTime ? C.textPrimary : C.textTertiary }}>
-                        <option value="">상담 희망 시간 (선택)</option>
-                        <option value="morning">오전 (10:00-12:00)</option>
-                        <option value="afternoon">오후 (14:00-17:00)</option>
-                        <option value="evening">저녁 (18:00-20:00)</option>
-                        <option value="anytime">무관</option>
-                      </select>
-                      <select value={budgetRange} onChange={(e) => setBudgetRange(e.target.value)} style={{ ...inputStyle, color: budgetRange ? C.textPrimary : C.textTertiary }}>
-                        <option value="">예상 예산 규모 (선택)</option>
-                        <option value="under10m">1천만원 미만</option>
-                        <option value="10m-30m">1천만원 ~ 3천만원</option>
-                        <option value="30m-50m">3천만원 ~ 5천만원</option>
-                        <option value="50m-100m">5천만원 ~ 1억</option>
-                        <option value="over100m">1억 이상</option>
-                        <option value="undecided">미정</option>
-                      </select>
-                      <button onClick={() => handleConsultation('consultation')} disabled={loading || !name || !phone} style={{
-                        width: '100%', height: 48, borderRadius: 10, border: 'none',
-                        background: (!name || !phone) ? C.border : C.blue,
-                        color: (!name || !phone) ? C.textTertiary : C.white,
-                        fontWeight: 600, fontSize: 15, cursor: 'pointer',
-                      }}>
-                        {loading ? '접수 중...' : '상담 신청하기'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setPhase('consultation')} style={{
-                      width: '100%', height: 42, borderRadius: 10, border: `1.5px solid ${C.blue}`,
-                      background: C.blueBg, color: C.blue, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                {sections.map((section, idx) => (
+                  <div key={section.id} data-section-id={section.id} style={{
+                    padding: '28px 36px',
+                    borderTop: idx > 0 ? `1px solid ${C.borderLight}` : 'none',
+                  }}>
+                    {/* 섹션 제목 (Clickable to toggle) */}
+                    <button onClick={() => toggleSection(section.id)} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      marginBottom: 16,
+                      cursor: 'pointer',
+                      textAlign: 'left',
                     }}>
-                      무료 상담신청 →
+                      <h2 style={{
+                        fontSize: 17, fontWeight: 700, color: C.textPrimary, margin: 0,
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: 26, height: 26, borderRadius: 7,
+                          background: C.blueBg, color: C.blue,
+                          fontSize: 12, fontWeight: 700,
+                        }}>
+                          {idx + 1}
+                        </span>
+                        {section.title}
+                      </h2>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 24,
+                        height: 24,
+                        transition: 'transform 0.2s',
+                        transform: expandedSections.has(section.id) ? 'rotate(0deg)' : 'rotate(-90deg)',
+                        color: C.textTertiary,
+                        flexShrink: 0,
+                      }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                      </span>
                     </button>
+
+                    {/* 섹션 본문 (Collapsible) */}
+                    {expandedSections.has(section.id) && (
+                      <div style={{
+                        fontSize: 14.5, lineHeight: 1.9, color: C.textSecondary,
+                        whiteSpace: 'pre-wrap', wordBreak: 'keep-all',
+                        paddingLeft: 36,
+                        animation: 'fadeIn 0.2s ease',
+                      }}>
+                        <SectionContent content={section.content} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* ━━ 문서 끝 — 다음 단계 ━━ */}
+              <div style={{ marginTop: 32 }}>
+
+                <div style={{
+                  padding: '14px 20px', marginBottom: 16, borderRadius: 10,
+                  background: C.blueBg, border: `1px solid rgba(37, 99, 235, 0.1)`,
+                  fontSize: 14, color: C.blue, fontWeight: 500, textAlign: 'center',
+                }}>
+                  이 PRD를 개발사 3~5곳에 동일하게 전달하면 정확한 견적 비교가 가능합니다
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 20 }}>
+                  <button onClick={handleCreateShareLink} disabled={shareLoading} style={{
+                    padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
+                    background: C.white, cursor: 'pointer', textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>🔗</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>공유 링크</div>
+                    <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>생성 및 복사</div>
+                  </button>
+                  <button onClick={() => copyToClipboard(rfpDocument)} style={{
+                    padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
+                    background: C.white, cursor: 'pointer', textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>📋</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>전체 복사</div>
+                    <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>개발사에 바로 전달</div>
+                  </button>
+                  <button onClick={handleDownload} style={{
+                    padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
+                    background: C.white, cursor: 'pointer', textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>💾</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>파일 저장</div>
+                    <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>TXT 다운로드</div>
+                  </button>
+                  {isGuest && !emailSent ? (
+                    <button onClick={() => setShowCTA(true)} style={{
+                      padding: '18px 16px', borderRadius: 12, border: `1px solid ${C.border}`,
+                      background: C.white, cursor: 'pointer', textAlign: 'center',
+                    }}>
+                      <div style={{ fontSize: 22, marginBottom: 6 }}>📩</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>이메일로 받기</div>
+                      <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 2 }}>PDF 발송</div>
+                    </button>
+                  ) : (
+                    <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=web&utm_campaign=rfp-complete" target="_blank" rel="noopener noreferrer" style={{
+                      padding: '18px 16px', borderRadius: 12, border: `1.5px solid ${C.blue}`,
+                      background: C.blueBg, cursor: 'pointer', textAlign: 'center', textDecoration: 'none',
+                    }}>
+                      <div style={{ fontSize: 22, marginBottom: 6 }}>🚀</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.blue }}>위시켓 등록</div>
+                      <div style={{ fontSize: 12, color: C.blueLight, marginTop: 2 }}>48시간 내 견적 도착</div>
+                    </a>
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* Footer */}
-            <div style={{ padding: '12px 0', marginTop: 24, textAlign: 'center' }}>
-              <p style={{ fontSize: 12, color: C.textTertiary, margin: 0 }}>Powered by Wishket AI PRD Builder · 13년 외주 경험 · 7만+ 프로젝트 매칭 데이터</p>
+                {isGuest && showCTA && !emailSent && (
+                  <div style={{
+                    padding: '24px', borderRadius: 14, marginBottom: 20,
+                    background: '#0B1120', boxShadow: '0 4px 20px rgba(11, 17, 32, 0.3)',
+                  }}>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: C.white, marginBottom: 6 }}>PRD를 이메일로 받아보세요</h3>
+                    <p style={{ fontSize: 14, color: C.blueSoft, lineHeight: 1.5, marginBottom: 16 }}>완성된 PRD를 이메일로 보내드립니다.</p>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="이메일 주소" style={{ ...inputStyle, flex: 1, background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', color: C.white }} />
+                      <button onClick={handleGuestEmailSubmit} disabled={loading || !guestEmail.includes('@')} style={{ padding: '0 24px', borderRadius: 10, border: 'none', background: C.blue, color: C.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', opacity: (!guestEmail.includes('@') || loading) ? 0.5 : 1 }}>
+                        {loading ? '발송 중...' : '발송'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>스팸 없음 · 기획서 발송 전용</p>
+                  </div>
+                )}
+                {isGuest && emailSent && (
+                  <div style={{ padding: '10px 14px', marginBottom: 20, borderRadius: 8, background: C.greenBg, border: `1px solid rgba(34, 197, 94, 0.15)`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    <span style={{ fontSize: 13, color: '#15803D', fontWeight: 500 }}><strong>{guestEmail}</strong>로 발송 완료</span>
+                  </div>
+                )}
+
+                {!consultationSubmitted && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                    <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=web&utm_campaign=rfp-complete" target="_blank" rel="noopener noreferrer" style={{
+                      display: 'block', textDecoration: 'none', background: C.gradient, borderRadius: 14, padding: '22px 24px', color: C.white, boxShadow: '0 4px 16px rgba(37, 99, 235, 0.25)',
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, opacity: 0.7, marginBottom: 6 }}>추천</div>
+                      <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>위시켓에서 개발사 찾기</h3>
+                      <p style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.5, marginBottom: 14 }}>이 PRD로 바로 등록 → 48시간 내 검증된 개발사 제안</p>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 7, background: 'rgba(255,255,255,0.15)', fontWeight: 600, fontSize: 13 }}>
+                        무료로 시작하기→
+                      </span>
+                    </a>
+
+                    <div style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 14, padding: '22px 24px' }}>
+                      <h3 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>무료 전문가 상담</h3>
+                      <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>이 PRD를 위시켓 전문가와 함께 검토하고, 최적의 진행 방안을 상담받으세요.</p>
+                      {phase === 'consultation' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="이름 *" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = C.blue; }} onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }} />
+                          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="연락처 *" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = C.blue; }} onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }} />
+                          <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="회사명 (선택)" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = C.blue; }} onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }} />
+                          <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} style={{ ...inputStyle, color: preferredTime ? C.textPrimary : C.textTertiary }}>
+                            <option value="">상담 희망 시간 (선택)</option>
+                            <option value="morning">오전 (10:00-12:00)</option>
+                            <option value="afternoon">오후 (14:00-17:00)</option>
+                            <option value="evening">저녁 (18:00-20:00)</option>
+                            <option value="anytime">무관</option>
+                          </select>
+                          <select value={budgetRange} onChange={(e) => setBudgetRange(e.target.value)} style={{ ...inputStyle, color: budgetRange ? C.textPrimary : C.textTertiary }}>
+                            <option value="">예상 예산 규모 (선택)</option>
+                            <option value="under10m">1천만원 미만</option>
+                            <option value="10m-30m">1천만원 ~ 3천만원</option>
+                            <option value="30m-50m">3천만원 ~ 5천만원</option>
+                            <option value="50m-100m">5천만원 ~ 1억</option>
+                            <option value="over100m">1억 이상</option>
+                            <option value="undecided">미정</option>
+                          </select>
+                          <button onClick={() => handleConsultation('consultation')} disabled={loading || !name || !phone} style={{
+                            width: '100%', height: 48, borderRadius: 10, border: 'none',
+                            background: (!name || !phone) ? C.border : C.blue,
+                            color: (!name || !phone) ? C.textTertiary : C.white,
+                            fontWeight: 600, fontSize: 15, cursor: 'pointer',
+                          }}>
+                            {loading ? '접수 중...' : '상담 신청하기'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setPhase('consultation')} style={{
+                          width: '100%', height: 42, borderRadius: 10, border: `1.5px solid ${C.blue}`,
+                          background: C.blueBg, color: C.blue, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                        }}>
+                          무료 상담신청 →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ padding: '12px 0', marginTop: 24, textAlign: 'center' }}>
+                  <p style={{ fontSize: 12, color: C.textTertiary, margin: 0 }}>Powered by Wishket AI PRD Builder · 13년 외주 경험 · 7만+ 프로젝트 매칭 데이터</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `}</style>
       </div>
     );
   }

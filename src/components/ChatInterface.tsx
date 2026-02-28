@@ -18,6 +18,7 @@ interface ChatMessage {
   content: string;
   timestamp?: number;
   selectableFeatures?: SelectableFeature[];
+  inlineOptions?: string[];
 }
 
 interface ChatInterfaceProps {
@@ -233,6 +234,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         content: data.message,
         timestamp: Date.now(),
         selectableFeatures: data.selectableFeatures || undefined,
+        inlineOptions: data.inlineOptions || undefined,
       };
       const finalMessages: ChatMessage[] = [...newMessages, assistantMsg];
       setMessages(finalMessages);
@@ -572,9 +574,71 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
                     />
                   ) : (
-                    <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+                    (() => {
+                      // Detect JSON feature selection and render nicely
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
+                          return (
+                            <div style={{ margin: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: 6 }}>
+                                선택한 기능 {parsed.length}개
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {parsed.map((f: {name: string}, idx: number) => (
+                                  <span key={idx} style={{
+                                    display: 'inline-block',
+                                    padding: '3px 10px',
+                                    borderRadius: 12,
+                                    background: 'rgba(255,255,255,0.15)',
+                                    fontSize: 12,
+                                    color: 'rgba(255,255,255,0.9)',
+                                  }}>
+                                    {f.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>;
+                    })()
                   )}
                 </div>
+                {/* Inline options for assistant messages */}
+                {msg.role === 'assistant' && msg.inlineOptions && msg.inlineOptions.length > 0 && i === messages.length - 1 && !loading && (
+                  <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {msg.inlineOptions.map((option, oi) => (
+                      <button
+                        key={oi}
+                        onClick={() => sendMessage(option)}
+                        style={{
+                          padding: '7px 14px',
+                          borderRadius: 20,
+                          border: '1.5px solid var(--color-primary)',
+                          background: 'transparent',
+                          color: 'var(--color-primary)',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          fontFamily: 'var(--font-kr)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--color-primary)';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = 'var(--color-primary)';
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* 타임스탬프 */}
                 {msg.timestamp && (
                   <div style={{
@@ -832,56 +896,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
-        )}
-
-        {/* Quick Reply Chips */}
-        {quickReplies.length > 0 && !loading && !isComplete && (
-          <div style={{
-            padding: isMobile ? '8px 16px' : '8px 24px',
-            display: 'flex',
-            gap: '8px',
-            flexWrap: 'wrap',
-            borderTop: '1px solid var(--border-default)',
-            background: 'var(--surface-1)',
-          }}>
-            {quickReplies.map((reply, i) => {
-              const isRfpGenerate = reply === '바로 RFP 생성하기';
-              return (
-                <button
-                  key={i}
-                  onClick={() => handleQuickReply(reply)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-full)',
-                    border: isRfpGenerate ? 'none' : '1.5px solid var(--color-primary)',
-                    background: isRfpGenerate ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))' : 'var(--surface-0)',
-                    color: isRfpGenerate ? 'white' : 'var(--color-primary)',
-                    fontSize: 13,
-                    fontWeight: isRfpGenerate ? 600 : 500,
-                    fontFamily: 'var(--font-kr)',
-                    cursor: 'pointer',
-                    transition: 'all var(--duration-fast) var(--ease-out)',
-                    whiteSpace: 'nowrap',
-                    boxShadow: isRfpGenerate ? '0 2px 8px rgba(var(--color-primary-rgb), 0.3)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isRfpGenerate) {
-                      e.currentTarget.style.background = 'var(--color-primary)';
-                      e.currentTarget.style.color = 'white';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isRfpGenerate) {
-                      e.currentTarget.style.background = 'var(--surface-0)';
-                      e.currentTarget.style.color = 'var(--color-primary)';
-                    }
-                  }}
-                >
-                  {isRfpGenerate ? '✨ ' : ''}{reply}
-                </button>
-              );
-            })}
-          </div>
         )}
 
         {/* Input Area */}

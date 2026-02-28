@@ -575,13 +575,22 @@ function generateFeatureTable(analyzedFeatures: FeatureAnalysis[]): string {
   // Detailed breakdown per feature
   let details = '\n\n  ── 기능별 상세 명세 ──\n';
   analyzedFeatures.forEach((f, i) => {
+    const priorityLabel = f.priority === 'P1' ? 'P0 필수' : f.priority === 'P2' ? 'P1 우선' : 'P2 선택';
     details += `
-  ${i + 1}. ${f.name} [${f.priority === 'P1' ? 'P0' : f.priority === 'P2' ? 'P1' : 'P2'}]
-     설명: ${f.description}
-     서브 기능:
-${f.subFeatures.map(sf => `       • ${sf}`).join('\n')}
-     수용 기준 (Acceptance Criteria):
-${f.acceptanceCriteria.map(ac => `       ✓ ${ac}`).join('\n')}
+═══════════════════════════════════════
+  ${i + 1}. ${f.name}
+  우선순위: ${priorityLabel} | 예상 공수: ${f.estimatedWeeks}
+═══════════════════════════════════════
+
+  ▸ 설명
+    ${f.description}
+
+  ▸ 서브 기능
+${f.subFeatures.map(sf => `    · ${sf}`).join('\n')}
+
+  ▸ 수용 기준 (Acceptance Criteria)
+${f.acceptanceCriteria.map((ac, j) => `    ${j + 1}. ${ac}`).join('\n')}
+
 `;
   });
 
@@ -850,7 +859,8 @@ function generateFallbackRFP(rfpData: RFPData): string {
   const totalWeeksMin = Math.max(weekEstimates.reduce((s, w) => s + w[0], 0) * 0.6, 4);
   const totalWeeksMax = Math.max(weekEstimates.reduce((s, w) => s + w[1], 0) * 0.7, 6);
 
-  const projectName = rfpData.overview?.split('\n')[0]?.split('.')[0]?.trim().slice(0, 30) || '프로젝트';
+  const rawOverview = rfpData.overview?.split('\n')[0]?.split(' — ')[0]?.split('(')[0]?.trim() || '프로젝트';
+  const projectName = rawOverview.length > 25 ? rawOverview.slice(0, 25) + '...' : rawOverview;
 
   const featuresP0 = features.filter(f => f.priority === 'P1');
   const featuresP1 = features.filter(f => f.priority === 'P2');
