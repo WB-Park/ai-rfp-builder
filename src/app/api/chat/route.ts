@@ -81,6 +81,11 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    // 디버그: Claude 응답 구조 로깅
+    if (parsed.rfp_update?.section === 'coreFeatures') {
+      console.log('[DEBUG] coreFeatures raw value type:', typeof parsed.rfp_update.value, JSON.stringify(parsed.rfp_update.value).slice(0, 500));
+    }
+
     // rfp_update의 coreFeatures가 항상 배열인지 서버에서 정규화
     let rfpUpdate = parsed.rfp_update;
     if (rfpUpdate && rfpUpdate.section === 'coreFeatures' && rfpUpdate.value !== undefined) {
@@ -94,13 +99,22 @@ export async function POST(req: NextRequest) {
           rfpUpdate = { ...rfpUpdate, value: [] };
         }
       }
-      // 배열 내 각 항목에 필수 필드 보장
+      // 배열 내 각 항목에 필수 필드 보장 (문자열/객체 모두 처리)
       if (Array.isArray(rfpUpdate.value)) {
-        rfpUpdate.value = rfpUpdate.value.map((f: Record<string, unknown>) => ({
-          name: f.name || f.feature || '기능',
-          description: f.description || f.desc || '',
-          priority: f.priority || 'P1',
-        }));
+        rfpUpdate.value = rfpUpdate.value.map((f: unknown) => {
+          if (typeof f === 'string') {
+            return { name: f, description: '', priority: 'P1' };
+          }
+          if (typeof f === 'object' && f !== null) {
+            const obj = f as Record<string, unknown>;
+            return {
+              name: obj.name || obj.feature || obj.title || obj.기능명 || obj.기능 || '기능',
+              description: obj.description || obj.desc || obj.설명 || '',
+              priority: obj.priority || 'P1',
+            };
+          }
+          return { name: '기능', description: '', priority: 'P1' };
+        });
       }
     }
 
