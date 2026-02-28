@@ -88,62 +88,215 @@ function extractMetrics(text: string): { label: string; value: string }[] {
 interface Feature {
   name: string;
   priority: 'P0' | 'P1' | 'P2' | 'P3';
+  estimatedWeeks: string;
   description: string;
   subFeatures: string[];
   criteria: string[];
+  flow: string;
+  screens: string[];
+  businessRules: string[];
+  errorCases: string[];
+  dataModels: string[];
 }
 
 function parseFeatures(text: string): Feature[] {
   const features: Feature[] = [];
-  const lines = text.split('\n');
-  let i = 0;
 
-  // Look for table format first
-  while (i < lines.length) {
-    if (lines[i].trim().startsWith('|') && lines[i].includes('|')) {
-      const tableLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        tableLines.push(lines[i]);
-        i++;
-      }
+  // First, try to parse new detailed format (---FEATURE_DETAIL_START---)
+  const detailRegex = /---FEATURE_DETAIL_START---([\s\S]*?)---FEATURE_DETAIL_END---/g;
+  let match;
 
-      const rows = tableLines
-        .filter(l => !l.trim().match(/^\|[\s-|]+\|$/))
-        .map(l => l.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(cell => cell.trim()));
-
-      if (rows.length > 1) {
-        const headerRow = rows[0];
-        const dataRows = rows.slice(1);
-        const nameIdx = headerRow.findIndex(h => h.toLowerCase().includes('기능') || h.toLowerCase().includes('name'));
-        const priorityIdx = headerRow.findIndex(h => h.toLowerCase().includes('우선') || h.toLowerCase().includes('priority'));
-        const descIdx = headerRow.findIndex(h => h.toLowerCase().includes('설명') || h.toLowerCase().includes('desc'));
-
-        for (const row of dataRows) {
-          if (row.length > 0) {
-            const featureName = nameIdx >= 0 && row[nameIdx] ? row[nameIdx] : row[0];
-            const priorityStr = priorityIdx >= 0 && row[priorityIdx] ? row[priorityIdx] : 'P2';
-            const desc = descIdx >= 0 && row[descIdx] ? row[descIdx] : '';
-            const priority = priorityStr.match(/P[0-3]/) ? (priorityStr.match(/P[0-3]/)![0] as 'P0' | 'P1' | 'P2' | 'P3') : 'P2';
-
-            features.push({
-              name: featureName,
-              priority,
-              description: desc,
-              subFeatures: [],
-              criteria: [],
-            });
-          }
-        }
-      }
-      continue;
-    }
-    i++;
+  while ((match = detailRegex.exec(text)) !== null) {
+    const block = match[1];
+    const feature = parseDetailedFeatureBlock(block);
+    if (feature) features.push(feature);
   }
 
-  return features.length > 0 ? features : [];
+  // If no detailed features found, fall back to table parsing
+  if (features.length === 0) {
+    const lines = text.split('\n');
+    let i = 0;
+
+    while (i < lines.length) {
+      if (lines[i].trim().startsWith('|') && lines[i].includes('|')) {
+        const tableLines: string[] = [];
+        while (i < lines.length && lines[i].trim().startsWith('|')) {
+          tableLines.push(lines[i]);
+          i++;
+        }
+
+        const rows = tableLines
+          .filter(l => !l.trim().match(/^\|[\s-|]+\|$/))
+          .map(l => l.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(cell => cell.trim()));
+
+        if (rows.length > 1) {
+          const headerRow = rows[0];
+          const dataRows = rows.slice(1);
+          const nameIdx = headerRow.findIndex(h => h.toLowerCase().includes('기능') || h.toLowerCase().includes('name'));
+          const priorityIdx = headerRow.findIndex(h => h.toLowerCase().includes('우선') || h.toLowerCase().includes('priority'));
+          const descIdx = headerRow.findIndex(h => h.toLowerCase().includes('설명') || h.toLowerCase().includes('desc'));
+
+          for (const row of dataRows) {
+            if (row.length > 0) {
+              const featureName = nameIdx >= 0 && row[nameIdx] ? row[nameIdx] : row[0];
+              const priorityStr = priorityIdx >= 0 && row[priorityIdx] ? row[priorityIdx] : 'P2';
+              const desc = descIdx >= 0 && row[descIdx] ? row[descIdx] : '';
+              const priority = priorityStr.match(/P[0-3]/) ? (priorityStr.match(/P[0-3]/)![0] as 'P0' | 'P1' | 'P2' | 'P3') : 'P2';
+
+              features.push({
+                name: featureName,
+                priority,
+                estimatedWeeks: '',
+                description: desc,
+                subFeatures: [],
+                criteria: [],
+                flow: '',
+                screens: [],
+                businessRules: [],
+                errorCases: [],
+                dataModels: [],
+              });
+            }
+          }
+        }
+        continue;
+      }
+      i++;
+    }
+  }
+
+  return features;
+}
+
+function parseDetailedFeatureBlock(block: string): Feature | null {
+  const lines = block.split('\n');
+  const feature: Feature = {
+    name: '',
+    priority: 'P2',
+    estimatedWeeks: '',
+    description: '',
+    subFeatures: [],
+    criteria: [],
+    flow: '',
+    screens: [],
+    businessRules: [],
+    errorCases: [],
+    dataModels: [],
+  };
+
+  let currentSection = '';
+  let sectionContent: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Parse title (### 1. Name)
+    if (trimmed.match(/^###\s+\d+\.\s+/)) {
+      feature.name = trimmed.replace(/^###\s+\d+\.\s+/, '').trim();
+      continue;
+    }
+
+    // Parse priority & estimated weeks (**우선순위:** ... | **예상 공수:** ...)
+    if (trimmed.includes('우선순위') || trimmed.includes('priority')) {
+      const priorityMatch = trimmed.match(/P[0-3]/);
+      if (priorityMatch) feature.priority = priorityMatch[0] as 'P0' | 'P1' | 'P2' | 'P3';
+
+      const weeksMatch = trimmed.match(/(\d+[~-]?\d*)\s*(주|week)/);
+      if (weeksMatch) feature.estimatedWeeks = weeksMatch[1];
+      continue;
+    }
+
+    // Detect section headers
+    if (trimmed.match(/^\*\*(.+)\*\*\s*$/)) {
+      const sectionName = trimmed.replace(/\*\*/g, '').trim();
+
+      // Save previous section
+      if (currentSection && sectionContent.length > 0) {
+        assignSectionContent(feature, currentSection, sectionContent);
+      }
+
+      currentSection = sectionName;
+      sectionContent = [];
+      continue;
+    }
+
+    // Code block for flow (```...```)
+    if (trimmed.startsWith('```')) {
+      if (!currentSection) currentSection = '사용자 흐름';
+      sectionContent.push(line);
+      continue;
+    }
+
+    // Collect section content
+    if (currentSection && trimmed.length > 0 && !trimmed.startsWith('###')) {
+      sectionContent.push(line);
+    }
+  }
+
+  // Don't forget last section
+  if (currentSection && sectionContent.length > 0) {
+    assignSectionContent(feature, currentSection, sectionContent);
+  }
+
+  return feature.name ? feature : null;
+}
+
+function assignSectionContent(feature: Feature, sectionName: string, lines: string[]): void {
+  const content = lines.join('\n').trim();
+  const cleanContent = content.replace(/```[\s\S]*?```/g, '').trim();
+
+  switch (sectionName) {
+    case '설명':
+      feature.description = cleanContent;
+      break;
+    case '서브 기능':
+    case 'Sub Features':
+      feature.subFeatures = lines
+        .filter(l => l.trim().match(/^[-*]\s+/))
+        .map(l => l.trim().replace(/^[-*]\s+/, ''));
+      break;
+    case '수용 기준':
+    case '수락 기준':
+    case 'Acceptance Criteria':
+      feature.criteria = lines
+        .filter(l => l.trim().match(/^\d+\.\s+/) || l.trim().match(/^[-*]\s+/))
+        .map(l => l.trim().replace(/^\d+\.\s+|^[-*]\s+/, ''));
+      break;
+    case '사용자 흐름':
+    case 'User Flow':
+      const flowCode = content.match(/```([\s\S]*?)```/);
+      feature.flow = flowCode ? flowCode[1].trim() : cleanContent;
+      break;
+    case '화면 상세':
+    case 'Screen Details':
+      feature.screens = lines
+        .filter(l => l.trim().length > 0)
+        .map(l => l.trim());
+      break;
+    case '비즈니스 규칙':
+    case 'Business Rules':
+      feature.businessRules = lines
+        .filter(l => l.trim().match(/^[-*]\s+/))
+        .map(l => l.trim().replace(/^[-*]\s+/, ''));
+      break;
+    case '에러 처리':
+    case 'Error Handling':
+      feature.errorCases = lines
+        .filter(l => l.trim().match(/^[-*]\s+/))
+        .map(l => l.trim().replace(/^[-*]\s+/, ''));
+      break;
+    case '데이터 모델':
+    case 'Data Models':
+      feature.dataModels = lines
+        .filter(l => l.trim().match(/^[-*]\s+/))
+        .map(l => l.trim().replace(/^[-*]\s+/, ''));
+      break;
+  }
 }
 
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set(['sub-features', 'criteria']));
+
   const priorityColors: Record<'P0' | 'P1' | 'P2' | 'P3', string> = {
     P0: C.red,
     P1: C.orange,
@@ -158,24 +311,54 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
     P3: 'rgba(209, 213, 219, 0.08)',
   };
 
+  const toggleSubsection = (id: string) => {
+    setExpandedSubs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const subsections: { id: string; title: string; icon: string; hasContent: boolean }[] = [
+    { id: 'sub-features', title: '서브 기능', icon: '📌', hasContent: feature.subFeatures.length > 0 },
+    { id: 'criteria', title: '수용 기준', icon: '✅', hasContent: feature.criteria.length > 0 },
+    { id: 'flow', title: '사용자 흐름', icon: '🔄', hasContent: !!feature.flow },
+    { id: 'screens', title: '화면 상세', icon: '🖼️', hasContent: feature.screens.length > 0 },
+    { id: 'business', title: '비즈니스 규칙', icon: '📋', hasContent: feature.businessRules.length > 0 },
+    { id: 'errors', title: '에러 처리', icon: '⚠️', hasContent: feature.errorCases.length > 0 },
+    { id: 'data', title: '데이터 모델', icon: '🗄️', hasContent: feature.dataModels.length > 0 },
+  ];
+
   return (
     <div style={{
       background: C.white,
       border: `1px solid ${C.border}`,
       borderRadius: 12,
-      padding: '20px',
       marginBottom: 14,
+      overflow: 'hidden',
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+      {/* Header */}
+      <div style={{
+        padding: '20px',
+        borderBottom: `1px solid ${C.borderLight}`,
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 14,
+      }}>
         <div style={{
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           borderRadius: 8,
           background: C.blueBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 14,
+          fontSize: 15,
           fontWeight: 700,
           color: C.blue,
           flexShrink: 0,
@@ -183,8 +366,8 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
           {index + 1}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, margin: 0 }}>
               {feature.name}
             </h3>
             <span style={{
@@ -200,32 +383,140 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
             }}>
               {feature.priority}
             </span>
+            {feature.estimatedWeeks && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 12,
+                color: C.textTertiary,
+                padding: '4px 8px',
+                borderRadius: 6,
+                background: C.blueBg,
+              }}>
+                ⏱️ {feature.estimatedWeeks}
+              </span>
+            )}
           </div>
           {feature.description && (
-            <p style={{ fontSize: 14, color: C.textSecondary, margin: '0 0 8px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>
               {feature.description}
             </p>
           )}
         </div>
       </div>
 
-      {feature.subFeatures.length > 0 && (
-        <div style={{ marginTop: 12, paddingLeft: 44 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: C.textTertiary, marginBottom: 6, margin: 0 }}>세부 기능</p>
-          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
-            {feature.subFeatures.map((sub, i) => <li key={i}>{sub}</li>)}
-          </ul>
-        </div>
-      )}
+      {/* Collapsible Subsections */}
+      <div>
+        {subsections.filter(s => s.hasContent).map((sub, idx) => (
+          <div key={sub.id}>
+            <button
+              onClick={() => toggleSubsection(sub.id)}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                background: 'none',
+                border: 'none',
+                borderBottom: idx < subsections.filter(s => s.hasContent).length - 1 ? `1px solid ${C.borderLight}` : 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                justifyContent: 'space-between',
+                textAlign: 'left',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = C.borderLight; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 14 }}>{sub.icon}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary }}>
+                  {sub.title}
+                </span>
+              </div>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 20,
+                height: 20,
+                color: C.textTertiary,
+                transition: 'transform 0.2s',
+                transform: expandedSubs.has(sub.id) ? 'rotate(0deg)' : 'rotate(-90deg)',
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+              </span>
+            </button>
 
-      {feature.criteria.length > 0 && (
-        <div style={{ marginTop: 12, paddingLeft: 44 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: C.textTertiary, marginBottom: 6, margin: 0 }}>수락 기준</p>
-          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
-            {feature.criteria.map((crit, i) => <li key={i}>{crit}</li>)}
-          </ul>
-        </div>
-      )}
+            {/* Content */}
+            {expandedSubs.has(sub.id) && (
+              <div style={{
+                padding: '16px 20px 16px 44px',
+                background: C.white,
+                color: C.textSecondary,
+                fontSize: 13.5,
+                lineHeight: 1.7,
+              }}>
+                {sub.id === 'sub-features' && feature.subFeatures.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc' }}>
+                    {feature.subFeatures.map((item, i) => <li key={i} style={{ marginBottom: 6, color: C.textSecondary }}>{item}</li>)}
+                  </ul>
+                )}
+
+                {sub.id === 'criteria' && feature.criteria.length > 0 && (
+                  <ol style={{ margin: 0, paddingLeft: 18 }}>
+                    {feature.criteria.map((item, i) => <li key={i} style={{ marginBottom: 6, color: C.textSecondary }}>{item}</li>)}
+                  </ol>
+                )}
+
+                {sub.id === 'flow' && feature.flow && (
+                  <pre style={{
+                    margin: '0 0 0 0',
+                    padding: '12px 14px',
+                    background: '#F8FAFC',
+                    borderRadius: 6,
+                    border: `1px solid ${C.border}`,
+                    fontSize: 12,
+                    lineHeight: 1.8,
+                    fontFamily: "'SF Mono', 'Fira Code', Menlo, monospace",
+                    color: C.textPrimary,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    overflowX: 'auto',
+                  }}>
+                    {feature.flow}
+                  </pre>
+                )}
+
+                {sub.id === 'screens' && feature.screens.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc' }}>
+                    {feature.screens.map((item, i) => <li key={i} style={{ marginBottom: 6, color: C.textSecondary }}>{item}</li>)}
+                  </ul>
+                )}
+
+                {sub.id === 'business' && feature.businessRules.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc' }}>
+                    {feature.businessRules.map((item, i) => <li key={i} style={{ marginBottom: 6, color: C.textSecondary }}>{item}</li>)}
+                  </ul>
+                )}
+
+                {sub.id === 'errors' && feature.errorCases.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc' }}>
+                    {feature.errorCases.map((item, i) => <li key={i} style={{ marginBottom: 6, color: C.textSecondary }}>{item}</li>)}
+                  </ul>
+                )}
+
+                {sub.id === 'data' && feature.dataModels.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc' }}>
+                    {feature.dataModels.map((item, i) => <li key={i} style={{ marginBottom: 6, color: C.textSecondary }}>{item}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

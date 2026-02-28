@@ -562,37 +562,84 @@ function generateWorkType(rfpData: RFPData): string {
 }
 
 function generateFeatureTable(analyzedFeatures: FeatureAnalysis[]): string {
-  let table = `| # | 기능명 | 설명 | 우선순위 | 예상 공수 | 수용 기준 |
-| --- | --- | --- | --- | --- | --- |
+  let table = `| # | 기능명 | 우선순위 | 예상 공수 |
+| --- | --- | --- | --- |
 `;
 
   analyzedFeatures.forEach((f, i) => {
-    const criteria = f.acceptanceCriteria.slice(0, 2).join(' / ');
     const priority = f.priority === 'P1' ? 'P0 (필수)' : f.priority === 'P2' ? 'P1 (우선)' : 'P2 (선택)';
-    table += `| ${i + 1} | ${f.name} | ${f.description} | ${priority} | ${f.estimatedWeeks} | ${criteria} |\n`;
+    table += `| ${i + 1} | ${f.name} | ${priority} | ${f.estimatedWeeks} |\n`;
   });
 
-  // Detailed breakdown per feature
-  let details = '\n\n  ── 기능별 상세 명세 ──\n';
+  // Detailed breakdown per feature with structured markdown
+  let details = '\n\n---FEATURE_DETAIL_START---\n';
   analyzedFeatures.forEach((f, i) => {
     const priorityLabel = f.priority === 'P1' ? 'P0 필수' : f.priority === 'P2' ? 'P1 우선' : 'P2 선택';
+    const blueprint = getFeatureBlueprint(f.name);
+
     details += `
-═══════════════════════════════════════
-  ${i + 1}. ${f.name}
-  우선순위: ${priorityLabel} | 예상 공수: ${f.estimatedWeeks}
-═══════════════════════════════════════
+### ${i + 1}. ${f.name}
+**우선순위:** ${priorityLabel} | **예상 공수:** ${f.estimatedWeeks}
 
-  ▸ 설명
-    ${f.description}
-
-  ▸ 서브 기능
-${f.subFeatures.map(sf => `    · ${sf}`).join('\n')}
-
-  ▸ 수용 기준 (Acceptance Criteria)
-${f.acceptanceCriteria.map((ac, j) => `    ${j + 1}. ${ac}`).join('\n')}
-
+**설명**
+${f.description}
 `;
+
+    if (f.subFeatures && f.subFeatures.length > 0) {
+      details += `
+**서브 기능**
+${f.subFeatures.map(sf => `- ${sf}`).join('\n')}
+`;
+    }
+
+    if (f.acceptanceCriteria && f.acceptanceCriteria.length > 0) {
+      details += `
+**수용 기준 (Acceptance Criteria)**
+${f.acceptanceCriteria.map((ac, j) => `${j + 1}. ${ac}`).join('\n')}
+`;
+    }
+
+    if (blueprint?.flowDiagram) {
+      details += `
+**사용자 흐름**
+\`\`\`
+${blueprint.flowDiagram}
+\`\`\`
+`;
+    }
+
+    if (blueprint?.screenSpecs && blueprint.screenSpecs.length > 0) {
+      details += `
+**화면 상세**
+${blueprint.screenSpecs.map(s => `- ${s.id}: ${s.name} — ${s.purpose}`).join('\n')}
+`;
+    }
+
+    if (blueprint?.businessRules && blueprint.businessRules.length > 0) {
+      details += `
+**비즈니스 규칙**
+${blueprint.businessRules.map(rule => `- ${rule}`).join('\n')}
+`;
+    }
+
+    if (blueprint?.dataEntities && blueprint.dataEntities.length > 0) {
+      details += `
+**데이터 모델**
+${blueprint.dataEntities.map(de => `- ${de.name}: ${de.fields}`).join('\n')}
+`;
+    }
+
+    if (blueprint?.errorCases && blueprint.errorCases.length > 0) {
+      details += `
+**에러 처리**
+${blueprint.errorCases.map(ec => `- ${ec}`).join('\n')}
+`;
+    }
+
+    details += '\n';
   });
+
+  details += '---FEATURE_DETAIL_END---\n';
 
   return table + details;
 }
@@ -600,7 +647,7 @@ ${f.acceptanceCriteria.map((ac, j) => `    ${j + 1}. ${ac}`).join('\n')}
 function generateFlowsAndScreens(features: FeatureItem[], rfpData: RFPData): string {
   let content = '';
 
-  // 5.1 Overall flow
+  // 5.1 Overall flow - summary only
   const featureNames = features.map(f => f.name).join(', ');
   content += `  5.1 전체 흐름
 
@@ -609,76 +656,14 @@ function generateFlowsAndScreens(features: FeatureItem[], rfpData: RFPData): str
   [서비스 진입] → [로그인/회원가입] → [홈 화면]
     → [핵심 기능 사용 (${featureNames})]
     → [결과 확인/관리] → [마이페이지]
+
+  ※ 각 기능별 상세 사용자 흐름은 4. 기능 명세서 섹션에서 확인하세요.
 `;
 
-  // 5.2 Detailed flows per feature
-  content += '\n  5.2 주요 흐름 상세\n';
-
-  features.forEach((f) => {
-    const bp = getFeatureBlueprint(f.name);
-    if (bp && bp.flowDiagram) {
-      content += `
-  ── ${f.name} 흐름 ──
-
-${bp.flowDiagram.split('\n').map(l => `  ${l}`).join('\n')}
-`;
-    } else {
-      // Generic flow for unmatched features
-      content += `
-  ── ${f.name} 흐름 ──
-
-  [${f.name} 진입] → [목록/메인 화면] → [항목 선택]
-    → [상세 화면] → [작업 수행]
-      ├─ ✓ 성공 → 결과 표시 → [완료]
-      └─ ✗ 실패 → 에러 메시지 → [재시도]
-`;
-    }
-  });
-
-  // 5.3 Screen details
-  content += '\n  5.3 화면 상세\n';
-
-  let screenCount = 0;
-  features.forEach((f) => {
-    const bp = getFeatureBlueprint(f.name);
-    if (bp && bp.screenSpecs.length > 0) {
-      bp.screenSpecs.forEach((screen) => {
-        screenCount++;
-        content += `
-  ── ${screen.id}: ${screen.name} ──
-  목적: ${screen.purpose}
-  주요 UI 요소:
-${screen.elements.map(e => `    • ${e}`).join('\n')}
-
-| 시나리오 | 사전 조건 | 사용자 동작 | 시스템 반응 | 결과 |
-| --- | --- | --- | --- | --- |
-${screen.scenarios.map(s => `| ${s[0]} | ${s[1]} | ${s[2]} | ${s[3]} | ${s[4]} |`).join('\n')}
-`;
-      });
-    } else {
-      // Generic screen for unmatched features
-      screenCount++;
-      content += `
-  ── SCR-${String(screenCount).padStart(3, '0')}: ${f.name} 메인 ──
-  목적: ${f.description || f.name + ' 기능 제공'}
-  주요 UI 요소:
-    • ${f.name} 목록/메인 콘텐츠
-    • 검색/필터 (해당 시)
-    • 상세 보기
-    • 작업 버튼 (등록/수정/삭제)
-
-| 시나리오 | 사전 조건 | 사용자 동작 | 시스템 반응 | 결과 |
-| --- | --- | --- | --- | --- |
-| 목록 조회 | 로그인 상태 | 화면 진입 | 데이터 목록 표시 | ✓ |
-| 상세 조회 | 항목 존재 | 항목 탭 | 상세 정보 표시 | ✓ |
-| 등록/생성 | 로그인 상태 | 등록 버튼 → 정보 입력 → 저장 | 생성 완료 → 목록 갱신 | ✓ |
-| 데이터 없음 | 데이터 0건 | 화면 진입 | 빈 상태 안내 표시 | ✓ |
-`;
-    }
-  });
-
-  // Add common screens
+  // 5.2 Common screens only (feature-specific screens are in feature details)
   content += `
+  5.2 주요 공통 화면
+
   ── SCR-COMMON-001: 홈 화면 ──
   목적: 서비스 메인 진입점, 핵심 기능 허브
   주요 UI 요소:
@@ -692,7 +677,20 @@ ${screen.scenarios.map(s => `| ${s[0]} | ${s[1]} | ${s[2]} | ${s[3]} | ${s[4]} |
 | 홈 진입 | 로그인 완료 | 앱/서비스 실행 | 개인화 홈 화면 표시 | ✓ |
 | 기능 탐색 | 홈 표시됨 | 메뉴 탭 | 해당 기능 화면 이동 | ✓ |
 
-  예상 총 화면 수: 약 ${screenCount + 5}개 (공통 화면 포함)`;
+  ── SCR-COMMON-002: 마이페이지 ──
+  목적: 사용자 정보 관리 및 설정
+  주요 UI 요소:
+    • 사용자 프로필 정보
+    • 계정 설정
+    • 로그아웃 버튼
+
+| 시나리오 | 사전 조건 | 사용자 동작 | 시스템 반응 | 결과 |
+| --- | --- | --- | --- | --- |
+| 프로필 조회 | 로그인 상태 | 마이페이지 진입 | 개인 정보 표시 | ✓ |
+| 프로필 수정 | 로그인 상태 | 수정 → 저장 | 변경사항 저장 | ✓ |
+| 로그아웃 | 로그인 상태 | 로그아웃 탭 | 세션 종료 → 로그인 화면 | ✓ |
+
+  예상 총 화면 수: 약 ${features.length + 5}개 (공통 화면 포함, 상세는 기능 명세 참조)`;
 
   return content;
 }
@@ -700,34 +698,42 @@ ${screen.scenarios.map(s => `| ${s[0]} | ${s[1]} | ${s[2]} | ${s[3]} | ${s[4]} |
 function generateBusinessRules(rfpData: RFPData, features: FeatureItem[], projectInfo: ProjectTypeInfo): string {
   let content = '';
 
-  // 6.1 Data Items
-  content += '  6.1 주요 데이터 항목\n\n';
-  content += '| 데이터 | 주요 필드 | 비고 |\n| --- | --- | --- |\n';
-  content += '| 사용자 (users) | id, email, name, phone, role, status, created_at | 핵심 엔티티 |\n';
+  // 6.1 Data Items - Summary overview
+  content += '  6.1 주요 데이터 항목 (요약)\n\n';
+  content += '| 데이터 | 설명 | 비고 |\n| --- | --- | --- |\n';
+  content += '| 사용자 (users) | 인증, 프로필, 권한 관리 | 핵심 엔티티 |\n';
 
+  // Collect unique data entity types across features
+  const dataEntitySummary = new Set<string>();
   features.forEach((f) => {
     const bp = getFeatureBlueprint(f.name);
     if (bp) {
       bp.dataEntities.forEach(de => {
-        content += `| ${de.name} | ${de.fields} | ${f.name} 관련 |\n`;
+        if (de.name !== 'users') {
+          dataEntitySummary.add(`| ${de.name} | ${f.name} 관련 데이터 | 기능 명세 참조 |\n`);
+        }
       });
     }
   });
 
-  // 6.2 Business Rules
-  content += '\n  6.2 주요 비즈니스 규칙\n\n';
-  let ruleNum = 1;
-  features.forEach((f) => {
-    const bp = getFeatureBlueprint(f.name);
-    if (bp) {
-      bp.businessRules.forEach(rule => {
-        content += `  BR-${String(ruleNum++).padStart(3, '0')}: ${rule}\n`;
-      });
-    }
-  });
-  if (ruleNum === 1) {
-    content += '  BR-001: (프로젝트 특성에 따라 상세 규칙 정의 필요)\n';
+  dataEntitySummary.forEach(entry => content += entry);
+
+  if (dataEntitySummary.size === 0) {
+    content += '| (프로젝트 특성에 따라 추가 정의) | — | 기능 명세에서 상세 확인 |\n';
   }
+
+  // 6.2 Business Rules - Summary, detailed rules are in feature specs
+  content += `
+  6.2 비즈니스 규칙 (요약)
+
+  ※ 각 기능별 상세 비즈니스 규칙은 4. 기능 명세서 섹션에서 확인하세요.
+
+  **공통 규칙:**
+  - BR-001: 사용자 계정 — 이메일 또는 소셜 로그인으로 가입, 유일한 사용자 식별
+  - BR-002: 권한 관리 — 사용자 역할(일반/관리)에 따른 기능 접근 제어
+  - BR-003: 데이터 무결성 — 모든 주요 데이터는 타임스탬프(created_at, updated_at) 포함
+  - BR-004: 감시 로그 — 보안 관련 작업(로그인, 권한 변경, 데이터 삭제)은 별도 로그 기록
+`;
 
   // 6.3 External Integrations
   content += '\n  6.3 외부 연동\n\n';
@@ -747,19 +753,18 @@ function generateBusinessRules(rfpData: RFPData, features: FeatureItem[], projec
     content += `| ${intg} | ${intg.includes('결제') || intg.includes('토스') || intg.includes('카카오페이') ? '결제 처리' : intg.includes('FCM') || intg.includes('APNs') ? '푸시 알림' : intg.includes('Chat') || intg.includes('SendBird') ? '실시간 채팅' : intg.includes('맵') || intg.includes('Map') ? '지도/위치' : intg.includes('Claude') || intg.includes('GPT') ? 'AI 기능' : '서비스 연동'} | 별도 계약/키 발급 필요 |\n`;
   });
 
-  // 6.4 Error Handling Summary
-  content += '\n  6.4 에러 처리 원칙\n\n';
-  let errNum = 1;
-  features.forEach((f) => {
-    const bp = getFeatureBlueprint(f.name);
-    if (bp) {
-      bp.errorCases.forEach(ec => {
-        content += `  ERR-${String(errNum++).padStart(3, '0')}: ${ec}\n`;
-      });
-    }
-  });
-  content += `  ERR-${String(errNum++).padStart(3, '0')}: 공통 — 네트워크 오류 시 "인터넷 연결을 확인해주세요" 토스트 표시\n`;
-  content += `  ERR-${String(errNum).padStart(3, '0')}: 공통 — 서버 오류(500) 시 "잠시 후 다시 시도해주세요" 표시 + 자동 재시도(3회)\n`;
+  // 6.4 Error Handling - Common patterns only
+  content += `
+  6.4 에러 처리 원칙
+
+  **공통 에러 처리 패턴:**
+  - ERR-001: 네트워크 오류 — "인터넷 연결을 확인해주세요" 토스트 + 재시도 버튼
+  - ERR-002: 서버 오류 (5xx) — "잠시 후 다시 시도해주세요" + 자동 재시도 (3회)
+  - ERR-003: 인증 오류 (401) — "로그인이 필요합니다" + 로그인 화면 이동
+  - ERR-004: 권한 없음 (403) — "이 작업을 수행할 권한이 없습니다"
+  - ERR-005: 잘못된 입력 (4xx) — 필드별 유효성 검증 메시지 표시
+
+  ※ 각 기능별 상세 에러 처리는 4. 기능 명세서 섹션에서 확인하세요.`;
 
   return content;
 }
@@ -842,6 +847,70 @@ function generateOpenItems(rfpData: RFPData, features: FeatureItem[], projectInf
 // Main PRD Document Generator (v7 — CEO PRD Standard)
 // ═══════════════════════════════════════════
 
+function generateSmartProjectName(overview: string, features: FeatureItem[], projectType: string): string {
+  // Extract core service keywords from overview
+  const overviewText = (overview || '').toLowerCase();
+
+  // Service type mapping
+  const serviceTypeMap: Record<string, string> = {
+    'chatbot': '챗봇',
+    'chat': '채팅',
+    'delivery': '배달',
+    'marketplace': '마켓플레이스',
+    'platform': '플랫폼',
+    'app': '앱',
+    'service': '서비스',
+    'booking': '예약',
+    'reservation': '예약',
+    'payment': '결제',
+    'ecommerce': '이커머스',
+    'shopping': '쇼핑',
+    'social': '소셜',
+    'education': '교육',
+    'learning': '학습',
+    'training': '학습',
+  };
+
+  let serviceType = '';
+  for (const [key, label] of Object.entries(serviceTypeMap)) {
+    if (overviewText.includes(key)) {
+      serviceType = label;
+      break;
+    }
+  }
+
+  if (!serviceType) {
+    serviceType = projectType.split(' ')[0]; // Use first word of project type
+  }
+
+  // Extract keywords from overview (split by common delimiters and filter)
+  const keywords = overviewText
+    .split(/[,\s\-()।।]/g)
+    .filter(w => w.length > 1 && w.length < 15 && !['을', '를', '이', '가', '의', '과', '와', '및', 'the', 'a', 'an', 'and', 'or'].includes(w))
+    .slice(0, 5);
+
+  // Extract core concept (longest meaningful keyword or feature name)
+  let coreKeyword = '';
+  if (keywords.length > 0) {
+    coreKeyword = keywords[0];
+  } else if (features.length > 0) {
+    coreKeyword = features[0].name.split(' ')[0];
+  }
+
+  // Format: "[서비스유형] [핵심키워드]"
+  let projectName = serviceType;
+  if (coreKeyword && coreKeyword !== serviceType && coreKeyword.length > 0) {
+    projectName = `${serviceType} ${coreKeyword}`;
+  }
+
+  // Ensure max 20 characters
+  if (projectName.length > 20) {
+    projectName = projectName.slice(0, 20);
+  }
+
+  return projectName || '프로젝트';
+}
+
 function generateFallbackRFP(rfpData: RFPData): string {
   const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
   const projectInfo = getProjectTypeInfo(rfpData.overview);
@@ -859,8 +928,7 @@ function generateFallbackRFP(rfpData: RFPData): string {
   const totalWeeksMin = Math.max(weekEstimates.reduce((s, w) => s + w[0], 0) * 0.6, 4);
   const totalWeeksMax = Math.max(weekEstimates.reduce((s, w) => s + w[1], 0) * 0.7, 6);
 
-  const rawOverview = rfpData.overview?.split('\n')[0]?.split(' — ')[0]?.split('(')[0]?.trim() || '프로젝트';
-  const projectName = rawOverview.length > 25 ? rawOverview.slice(0, 25) + '...' : rawOverview;
+  const projectName = generateSmartProjectName(rfpData.overview || '', features, projectInfo.type);
 
   const featuresP0 = features.filter(f => f.priority === 'P1');
   const featuresP1 = features.filter(f => f.priority === 'P2');
