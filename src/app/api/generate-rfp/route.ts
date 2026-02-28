@@ -1,4 +1,4 @@
-// AI RFP Builder — RFP Document Generation v4 (시장 최고 수준)
+// AI RFP Builder — RFP Document Generation v6 (FORGE 20 Iteration)
 // 결과물 = 외주 컨설팅펌 시니어 PM이 작성한 수준
 // Fallback도 WOW 수준이어야 함
 
@@ -438,23 +438,76 @@ ${f.acceptanceCriteria.map(c => `       ✓ ${c}`).join('\n')}
   }
 
   // ═══════════════════════════════════════════
-  // 최종 RFP 문서 조립
+  // 화면 설계 요약 자동 생성
+  // ═══════════════════════════════════════════
+  const generateScreenList = () => {
+    const screens: string[] = ['스플래시/로딩', '온보딩 (첫 사용 안내)', '로그인/회원가입'];
+    for (const f of features) {
+      const fn = f.name;
+      if (fn.includes('로그인') || fn.includes('회원')) { screens.push('비밀번호 찾기', '프로필 설정/수정'); }
+      if (fn.includes('결제') || fn.includes('구매')) { screens.push('결제 화면', '결제 완료', '결제 내역'); }
+      if (fn.includes('채팅') || fn.includes('메시지')) { screens.push('채팅 목록', '채팅방', '채팅 알림 설정'); }
+      if (fn.includes('관리자')) { screens.push('관리자 대시보드', '사용자 관리', '콘텐츠 관리'); }
+      if (fn.includes('검색')) { screens.push('검색 화면', '검색 결과', '필터/정렬'); }
+      if (fn.includes('예약')) { screens.push('예약 캘린더', '예약 상세', '예약 확인/취소'); }
+      if (fn.includes('리뷰') || fn.includes('평가')) { screens.push('리뷰 작성', '리뷰 목록'); }
+      if (fn.includes('알림')) { screens.push('알림 센터', '알림 설정'); }
+      if (fn.includes('지도') || fn.includes('위치')) { screens.push('지도 화면', '위치 검색 결과'); }
+      if (fn.includes('장바구니')) { screens.push('장바구니', '주문서'); }
+      if (fn.includes('대시보드')) { screens.push('대시보드(메인)', '통계/리포트'); }
+    }
+    screens.push('마이페이지', '설정', '공지사항/FAQ');
+    // deduplicate
+    return [...new Set(screens)];
+  };
+
+  const screenList = generateScreenList();
+
+  // ═══════════════════════════════════════════
+  // 데이터 모델 자동 생성
+  // ═══════════════════════════════════════════
+  const generateDataModel = () => {
+    const tables: { name: string; fields: string }[] = [
+      { name: 'users (사용자)', fields: 'id, email, password_hash, name, phone, profile_image, role, status, created_at' },
+    ];
+    for (const f of features) {
+      const fn = f.name.toLowerCase();
+      if (fn.includes('결제') || fn.includes('구매')) {
+        tables.push({ name: 'payments (결제)', fields: 'id, user_id, amount, status, pg_transaction_id, method, created_at' });
+        tables.push({ name: 'orders (주문)', fields: 'id, user_id, total_amount, status, shipping_address, created_at' });
+      }
+      if (fn.includes('채팅') || fn.includes('메시지')) {
+        tables.push({ name: 'chat_rooms (채팅방)', fields: 'id, type, participants, last_message, created_at' });
+        tables.push({ name: 'messages (메시지)', fields: 'id, room_id, sender_id, content, type, read_at, created_at' });
+      }
+      if (fn.includes('리뷰') || fn.includes('평가')) {
+        tables.push({ name: 'reviews (리뷰)', fields: 'id, user_id, target_id, rating, content, images, created_at' });
+      }
+      if (fn.includes('알림')) {
+        tables.push({ name: 'notifications (알림)', fields: 'id, user_id, type, title, body, is_read, created_at' });
+      }
+      if (fn.includes('예약')) {
+        tables.push({ name: 'reservations (예약)', fields: 'id, user_id, provider_id, date, time_slot, status, created_at' });
+      }
+    }
+    return tables;
+  };
+
+  const dataModel = generateDataModel();
+
+  // ═══════════════════════════════════════════
+  // 최종 RFP 문서 조립 (v6 — 컨설팅펌 시니어급)
   // ═══════════════════════════════════════════
 
   const projectName = rfpData.overview?.split('\n')[0]?.split('.')[0]?.trim().slice(0, 30) || '프로젝트';
 
   return `
-═══════════════════════════════════════════════════════════
-              소프트웨어 개발 제안요청서 (RFP)
-═══════════════════════════════════════════════════════════
-
-  작성일: ${date}
-  작성 도구: 위시켓 AI RFP Builder (v4)
-  문서 버전: 1.0
-  기밀 등급: Confidential
-
-
 ─── 1. Executive Summary ─────────────────────────────────
+
+  프로젝트명: ${projectName}
+  작성일: ${date}
+  문서 버전: v1.0 | 작성 도구: 위시켓 AI RFP Builder (v6)
+  기밀 등급: Confidential
 
   "${projectName}" 프로젝트는 ${projectInfo.type} 형태의 서비스로,
   ${rfpData.targetUsers || '일반 사용자'}를 대상으로 합니다.
@@ -464,6 +517,13 @@ ${f.acceptanceCriteria.map(c => `       ✓ ${c}`).join('\n')}
   이 프로젝트의 예상 기간은 ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주입니다.
 
   ${projectInfo.marketInsight}
+
+  [프로젝트 핵심 수치]
+  • 예상 기간: ${Math.round(totalWeeksMin)}~${Math.round(totalWeeksMax)}주
+  • 핵심 기능: ${features.length}개 (P1: ${featuresP1.length} / P2: ${featuresP2.length} / P3: ${featuresP3.length})
+  • 프로젝트 복잡도: ${complexityLevel} (${totalComplexity}/25점)
+  • 참고 평균 예산: ${projectInfo.avgBudget}
+  • 성공률: ${projectInfo.successRate}
 
 
 ─── 2. 프로젝트 개요 ─────────────────────────────────────
@@ -483,6 +543,7 @@ ${f.acceptanceCriteria.map(c => `       ✓ ${c}`).join('\n')}
   • MAU (월간 활성 사용자): 출시 3개월 내 목표 설정
   • 리텐션율: D1 > 40%, D7 > 20%, D30 > 10% 목표
   • 핵심 전환율: 회원가입 → 핵심 액션 전환율 목표 설정
+  • NPS (순추천 지수): 출시 후 분기별 측정, 목표 50 이상
 
 
 ─── 3. 서비스 대상 ───────────────────────────────────────
@@ -527,14 +588,39 @@ ${securitySection}
   • 반응형: 모바일(375px~) / 태블릿(768px~) / 데스크톱(1200px~)
   • 디자인 시스템: 주요 컬러, 타이포그래피, 컴포넌트 라이브러리 정의
   • 프로토타입: Figma 기반 인터랙티브 프로토타입 권장
+  • 접근성: WCAG 2.1 AA 등급 이상 준수 권장
+  • 다크모드: 선택사항 (MZ 타겟 시 권장)
 
 
-─── 8. 일정 및 예산 ─────────────────────────────────────
+─── 8. 화면 설계 요약 ───────────────────────────────────
+
+  예상 화면 수: 약 ${screenList.length}개
+
+  [주요 화면 목록]
+${screenList.map((s, i) => `  ${String(i + 1).padStart(2, '0')}. ${s}`).join('\n')}
+
+  [화면 설계 산출물]
+  • 와이어프레임 (전체 화면): Figma 또는 Sketch
+  • 주요 화면 디자인 시안: 최소 5~8개 핵심 화면
+  • 인터랙션 프로토타입: 핵심 사용자 플로우 3~5개
+  • 디자인 시스템 문서: 컬러, 타이포, 컴포넌트, 아이콘 가이드
+
+
+─── 9. 데이터 설계 (참고) ──────────────────────────────
+
+  [주요 데이터 테이블 — 개발사 참고용]
+${dataModel.map(t => `  • ${t.name}\n    필드: ${t.fields}`).join('\n')}
+
+  ※ 위 데이터 모델은 AI가 기능 기반으로 추정한 참고 자료입니다.
+  실제 설계는 개발사의 기술 판단에 따라 최적화됩니다.
+
+
+─── 10. 일정 및 예산 ─────────────────────────────────────
 
 ${budgetSection}
 
 
-─── 9. 기타 요구사항 ─────────────────────────────────────
+─── 11. 기타 요구사항 ─────────────────────────────────────
 
   ${additionalSection}
 
@@ -545,10 +631,14 @@ ${budgetSection}
   • 커뮤니케이션: 주 1~2회 진행 보고서 + 격주 화상 미팅
   • 산출물: 소스코드 + 기술문서 + DB 스키마 + API 문서 + 배포 가이드
 
+  [프로젝트 관리 방안]
+  • 프로젝트 관리 도구: Jira, Notion, Linear 등 협업 도구 필수 사용
+  • 코드 관리: Git 기반 버전 관리, 코드 리뷰 프로세스 적용
+  • 배포: CI/CD 파이프라인 구축 (GitHub Actions / Jenkins)
+  • 모니터링: Sentry(에러 추적) + LogRocket/Datadog(성능 모니터링) 권장
 
-═══════════════════════════════════════════════════════════
-          위시켓 AI 전문가 분석 & 추천 사항
-═══════════════════════════════════════════════════════════
+
+─── 위시켓 AI 전문가 분석 & 추천 사항 ─────────────────
 
 
 ─── MVP 로드맵 ───────────────────────────────────────────
@@ -622,18 +712,25 @@ ${projectInfo.keyRisks.map((r, i) => `  ${i + 1}. ${r}
   ☐ 분쟁 해결 → "대한상사중재원 중재에 따른다" 등 분쟁 해결 조항
 
 
-═══════════════════════════════════════════════════════════
-  본 RFP는 위시켓 AI RFP Builder (v4)로 생성되었습니다.
+─── 다음 단계 안내 ─────────────────────────────────────
+
+  본 RFP는 위시켓 AI RFP Builder (v6)로 생성되었습니다.
   이 문서를 개발사에 바로 전달하여 정확한 견적을 받아보세요.
 
   위시켓 | wishket.com
   13년간 7만+ IT 프로젝트 매칭, 국내 최대 IT 외주 플랫폼
 
-  📌 다음 단계:
-  1. 위시켓에 프로젝트 등록 → 평균 48시간 내 3~5곳 개발사 제안 수령
-  2. 개발사 포트폴리오 및 리뷰 확인 → 면접 2~3곳 선정
-  3. 개발사 미팅 (이 RFP 기반) → 최종 선정 및 계약
-═══════════════════════════════════════════════════════════`.trim();
+  [추천 진행 순서]
+  1단계: 위시켓에 프로젝트 등록 → 평균 48시간 내 3~5곳 개발사 제안 수령
+  2단계: 개발사 포트폴리오 및 리뷰 확인 → 면접 2~3곳 선정
+  3단계: 개발사 미팅 (이 RFP 기반) → 최종 선정 및 계약
+  4단계: 킥오프 미팅 → 상세 요구사항 확정 → 개발 착수
+
+  [견적 비교 시 핵심 체크포인트]
+  • 단순 "총 금액"이 아닌, 마일스톤별 산출물과 일정을 비교하세요
+  • 가장 낮은 견적이 최선은 아닙니다 — 포트폴리오와 소통 역량이 더 중요
+  • 견적서에 "추가 개발 시 단가"가 명시되어 있는지 반드시 확인
+  • 유지보수 비용이 별도인지, 포함인지 확인`.trim();
 }
 
 // ═══════════════════════════════════════════
