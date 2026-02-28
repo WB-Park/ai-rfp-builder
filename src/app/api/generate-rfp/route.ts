@@ -1130,54 +1130,76 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let rfpDocument: string;
+    // 하이브리드 방식: 서버 DB로 구조화된 PRDResult 생성 + Claude AI로 자연어 강화
     const projectInfo = getProjectTypeInfo(rfpData.overview);
 
-    if (!HAS_API_KEY) {
-      rfpDocument = generateFallbackRFP(rfpData);
-    } else {
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
+    // 1단계: 서버 DB 기반 구조화된 PRDResult 생성 (항상 신뢰 가능)
+    let rfpDocument: string = generateFallbackRFP(rfpData);
 
-      const analyzedFeatures = (rfpData.coreFeatures || []).map(f => analyzeFeature(f));
-      const totalComplexity = analyzedFeatures.reduce((s, f) => s + f.complexity, 0);
-      const complexityLevel = totalComplexity >= 15 ? '높음' : totalComplexity >= 8 ? '중간~높음' : '중간';
+    // 2단계: Claude API로 자연어 부분 강화 (프로젝트 개요, 전문가 인사이트)
+    if (HAS_API_KEY) {
+      try {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const anthropic = new Anthropic({
+          apiKey: process.env.ANTHROPIC_API_KEY,
+        });
 
-      const contextData = `
+        const analyzedFeatures = (rfpData.coreFeatures || []).map(f => analyzeFeature(f));
+        const featureList = analyzedFeatures.map(f => f.name).join(', ');
+
+        const response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          system: `당신은 위시켓 13년 경험의 IT 외주 컨설턴트입니다. 간결하고 전문적인 한국어로 답변하세요.`,
+          messages: [
+            {
+              role: 'user',
+              content: `다음 프로젝트의 전문 분석을 JSON 형식으로 작성해주세요.
+
+프로젝트: ${rfpData.overview || ''}
+타겟 사용자: ${rfpData.targetUsers || ''}
+핵심 기능: ${featureList}
 프로젝트 유형: ${projectInfo.type}
-시장 데이터: 평균 예산 ${projectInfo.avgBudget}, 평균 기간 ${projectInfo.avgDuration}
-복잡도: ${complexityLevel} (점수 ${totalComplexity}/25)
-시장 인사이트: ${projectInfo.marketInsight}
-주요 리스크: ${projectInfo.keyRisks.join(', ')}
-필수 기능 체크: ${projectInfo.mustHaveFeatures.join(', ')}
 
-수집 데이터:
-${JSON.stringify(rfpData, null, 2)}
+아래 JSON 형식으로만 응답하세요:
+{
+  "projectOverview": "프로젝트 배경, 목적, 기대효과를 포함한 전문적 개요 (300자 이상)",
+  "targetUsersAnalysis": "타겟 사용자 분석 및 UX 전략 (200자 이상)",
+  "expertInsight": "이 프로젝트의 핵심 성공 요인과 주의점 (200자 이상)"
+}`,
+            },
+          ],
+        });
 
-기능별 분석:
-${analyzedFeatures.map(f =>
-  `- ${f.name}: 복잡도 ${f.complexity}/5, 예상 ${f.estimatedWeeks}, 서브기능: ${f.subFeatures.join('/')}`
-).join('\n')}`;
-
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
-        system: RFP_GENERATION_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `아래 데이터로 개발사가 바로 WBS를 작성할 수 있는 수준의 전문 PRD 문서를 작성해주세요. 최소 5페이지 분량으로, 화면 상세, 사용자 흐름, 수용 기준, 비즈니스 규칙이 모두 포함되어야 합니다.\n\n${contextData}`,
-          },
-        ],
-      });
-
-      const content = response.content[0];
-      if (content.type !== 'text') {
-        rfpDocument = generateFallbackRFP(rfpData);
-      } else {
-        rfpDocument = content.text;
+        const content = response.content[0];
+        if (content.type === 'text') {
+          try {
+            const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const aiEnhancement = JSON.parse(jsonMatch[0]);
+              // PRDResult에 AI 강화 텍스트 병합
+              const parsed = JSON.parse(rfpDocument) as PRDResult;
+              if (aiEnhancement.projectOverview) {
+                parsed.projectOverview = aiEnhancement.projectOverview +
+                  `\n\n주요 특성:\n- 프로젝트 유형: ${projectInfo.type}\n- 평균 예산 수준: ${projectInfo.avgBudget}\n- 평균 개발 기간: ${projectInfo.avgDuration}\n- 시장 인사이트: ${projectInfo.marketInsight}`;
+              }
+              if (aiEnhancement.targetUsersAnalysis) {
+                parsed.targetUsers = aiEnhancement.targetUsersAnalysis;
+              }
+              if (aiEnhancement.expertInsight) {
+                parsed.additionalRequirements = (rfpData.additionalRequirements || '') +
+                  `\n\n[AI 전문가 분석]\n${aiEnhancement.expertInsight}`;
+              }
+              rfpDocument = JSON.stringify(parsed);
+            }
+          } catch {
+            // AI 강화 실패 시 기본 PRDResult 유지
+            console.log('AI enhancement parse failed, using base PRD');
+          }
+        }
+      } catch (aiError) {
+        // AI 호출 실패 시 기본 PRDResult 유지 (이미 생성됨)
+        console.error('AI enhancement error (using base PRD):', aiError);
       }
     }
 
