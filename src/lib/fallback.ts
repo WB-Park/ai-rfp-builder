@@ -392,51 +392,54 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
   const topicId = STEP_TO_TOPIC[topicStep];
   const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 20) : '프로젝트';
 
+  // ────────────────────────────────────────────
+  // 핵심 원칙: "왜 이 정보가 필요한지 이유"를 먼저 말하고,
+  // 구체적으로 어떤 정보를 달라고 요청한다.
+  // 팁/인사이트는 최소화. 정보수집이 목적.
+  // ────────────────────────────────────────────
+
   switch (topicId) {
     case 'targetUsers': {
-      // 프로젝트 유형에 따라 완전히 다른 질문
       if (detectedProjectType === '플랫폼') {
         return {
-          question: `**${projectName}** 플랫폼에서 매칭되는 양쪽 사용자는 각각 누구인가요?\n\n예: "프리랜서 개발자 ↔ IT 외주를 원하는 기업"\n\n💡 플랫폼은 양쪽 사용자를 명확히 구분해야 UX 설계가 정확해집니다.`,
+          question: `플랫폼은 **공급자와 수요자 양쪽의 화면을 별도 설계**해야 하기 때문에, 양쪽 사용자가 누구인지 알아야 합니다.\n\n**${projectName}**에서 매칭되는 양쪽은 각각 누구인가요?\n예: "프리랜서 개발자 ↔ IT 외주를 원하는 기업"`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       } else if (detectedProjectType === '이커머스') {
         return {
-          question: `**${projectName}** 쇼핑몰의 주 구매자는 어떤 분들인가요?\n\n연령대, 성별, 구매 습관 등을 알려주시면 UI/UX 방향을 잡을 수 있어요.\n\n💡 이커머스에서 타겟을 잘 정의하면 전환율이 평균 35% 높아집니다.`,
+          question: `쇼핑몰은 타겟 고객에 따라 **상품 정렬 방식, 결제 수단, UI 톤**이 완전히 달라집니다.\n\n**${projectName}**의 주 구매자는 어떤 분들인가요?\n연령대, 성별, 주 구매 상황 등을 알려주세요.`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       } else if (detectedProjectType === 'SaaS') {
         return {
-          question: `**${projectName}**을(를) 사용할 기업의 규모와 사용자는 어떤 분들인가요?\n\n구매 의사결정자(CTO, 팀장 등)와 실사용자가 다른 경우 둘 다 알려주세요.\n\n💡 SaaS는 구매자 ≠ 사용자인 경우가 많아, 양쪽 니즈를 모두 고려해야 합니다.`,
+          question: `SaaS는 **구매 결정자와 실사용자가 다른 경우**가 많아, 양쪽을 모두 파악해야 정확한 기능 설계가 가능합니다.\n\n**${projectName}**을 사용할 기업 규모와 실사용자는 누구인가요?\n(예: "50인 이하 스타트업의 마케터")`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       } else if (detectedProjectType === 'AI 서비스') {
         return {
-          question: `**${projectName}**의 사용자는 AI에 얼마나 익숙한 분들인가요?\n\n"AI 전문가" vs "일반인"에 따라 UI 복잡도가 크게 달라집니다.\n\n💡 AI 서비스는 "결과 신뢰도 표시" 유무가 사용자 만족도를 좌우합니다.`,
+          question: `AI 서비스는 사용자의 기술 수준에 따라 **UI 복잡도와 결과 표시 방식**이 크게 달라집니다.\n\n**${projectName}**의 사용자는 AI에 익숙한 전문가인가요, 아니면 일반인인가요?`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       }
       return {
-        question: `**${projectName}**을(를) 주로 누가 사용하게 될까요?\n\n연령대, 직업, 기술 수준 등을 알려주시면 최적의 UI/UX를 추천해드릴게요.\n\n💡 위시켓 데이터: 타겟을 명확히 정의한 프로젝트는 견적 정확도가 30%+ 높아집니다.`,
+        question: `타겟 사용자를 명확히 정의해야 **화면 구성, 기능 우선순위, UX 난이도**를 정할 수 있습니다.\n\n**${projectName}**을 주로 누가 사용하게 될까요?\n연령대, 직업, 기술 수준 등을 알려주세요.`,
         quickReplies: ti.quickRepliesMap.targetUsers,
       };
     }
 
     case 'coreFeatures': {
-      const hint = `\n💡 이 유형 추천 기능: ${ti.keyFeatures.join(', ')}`;
-      // 이전에 언급된 키워드 기반 추천
       const overviewText = rfpData.overview?.toLowerCase() || '';
       let contextHint = '';
       if (overviewText.includes('배달') || overviewText.includes('음식')) {
-        contextHint = '\n\n📌 배달/음식 서비스라면: 주문 접수, 실시간 추적, 리뷰가 핵심입니다.';
+        contextHint = '\n\n이 유형이면 보통 주문 접수, 실시간 추적, 리뷰 기능이 포함됩니다.';
       } else if (overviewText.includes('교육') || overviewText.includes('강의')) {
-        contextHint = '\n\n📌 교육 서비스라면: 강의 관리, 진도 추적, 퀴즈/평가가 핵심입니다.';
+        contextHint = '\n\n이 유형이면 보통 강의 관리, 진도 추적, 퀴즈/평가가 포함됩니다.';
       } else if (overviewText.includes('예약')) {
-        contextHint = '\n\n📌 예약 서비스라면: 캘린더, 실시간 가용성, 알림이 핵심입니다.';
+        contextHint = '\n\n이 유형이면 보통 캘린더, 실시간 가용성, 알림 기능이 포함됩니다.';
       }
 
       return {
-        question: `**${projectName}**의 가장 중요한 핵심 기능을 알려주세요. (3~5개 추천)${hint}${contextHint}\n\n여러 개를 한 번에 나열하셔도 되고, 하나씩 말씀해주셔도 됩니다.`,
+        question: `핵심 기능 목록이 있어야 개발사가 **정확한 견적과 일정**을 산출할 수 있습니다.\n\n**${projectName}**에 꼭 들어가야 할 핵심 기능 3~5개를 알려주세요.${contextHint}\n\n여러 개를 한 번에 나열하셔도 되고, 하나씩 말씀해주셔도 됩니다.`,
         quickReplies: ti.quickRepliesMap.coreFeatures,
       };
     }
@@ -444,40 +447,32 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
     case 'referenceServices': {
       const typeExample = ti.competitorExample;
       return {
-        question: `비슷하게 만들고 싶은 서비스가 있나요?\n\n예시: "${typeExample}" 등\n"이 서비스의 **이 부분처럼**" 식으로 말씀해주시면 개발사가 정확히 이해합니다.\n\n💡 참고 서비스를 알려주시면 견적 정확도가 40%+ 높아집니다.`,
+        question: `참고 서비스를 알려주시면 개발사가 **디자인 수준과 기능 범위를 즉시 이해**할 수 있어, 커뮤니케이션 비용이 크게 줄어듭니다.\n\n비슷하게 만들고 싶은 서비스가 있나요?\n"${typeExample}의 **이 부분처럼**" 식으로 말씀해주시면 가장 좋습니다.`,
         quickReplies: ti.quickRepliesMap.referenceServices,
       };
     }
 
     case 'techRequirements': {
-      const rec = (detectedProjectType === '모바일 앱')
-        ? '\n💡 모바일 앱이시라면 크로스플랫폼(Flutter/RN)으로 비용 30~40% 절감 가능합니다.'
-        : (detectedProjectType === '웹사이트' || detectedProjectType === '웹 서비스' || detectedProjectType === 'SaaS')
-        ? '\n💡 웹 서비스라면 Next.js가 SEO·성능·생산성 모두 우수합니다.'
-        : '';
       return {
-        question: `**${projectName}**을(를) 웹으로 만들까요, 앱으로 만들까요?${rec}\n\n특별한 기술 선호가 없으시면 "개발사 추천에 따름"도 좋은 선택입니다.`,
+        question: `웹인지 앱인지에 따라 **개발 기간, 비용, 필요한 개발사 역량**이 완전히 달라집니다.\n\n**${projectName}**을(를) 웹으로 만들까요, 앱으로 만들까요?\n특별한 선호가 없으시면 "개발사 추천에 따름"도 괜찮습니다.`,
         quickReplies: ti.quickRepliesMap.techRequirements,
       };
     }
 
     case 'budgetTimeline': {
-      const budgetRef = `\n💡 참고: ${ti.type} 프로젝트 평균 ${ti.avgBudget}, ${ti.avgDuration}`;
-      // 기능 수에 따른 예산 힌트
       const featureCount = rfpData.coreFeatures.length;
-      let featureHint = '';
-      if (featureCount > 5) {
-        featureHint = `\n\n📊 현재 ${featureCount}개 기능이 있어 평균보다 높은 예산이 필요할 수 있습니다.`;
-      }
+      let featureContext = featureCount > 0
+        ? `\n\n현재 ${featureCount}개 기능 기준, ${ti.type} 평균 예산은 **${ti.avgBudget}**, 기간은 **${ti.avgDuration}**입니다.`
+        : `\n\n${ti.type} 프로젝트 평균: **${ti.avgBudget}**, **${ti.avgDuration}**`;
       return {
-        question: `예산 범위와 희망 완료 시점이 있으신가요?${budgetRef}${featureHint}\n\n대략적이어도 괜찮습니다. "아직 미정"이시면 위시켓에서 무료 견적 비교가 가능해요.`,
+        question: `예산과 일정이 있어야 개발사가 **실현 가능한 범위를 조율**해서 제안할 수 있습니다.${featureContext}\n\n희망 예산 범위와 완료 시점이 있으신가요? 대략적이어도 괜찮습니다.`,
         quickReplies: ti.quickRepliesMap.budgetTimeline,
       };
     }
 
     case 'additionalRequirements': {
       return {
-        question: `마지막으로, 개발사에 꼭 전달하고 싶은 사항이 있나요?\n\n💡 **꼭 확인하세요:**\n▸ 소스코드 소유권 → "발주사 귀속" 명시 (미명시 시 분쟁 소지)\n▸ 하자보수 → 최소 6개월 (위시켓 추천)\n▸ 디자인 포함 여부 → 별도 발주 vs 개발사 포함`,
+        question: `마지막으로 개발사에 **미리 전달해야 분쟁을 예방**할 수 있는 사항들이 있습니다.\n\n소스코드 소유권, 하자보수 기간, 디자인 포함 여부 등 꼭 전달할 내용이 있으신가요?`,
         quickReplies: ti.quickRepliesMap.additionalRequirements,
       };
     }
@@ -496,47 +491,27 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
   previousAnswers[topicStep] = a;
   const topicId = STEP_TO_TOPIC[topicStep];
 
+  // ────────────────────────────────────────────
+  // 핵심 원칙: 피드백은 짧게. 팁/코칭 최소화.
+  // "잘 반영했습니다" + 핵심 확인사항 1개만.
+  // ────────────────────────────────────────────
+
   switch (topicId) {
     case 'overview': {
       const { projectType, typeInfo, confidence } = detectProjectType(a);
       detectedType = typeInfo;
       detectedProjectType = projectType;
 
-      const confText = confidence === '높음'
-        ? `${typeInfo.insightEmoji} **${typeInfo.type}** 프로젝트시군요!`
-        : confidence === '중간'
-        ? `${typeInfo.insightEmoji} 분석해보니 **${typeInfo.type}** 유형에 가장 가깝네요.`
-        : `${typeInfo.insightEmoji} **${typeInfo.type}** 유형으로 분류했습니다.`;
-
       return {
-        message: `${confText}\n\n위시켓 7만+ 프로젝트 데이터 분석 결과:\n\n📊 **평균 예산** ${typeInfo.avgBudget} | **기간** ${typeInfo.avgDuration} | **성공률** ${typeInfo.successRate}\n\n💡 ${typeInfo.marketInsight}\n\n⚠️ **이 유형에서 가장 흔한 실수:**\n${typeInfo.commonMistakes[0]}`,
+        message: `${typeInfo.insightEmoji} **${typeInfo.type}** 프로젝트로 파악했습니다. 이 유형 평균 예산은 ${typeInfo.avgBudget}, 기간은 ${typeInfo.avgDuration}입니다.`,
         thinkingLabel: '프로젝트 유형 분석 중...',
       };
     }
 
     case 'targetUsers': {
-      const isB2B = a.includes('기업') || a.includes('B2B') || a.includes('업무');
-      const isSenior = a.includes('시니어') || a.includes('어르신') || a.includes('50') || a.includes('60');
-      const isYoung = a.includes('10대') || a.includes('20대') || a.includes('MZ') || a.includes('학생');
-      const isPlatform = detectedProjectType === '플랫폼';
-
-      let uxAdvice = '';
-      if (isPlatform) {
-        uxAdvice = '플랫폼은 공급자/수요자 각각의 가입 플로우와 대시보드를 분리 설계해야 합니다. 한쪽에 먼저 집중하세요.';
-      } else if (isB2B) {
-        uxAdvice = '관리자 대시보드 + 권한 관리 + 온보딩 가이드가 핵심입니다. 온보딩만 잘 만들어도 이탈률이 40% 줄어요.';
-      } else if (isSenior) {
-        uxAdvice = '큰 폰트(16px+), 넓은 터치 영역(48px+), 단순한 네비게이션이 필수입니다.';
-      } else if (isYoung) {
-        uxAdvice = '3초 안에 핵심 가치를 보여줘야 합니다. 다크모드 + 소셜 공유 + 세련된 UI가 리텐션을 결정해요.';
-      } else {
-        uxAdvice = '첫 사용 시 3단계 이내에 핵심 가치를 경험하게 설계하세요.';
-      }
-
-      const projectRef = detectedType ? ` ${detectedType.type}의` : '';
       return {
-        message: `💡${projectRef} 타겟 대상 UX 핵심:\n${uxAdvice}\n\n📊 **위시켓 인사이트:** 타겟을 명확히 정의한 프로젝트는 견적 정확도가 30% 이상 높아집니다.`,
-        thinkingLabel: '타겟 사용자 분석 중...',
+        message: '타겟 사용자 정보를 반영했습니다.',
+        thinkingLabel: '타겟 사용자 반영 중...',
       };
     }
 
@@ -544,7 +519,7 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
       const features = parseFeatures(a);
       const ti = detectedType;
 
-      // 누락 기능 감지
+      // 누락 기능 감지 — 이건 실질적으로 유용하므로 유지
       const missingFeatures: string[] = [];
       if (ti) {
         for (const must of ti.mustHaveFeatures) {
@@ -557,64 +532,33 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
         }
       }
 
-      // 총 개발 기간 추정
-      let totalWeeksMin = 0;
-      let totalWeeksMax = 0;
-      features.forEach(f => {
-        for (const [keyword, info] of Object.entries(FEATURE_DB)) {
-          if (f.name.includes(keyword)) {
-            const wMatch = info.weeks.match(/(\d+)~(\d+)/);
-            if (wMatch) { totalWeeksMin += parseInt(wMatch[1]); totalWeeksMax += parseInt(wMatch[2]); }
-            break;
-          }
-        }
-      });
-
-      const featureList = features.map(f => {
-        let detail = '';
-        for (const [keyword, info] of Object.entries(FEATURE_DB)) {
-          if (f.name.includes(keyword)) { detail = ` (${info.complexity} ${info.weeks})`; break; }
-        }
-        return `**[${f.priority}]** ${f.name}${detail}`;
-      }).join('\n');
-
-      let timeEstimate = totalWeeksMin > 0 ? `\n\n⏱️ **예상 개발 기간:** ${totalWeeksMin}~${totalWeeksMax}주 (병렬 진행 시 60~70%)` : '';
-      let mvpWarning = features.length > 5 ? `\n\n⚠️ ${features.length}개 기능은 MVP로 다소 많습니다. **P1 먼저 출시 → 피드백 → P2 추가**가 비용 40~60% 절감 전략입니다.` : '';
-      let missingText = missingFeatures.length > 0 ? `\n\n🔍 **혹시 빠뜨리신 건 아닌가요?**\n이 유형에서 보통 필요한 기능: ${missingFeatures.slice(0, 3).join(', ')}` : '';
+      const featureList = features.map(f => `• ${f.name}`).join('\n');
+      let missingText = missingFeatures.length > 0
+        ? `\n\n이 유형에서 보통 포함하는 기능 중 빠진 것이 있습니다: **${missingFeatures.slice(0, 3).join(', ')}**\n추가하시겠어요?`
+        : '';
 
       return {
-        message: `기능을 분석했습니다!\n\n${featureList}${timeEstimate}${mvpWarning}${missingText}`,
+        message: `${features.length}개 기능을 반영했습니다.\n\n${featureList}${missingText}`,
         quickReplies: missingFeatures.length > 0 ? ['이대로 진행', ...missingFeatures.slice(0, 3)] : undefined,
-        thinkingLabel: '기능별 복잡도 분석 중...',
+        thinkingLabel: '기능 목록 반영 중...',
       };
     }
 
     case 'referenceServices': {
       if (a === '건너뛰기' || a.length < 3) {
-        return { message: '넘어갈게요!\n\n💡 나중에 개발사 미팅 시 경쟁 서비스 2~3개를 조사해서 공유하면 소통 시간이 50% 단축됩니다.' };
+        return { message: '넘어갈게요.' };
       }
       return {
-        message: `좋은 벤치마크네요!\n\n💡 **견적 정확도 UP 공식:**\n"이 서비스의 **A기능처럼** + 우리는 **B를 다르게** + **C는 안 해도 됨**"\n\n이렇게 구조화하면 개발사가 훨씬 정확한 견적을 줍니다.`,
-        thinkingLabel: '참고 서비스 분석 중...',
+        message: '참고 서비스를 반영했습니다. 개발사에 전달할 때 큰 도움이 됩니다.',
+        thinkingLabel: '참고 서비스 반영 중...',
       };
     }
 
     case 'techRequirements': {
-      const isApp = a.includes('앱') || a.includes('모바일');
-      const isWeb = a.includes('웹') || a.includes('사이트');
-      const isBoth = (isApp && isWeb) || a.includes('둘') || a.includes('다');
-
-      let advice = '';
-      if (isBoth) {
-        advice = '**웹+앱 동시** 개발이시군요.\n\n📊 위시켓 데이터: **"웹 먼저 → 시장 검증 → 앱 확장"** 전략이 성공률 23% 높습니다.';
-      } else if (isApp) {
-        advice = '**모바일 앱**이시군요.\n\n📊 2025년 위시켓 크로스플랫폼 선택 비율 **67%** — Flutter가 가성비 최고입니다.';
-      } else if (isWeb) {
-        advice = '**웹 서비스**를 선택하셨군요.\n\n💡 Next.js(React 기반)가 SEO·성능·생산성 모두 우수합니다.';
-      } else {
-        advice = '💡 특별한 기술 선호가 없다면 "기술 스택은 개발사 추천에 따름"이 가장 다양한 견적을 받는 방법입니다.';
-      }
-      return { message: advice, thinkingLabel: '기술 요구사항 분석 중...' };
+      return {
+        message: '기술 요구사항을 반영했습니다.',
+        thinkingLabel: '기술 요구사항 반영 중...',
+      };
     }
 
     case 'budgetTimeline': {
@@ -624,42 +568,26 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
 
       if (!hasBudget || isUndecided) {
         return {
-          message: `예산 미정이시군요. 충분히 이해합니다!\n\n📊 **${ti?.type || '유사'} 프로젝트 참고** (위시켓 실거래 기준):\nMVP: **${ti?.avgBudget || '1,500~3,000만원'}** | 기간: **${ti?.avgDuration || '6~12주'}**\n\n💡 이 RFP로 **위시켓에서 무료로 5~8곳** 견적 비교가 가능합니다.`,
-          thinkingLabel: '시장 가격 데이터 조회 중...',
+          message: `예산 미정으로 반영합니다. 참고로 ${ti?.type || '유사'} 프로젝트 평균은 **${ti?.avgBudget || '1,500~3,000만원'}**입니다.`,
+          thinkingLabel: '예산 정보 반영 중...',
         };
       }
 
-      let budgetFeedback = '';
-      if (ti) {
-        let budgetVal = 0;
-        const moneyMatch = a.match(/(\d{1,3}[,.]?\d{0,3})\s*만/);
-        if (moneyMatch) budgetVal = parseInt(moneyMatch[1].replace(/[,.]/g, '')) * 10000;
-        const okMatch = a.match(/(\d+)\s*억/);
-        if (okMatch) budgetVal = parseInt(okMatch[1]) * 100000000;
-
-        if (budgetVal > 0) {
-          const avgLow = parseInt(ti.avgBudget.replace(/[^0-9]/g, '').slice(0, 4)) * 10000;
-          budgetFeedback = budgetVal < avgLow * 0.7
-            ? `\n\n⚠️ 말씀하신 예산이 평균(${ti.avgBudget})보다 다소 낮습니다. MVP 범위를 최소화하는 걸 권장합니다.`
-            : `\n\n✅ 이 유형 평균(${ti.avgBudget})과 적절한 범위입니다.`;
-        }
-      }
-
       return {
-        message: `확인했습니다!${budgetFeedback}\n\n💡 **결제 추천 구조:** 착수금 30% → 중간 40% → 완료 30%\n\n📊 **핵심 팁:** 가장 낮은 견적 ≠ 최선. **포트폴리오 + 소통 역량**이 더 중요합니다.`,
-        thinkingLabel: '예산 적정성 분석 중...',
+        message: '예산 및 일정 정보를 반영했습니다.',
+        thinkingLabel: '예산 정보 반영 중...',
       };
     }
 
     case 'additionalRequirements': {
       return {
-        message: `모든 정보가 수집되었습니다!\n\n📋 **계약 전 필수 체크:**\n▸ 소스코드 소유권: **발주사 귀속** 명시\n▸ 하자보수: **최소 6개월** (위시켓 추천)\n▸ 중간 검수권: 마일스톤별 검수 후 다음 단계\n▸ 추가 개발 단가: 사전 합의`,
-        thinkingLabel: 'RFP 최종 검토 중...',
+        message: '추가 요구사항을 반영했습니다.',
+        thinkingLabel: 'RFP 최종 정리 중...',
       };
     }
 
     default:
-      return { message: '감사합니다! 답변을 RFP에 반영했습니다.' };
+      return { message: '답변을 반영했습니다.' };
   }
 }
 
