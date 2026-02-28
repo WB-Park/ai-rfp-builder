@@ -406,7 +406,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                         display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)',
                         padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
                       }}>
-                        <span className={`chip-${f.priority.toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority}</span>
+                        <span className={`chip-${(f.priority || 'P1').toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority || 'P1'}</span>
                         <div style={{ flex: 1 }}>
                           <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', display: 'block' }}>{f.name}</span>
                           {f.description && f.description !== f.name && (

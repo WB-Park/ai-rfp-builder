@@ -81,7 +81,7 @@ function PriorityBadge({ priority, label }: { priority: 'P0' | 'P1' | 'P2'; labe
     P2: { bg: 'rgba(148, 163, 184, 0.08)', color: C.textTertiary },
   };
 
-  const style = styles[priority];
+  const style = styles[priority] || styles.P1;
 
   return (
     <span style={{
