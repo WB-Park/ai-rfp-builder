@@ -1,35 +1,43 @@
 'use client';
 
-// AI RFP Builder — Landing Page
-// 위시켓 AI 진단 서비스(wishket-ai-diagnosis) 디자인 시스템 참조
-// 다크 네이비 + 민트그린 악센트, 동일 헤더/푸터 구조
+// AI RFP Builder — Landing Page v3
+// MIRROR/PROBE/FORGE 적용: 블루 톤, Hero 직접 CTA, 이메일 동기 부여
+// 위시켓 AI 진단과 차별화: 블루 프라이머리, "빌더" 느낌
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface LandingPageProps {
   onStart: (email: string, sessionId?: string) => void;
 }
 
-// ─── Design Tokens (위시켓 AI 진단 동일) ───
+// ─── Design Tokens (블루 톤 — AI 진단과 차별화) ───
 const C = {
-  navy: '#0F172A',
-  navyLight: '#1E293B',
-  navyAlpha: 'rgba(15, 23, 42, 0.92)',
-  mint: '#10B981',
-  mintHover: '#059669',
-  mintLight: 'rgba(16, 185, 129, 0.15)',
-  mintText: '#34D399',
-  bg: '#F5F5F7',
+  // Core
+  navy: '#0B1120',
+  navyLight: '#131C31',
+  navyMid: '#1A2540',
+  navyAlpha92: 'rgba(11, 17, 32, 0.92)',
+  // Blue accent (차별화 핵심)
+  blue: '#2563EB',
+  blueLight: '#3B82F6',
+  blueSoft: '#60A5FA',
+  blueGlow: 'rgba(37, 99, 235, 0.25)',
+  blueBg: 'rgba(37, 99, 235, 0.08)',
+  blueText: '#93C5FD',
+  // Surfaces
+  bg: '#F8FAFC',
   white: '#FFFFFF',
-  gray50: '#F9FAFB',
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray600: '#4B5563',
-  gray700: '#374151',
-  gray800: '#1F2937',
-  textDark: '#1E293B',
+  gray50: '#F8FAFC',
+  gray100: '#F1F5F9',
+  gray200: '#E2E8F0',
+  gray300: '#CBD5E1',
+  gray400: '#94A3B8',
+  gray500: '#64748B',
+  gray600: '#475569',
+  gray700: '#334155',
+  gray800: '#1E293B',
+  // Text
+  textDark: '#0F172A',
   textLight: '#94A3B8',
   textMuted: '#64748B',
 };
@@ -39,18 +47,26 @@ export default function LandingPage({ onStart }: LandingPageProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const heroInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', fn);
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  // [MIRROR:제약인정] 이메일 없이 바로 시작 — 진입 장벽 제거
+  const handleGuestStart = () => {
+    onStart('guest@anonymous.user');
+  };
+
+  // [MIRROR:인센티브정렬] 이메일 입력 시 PDF 발송 약속
+  const handleEmailStart = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError('');
     if (!email || !email.includes('@')) {
       setError('유효한 이메일을 입력해주세요.');
+      heroInputRef.current?.focus();
       return;
     }
     setLoading(true);
@@ -64,33 +80,26 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       if (data.error) setError(data.error);
       else onStart(email, data.sessionId);
     } catch {
-      setError('네트워크 오류가 발생했습니다.');
+      setError('네트워크 오류. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
   };
 
-  const scrollToCTA = () => {
-    document.getElementById('cta-section')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  // ─── Shared Styles ───
-  const sectionPadding = { padding: '80px 24px', maxWidth: 1080, margin: '0 auto' };
-  const sectionTitle: React.CSSProperties = {
+  // Shared
+  const sectionPad: React.CSSProperties = { padding: '80px 24px', maxWidth: 1080, margin: '0 auto' };
+  const secTitle: React.CSSProperties = {
     fontSize: 'clamp(26px, 4vw, 36px)', fontWeight: 800, color: C.textDark,
     textAlign: 'center', letterSpacing: '-0.02em', lineHeight: 1.3,
-  };
-  const sectionSub: React.CSSProperties = {
-    fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 12,
   };
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
 
-      {/* ━━ Header (위시켓 AI 진단 동일) ━━ */}
+      {/* ━━ Header ━━ */}
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? C.navyAlpha : 'transparent',
+        background: scrolled ? C.navyAlpha92 : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
         WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
         transition: 'all 0.3s ease',
@@ -101,83 +110,138 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{
-              fontSize: 20, fontWeight: 800, color: C.white,
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}>wishket</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: C.white }}>wishket</span>
             <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)' }} />
-            <span style={{ fontSize: 14, color: C.textLight, fontWeight: 500 }}>AI 기획서</span>
+            <span style={{ fontSize: 14, color: C.textLight, fontWeight: 500 }}>AI RFP Builder</span>
           </div>
-          <button onClick={scrollToCTA} style={{
+          <button onClick={handleGuestStart} style={{
             padding: '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
-            background: C.mint, color: C.white, fontSize: 14, fontWeight: 600,
-            transition: 'all 0.2s ease',
-          }}>무료로 시작</button>
+            background: C.blue, color: C.white, fontSize: 14, fontWeight: 600,
+            transition: 'all 0.2s',
+          }}>바로 시작</button>
         </div>
       </header>
 
-      {/* ━━ Hero Section (다크 배경) ━━ */}
+      {/* ━━ Hero — CTA 바로 여기에! (스크롤 금지) ━━ */}
       <section style={{
-        background: `linear-gradient(180deg, ${C.navy} 0%, ${C.navyLight} 100%)`,
-        padding: '140px 24px 80px', textAlign: 'center',
+        background: `linear-gradient(180deg, ${C.navy} 0%, ${C.navyLight} 80%, ${C.navyMid} 100%)`,
+        padding: '130px 24px 80px', textAlign: 'center',
+        position: 'relative', overflow: 'hidden',
       }}>
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        {/* 배경 그로우 이펙트 */}
+        <div style={{
+          position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: 600, height: 600, borderRadius: '50%',
+          background: `radial-gradient(circle, ${C.blueGlow} 0%, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           {/* Badge */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '8px 18px', borderRadius: 100,
-            background: C.mintLight, marginBottom: 32,
+            background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
+            marginBottom: 28,
           }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.mint }} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.mintText }}>
-              위시켓이 만든 무료 AI 기획서
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 8px ${C.blueGlow}` }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.blueText }}>
+              위시켓 13년 외주 경험 × AI
             </span>
           </div>
 
           {/* Headline */}
           <h1 style={{
-            fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 800,
-            color: C.white, lineHeight: 1.2, letterSpacing: '-0.03em',
-            marginBottom: 8,
+            fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800,
+            color: C.white, lineHeight: 1.25, letterSpacing: '-0.03em',
+            marginBottom: 16,
           }}>
-            소프트웨어 외주,
-          </h1>
-          <h1 style={{
-            fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 800,
-            color: C.mintText, lineHeight: 1.2, letterSpacing: '-0.03em',
-            marginBottom: 24,
-          }}>
-            기획서부터 AI로 정확하게
+            소프트웨어 외주 기획서,<br />
+            <span style={{ color: C.blueSoft }}>AI와 대화하면 5분이면 끝</span>
           </h1>
 
           {/* Sub */}
-          <p style={{ fontSize: 'clamp(16px, 2vw, 18px)', color: C.textLight, lineHeight: 1.6, marginBottom: 40 }}>
-            아이디어를 입력하면 <span style={{ color: C.mintText, fontWeight: 600 }}>
-            개발사에 바로 전달할 수 있는 RFP 기획서</span>를<br />
-            AI가 5분 내에 무료로 작성해드립니다.
+          <p style={{
+            fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
+            lineHeight: 1.7, marginBottom: 36, maxWidth: 560, margin: '0 auto 36px',
+          }}>
+            아이디어만 말하세요. 개발사에 <strong style={{ color: C.blueSoft }}>바로 전달 가능한 RFP 기획서</strong>를
+            {' '}AI가 무료로 작성하고, <strong style={{ color: C.blueSoft }}>PDF로 이메일에 보내드립니다.</strong>
           </p>
 
-          {/* CTA */}
-          <button onClick={scrollToCTA} style={{
-            padding: '18px 48px', borderRadius: 14, border: 'none', cursor: 'pointer',
-            background: `linear-gradient(135deg, ${C.mint}, #059669)`,
-            color: C.white, fontSize: 18, fontWeight: 700,
-            boxShadow: '0 4px 24px rgba(16, 185, 129, 0.35)',
-            transition: 'all 0.2s ease',
+          {/* ──── Hero CTA: 이메일 + 즉시 시작 ──── */}
+          {/* [PROBE:🔴해결] CTA가 바로 여기에. 스크롤 필요 없음 */}
+          <form onSubmit={handleEmailStart} style={{
+            maxWidth: 520, margin: '0 auto 12px',
+            display: 'flex', gap: 8,
           }}>
-            지금 무료 기획서 받기 (5분 소요) →
+            <input
+              ref={heroInputRef}
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
+              placeholder="기획서 받을 이메일 입력"
+              style={{
+                flex: 1, height: 54, padding: '0 18px', borderRadius: 12,
+                border: error ? '1.5px solid #EF4444' : '1.5px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)', color: C.white, fontSize: 16,
+                outline: 'none', transition: 'all 0.2s',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = C.blue;
+                e.target.style.background = 'rgba(255,255,255,0.1)';
+                e.target.style.boxShadow = `0 0 0 3px ${C.blueGlow}`;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = error ? '#EF4444' : 'rgba(255,255,255,0.12)';
+                e.target.style.background = 'rgba(255,255,255,0.06)';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+            <button type="submit" disabled={loading} style={{
+              padding: '0 28px', height: 54, borderRadius: 12, border: 'none',
+              background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+              color: C.white, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : 'pointer',
+              opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
+              boxShadow: `0 4px 20px ${C.blueGlow}`,
+              transition: 'all 0.2s',
+            }}>
+              {loading ? '...' : '기획서 만들기 →'}
+            </button>
+          </form>
+
+          {error && (
+            <p style={{ color: '#EF4444', fontSize: 13, marginTop: 4, marginBottom: 4 }}>{error}</p>
+          )}
+
+          {/* [MIRROR:제약인정] 이메일 없이 시작 옵션 */}
+          <button onClick={handleGuestStart} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: C.gray400, fontSize: 14, padding: '8px 16px',
+            textDecoration: 'underline', textUnderlineOffset: '3px',
+            transition: 'color 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.white; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.gray400; }}
+          >
+            이메일 없이 바로 시작하기
           </button>
+
+          {/* 이메일 동기 설명 */}
+          <p style={{ fontSize: 12, color: C.gray500, marginTop: 8 }}>
+            📩 완성된 기획서를 PDF로 이메일에 보내드립니다 · 스팸 없음 · 언제든 해지
+          </p>
 
           {/* Trust chips */}
           <div style={{
             display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
-            gap: 16, marginTop: 28,
+            gap: 16, marginTop: 24,
           }}>
-            {['회원가입 불필요', '완전 무료', '5분이면 완료', '바로 다운로드'].map(t => (
+            {['회원가입 불필요', '완전 무료', '5분이면 완료', 'PDF 다운로드'].map(t => (
               <span key={t} style={{
-                fontSize: 13, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
+                fontSize: 13, color: C.textLight, display: 'flex', alignItems: 'center', gap: 5,
               }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.mint} strokeWidth="2.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueSoft} strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
                 {t}
@@ -188,22 +252,23 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           {/* Step indicator */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 8, marginTop: 40,
+            gap: 6, marginTop: 36, flexWrap: 'wrap',
           }}>
             {[
-              { n: '1', t: '프로젝트 설명' },
-              { n: '2', t: '타겟/기능 정리' },
-              { n: '3', t: '예산/일정' },
-              { n: '4', t: 'RFP 완성' },
+              { n: '1', t: '아이디어 입력' },
+              { n: '2', t: 'AI 질문 응답' },
+              { n: '3', t: 'RFP 자동 생성' },
+              { n: '4', t: 'PDF 다운로드' },
             ].map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%', background: C.mint,
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 700, color: C.white,
+                  fontSize: 12, fontWeight: 700, color: C.white,
                 }}>{s.n}</div>
                 <span style={{ fontSize: 13, color: C.textLight }}>{s.t}</span>
-                {i < 3 && <span style={{ color: C.textLight, margin: '0 4px' }}>→</span>}
+                {i < 3 && <span style={{ color: C.gray600, margin: '0 2px', fontSize: 12 }}>→</span>}
               </div>
             ))}
           </div>
@@ -212,15 +277,15 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
       {/* ━━ Demo Preview (다크 카드) ━━ */}
       <section style={{
-        background: `linear-gradient(180deg, ${C.navyLight} 0%, ${C.bg} 100%)`,
+        background: `linear-gradient(180deg, ${C.navyMid} 0%, ${C.bg} 100%)`,
         padding: '0 24px 80px',
       }}>
         <div style={{
-          maxWidth: 800, margin: '0 auto',
+          maxWidth: 780, margin: '-20px auto 0',
           background: C.navy, borderRadius: 16,
           border: '1px solid rgba(255,255,255,0.08)',
           overflow: 'hidden',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
+          boxShadow: `0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(37,99,235,0.1)`,
         }}>
           {/* macOS dots */}
           <div style={{
@@ -231,55 +296,53 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FEBD2E' }} />
             <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840' }} />
             <span style={{ fontSize: 13, color: C.textLight, marginLeft: 12 }}>
-              AI RFP 기획서 — 반려동물 건강관리 플랫폼
+              AI RFP Builder — 반려동물 건강관리 플랫폼
             </span>
           </div>
-          {/* Content preview */}
           <div style={{ padding: '24px 28px' }}>
             <div style={{
               display: 'inline-block', padding: '4px 12px', borderRadius: 100,
-              background: C.mintLight, marginBottom: 16,
+              background: C.blueBg, marginBottom: 16,
             }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.mint }}>✅ 기획서 완성</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.blueSoft }}>✅ RFP 기획서 완성</span>
             </div>
             <div style={{ fontSize: 20, fontWeight: 700, color: C.white, marginBottom: 20 }}>
               반려동물 건강관리 플랫폼
             </div>
-            {/* Stats row */}
-            <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
               {[
-                { v: '7개', l: '핵심 기능', c: C.mint },
-                { v: 'P1/P2/P3', l: '우선순위 분류', c: '#60A5FA' },
+                { v: '7개', l: '핵심 기능', c: C.blueSoft },
+                { v: 'P1/P2/P3', l: '우선순위 분류', c: '#A78BFA' },
                 { v: '3,000만', l: '예상 예산', c: '#FBBF24' },
-                { v: '12주', l: '예상 일정', c: '#A78BFA' },
+                { v: '12주', l: 'MVP 일정', c: '#34D399' },
               ].map((s, i) => (
                 <div key={i} style={{
-                  flex: '1 1 120px', padding: '16px 14px', borderRadius: 12,
+                  flex: '1 1 100px', padding: '14px 12px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
                   textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: s.c }}>{s.v}</div>
-                  <div style={{ fontSize: 12, color: C.textLight, marginTop: 4 }}>{s.l}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 11, color: C.textLight, marginTop: 3 }}>{s.l}</div>
                 </div>
               ))}
             </div>
-            {/* Feature list */}
             {[
-              { name: '회원가입/로그인', tag: '필수', tagColor: '#EF4444' },
-              { name: '반려동물 프로필 등록', tag: '필수', tagColor: '#EF4444' },
-              { name: '수의사 화상상담 예약', tag: '우선', tagColor: '#F59E0B' },
+              { name: '회원가입 · 소셜 로그인', tag: 'P1 필수', tagColor: '#EF4444' },
+              { name: '반려동물 프로필 등록', tag: 'P1 필수', tagColor: '#EF4444' },
+              { name: '수의사 화상상담 예약', tag: 'P2 우선', tagColor: '#F59E0B' },
+              { name: 'AI 건강 분석 리포트', tag: 'P3 선택', tagColor: C.blueSoft },
             ].map((f, i) => (
               <div key={i} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '12px 16px', borderRadius: 10,
+                padding: '10px 14px', borderRadius: 8,
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.05)',
-                marginBottom: 8,
+                marginBottom: 6,
               }}>
                 <span style={{ fontSize: 14, color: C.white }}>📋 {f.name}</span>
                 <span style={{
                   fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 100,
-                  background: `${f.tagColor}20`, color: f.tagColor,
+                  background: `${f.tagColor}18`, color: f.tagColor,
                 }}>{f.tag}</span>
               </div>
             ))}
@@ -287,137 +350,171 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </section>
 
-      {/* ━━ "이런 기획서를 받을 수 있어요" (라이트 배경) ━━ */}
-      <section style={{ background: C.bg, ...sectionPadding }}>
-        <h2 style={sectionTitle}>이런 기획서를 받을 수 있어요</h2>
-        <p style={sectionSub}>ChatGPT에서는 받을 수 없는, 외주 전문 AI의 결과물</p>
+      {/* ━━ 이런 기획서를 받을 수 있어요 ━━ */}
+      <section style={{ background: C.bg, ...sectionPad }}>
+        <h2 style={secTitle}>ChatGPT에서는 절대 못 받는 기획서</h2>
+        <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
+          위시켓 13년 외주 매칭 경험이 녹아든 AI의 결과물
+        </p>
 
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 20, marginTop: 48,
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gap: 16, marginTop: 44,
         }}>
           {[
-            { n: '01', title: '체계적인 RFP 문서', desc: '7단계 전문 질문으로 프로젝트 개요부터 기술 요구사항까지 빠짐없이 정리' },
-            { n: '02', title: 'P1/P2/P3 우선순위', desc: '기능별 필수·우선·선택 자동 분류로 MVP 스코프와 개발 로드맵 제시' },
-            { n: '03', title: '예산·일정 분석', desc: '13년 외주 매칭 데이터 기반, 현실적인 예산 범위와 개발 기간 추정' },
-            { n: '04', title: '개발사 전달 가능', desc: '완성된 RFP를 그대로 개발사에 전달하면 정확한 견적을 받을 수 있습니다' },
+            { n: '01', title: '체계적인 RFP 문서', desc: '7단계 전문 질문으로 프로젝트 개요부터 기술 요구사항, 예산까지 빠짐없이 정리', icon: '📄' },
+            { n: '02', title: '기능별 우선순위', desc: 'P1/P2/P3 자동 분류 + 구현 난이도 분석. MVP부터 시작하는 로드맵 제시', icon: '🎯' },
+            { n: '03', title: '실전 예산·일정 분석', desc: '13년 매칭 데이터 기반, 프로젝트 유형별 현실적인 예산 범위와 기간 추정', icon: '💰' },
+            { n: '04', title: '개발사 바로 전달', desc: '완성된 RFP를 PDF로 다운로드. 그대로 개발사에 보내면 정확한 견적을 받을 수 있어요', icon: '🚀' },
           ].map(item => (
             <div key={item.n} style={{
-              background: C.white, borderRadius: 16, padding: '32px 28px',
+              background: C.white, borderRadius: 16, padding: '28px 24px',
               border: '1px solid rgba(0,0,0,0.05)',
-              transition: 'all 0.2s ease',
-            }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: C.mint, marginBottom: 12 }}>{item.n}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: C.textDark, marginBottom: 8 }}>{item.title}</div>
-              <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.6 }}>{item.desc}</div>
+              transition: 'all 0.25s ease',
+              cursor: 'default',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(37, 99, 235, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.2)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.borderColor = 'rgba(0,0,0,0.05)';
+            }}
+            >
+              <div style={{ fontSize: 28, marginBottom: 12 }}>{item.icon}</div>
+              <div style={{
+                fontSize: 12, fontWeight: 800, color: C.blue,
+                marginBottom: 8, letterSpacing: '0.05em',
+              }}>{item.n}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.textDark, marginBottom: 8 }}>{item.title}</div>
+              <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.65 }}>{item.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ━━ "정말 간단한 대화형 질문" (How It Works) ━━ */}
-      <section style={{ background: C.white, ...sectionPadding }}>
-        <h2 style={sectionTitle}>정말 간단한 대화형 질문</h2>
-        <p style={sectionSub}>AI와 대화하면서 자연스럽게 기획서가 완성됩니다</p>
+      {/* ━━ How It Works ━━ */}
+      <section style={{ background: C.white, ...sectionPad }}>
+        <h2 style={secTitle}>정말 간단합니다</h2>
+        <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
+          프롬프트 작성? 필요 없습니다. AI가 질문하고 당신은 답만 하세요.
+        </p>
 
         <div style={{
           display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
-          gap: 40, marginTop: 48, flexWrap: 'wrap',
+          gap: 32, marginTop: 48, flexWrap: 'wrap',
         }}>
           {[
-            { step: 1, title: '프로젝트 설명', desc: '"반려동물 건강관리 앱을 만들고 싶어요" 이 정도면 충분합니다' },
-            { step: 2, title: 'AI가 질문하고 정리', desc: '타겟 사용자, 핵심 기능, 예산 등을 대화로 정리합니다' },
-            { step: 3, title: 'RFP 기획서 완성', desc: '개발사에 바로 전달 가능한 전문 기획서가 완성됩니다' },
+            { step: 1, title: '"이런 앱 만들고 싶어요"', desc: '한 줄이면 충분합니다. AI가 알아서 분류하고 관련 질문을 시작합니다.' },
+            { step: 2, title: 'AI가 질문 → 당신이 답변', desc: '타겟 사용자, 핵심 기능, 예산 등 7가지를 대화로 정리합니다.' },
+            { step: 3, title: 'RFP 기획서 완성!', desc: '개발사에 바로 전달 가능한 전문 기획서. PDF 다운로드 + 이메일 발송.' },
           ].map((s, i) => (
-            <div key={i} style={{ flex: '1 1 260px', maxWidth: 300, textAlign: 'center' }}>
+            <div key={i} style={{ flex: '1 1 240px', maxWidth: 300, textAlign: 'center' }}>
               <div style={{
-                width: 56, height: 56, borderRadius: '50%', margin: '0 auto 16px',
-                background: `linear-gradient(135deg, ${C.mint}, #059669)`,
+                width: 52, height: 52, borderRadius: 14, margin: '0 auto 16px',
+                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, fontWeight: 800, color: C.white,
-                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
+                fontSize: 20, fontWeight: 800, color: C.white,
+                boxShadow: `0 4px 16px ${C.blueGlow}`,
               }}>{s.step}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: C.textDark, marginBottom: 8 }}>{s.title}</div>
-              <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.6 }}>{s.desc}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.textDark, marginBottom: 8 }}>{s.title}</div>
+              <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.65 }}>{s.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* ━━ Before/After 비교 ━━ */}
-      <section style={{ background: C.bg, ...sectionPadding }}>
-        <h2 style={sectionTitle}>ChatGPT vs 위시켓 AI RFP</h2>
-        <p style={sectionSub}>같은 질문, 다른 결과. 외주 전문 AI의 차이</p>
+      <section style={{ background: C.bg, ...sectionPad }}>
+        <h2 style={secTitle}>ChatGPT vs 위시켓 AI RFP</h2>
+        <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
+          같은 질문, 다른 결과. 외주 전문 AI의 차이
+        </p>
 
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: 24, marginTop: 48,
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 20, marginTop: 44,
         }}>
           {/* ChatGPT */}
           <div style={{
-            background: C.white, borderRadius: 16, padding: 32,
-            border: '1px solid rgba(0,0,0,0.06)',
+            background: C.white, borderRadius: 16, padding: '28px 24px',
+            border: '1px solid rgba(0,0,0,0.06)', opacity: 0.85,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <span style={{ fontSize: 20 }}>❌</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: C.textDark }}>일반 ChatGPT</span>
+              <span style={{
+                width: 32, height: 32, borderRadius: 8, background: C.gray100,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+              }}>💬</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: C.gray600 }}>일반 ChatGPT</span>
             </div>
             {[
-              '범용적인 답변, 외주 맥락 없음',
-              '기능 우선순위 구분 못함',
-              '예산·일정 추정 불가',
+              '범용적인 답변, 외주 맥락 전혀 없음',
+              '기능 우선순위? 그런 거 모름',
+              '예산·일정 추정 불가 (할루시네이션)',
               '개발사에 전달할 수 없는 포맷',
-              '매번 프롬프트를 다시 작성해야 함',
+              '매번 프롬프트를 직접 작성해야 함',
             ].map((t, i) => (
               <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
+                display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 0', borderBottom: i < 4 ? `1px solid ${C.gray100}` : 'none',
               }}>
-                <span style={{ fontSize: 14, color: C.gray400, flexShrink: 0 }}>😐</span>
-                <span style={{ fontSize: 14, color: C.gray600 }}>{t}</span>
+                <span style={{ color: C.gray300, fontSize: 16 }}>✕</span>
+                <span style={{ fontSize: 14, color: C.gray500 }}>{t}</span>
               </div>
             ))}
           </div>
 
           {/* 위시켓 AI */}
           <div style={{
-            background: C.white, borderRadius: 16, padding: 32,
-            border: `2px solid ${C.mint}`,
-            boxShadow: '0 4px 24px rgba(16, 185, 129, 0.12)',
+            background: C.white, borderRadius: 16, padding: '28px 24px',
+            border: `2px solid ${C.blue}`,
+            boxShadow: `0 4px 24px ${C.blueGlow}`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <span style={{ fontSize: 20 }}>✅</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: C.textDark }}>위시켓 AI RFP</span>
+              <span style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: C.white, fontWeight: 800,
+              }}>W</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: C.textDark }}>위시켓 AI RFP</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 100,
+                background: C.blueBg, color: C.blue, marginLeft: 'auto',
+              }}>추천</span>
             </div>
             {[
-              '외주 전문 7단계 질문으로 빈틈없는 기획',
-              'P1/P2/P3 자동 분류, MVP 스코프 추천',
-              '13년 데이터 기반 예산·일정 추정',
+              '외주 전문 7단계 질문 — 빈틈 없는 기획',
+              'P1/P2/P3 자동 분류 + MVP 스코프 추천',
+              '13년 실전 데이터 기반 예산·일정 추정',
               '개발사에 바로 전달 가능한 RFP 포맷',
-              '대화만 하면 자동으로 기획서 완성',
+              '대화만 하면 기획서가 자동 완성',
             ].map((t, i) => (
               <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
+                display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 0', borderBottom: i < 4 ? `1px solid ${C.gray100}` : 'none',
               }}>
-                <span style={{ fontSize: 14, color: C.mint, flexShrink: 0 }}>🚀</span>
-                <span style={{ fontSize: 14, color: C.gray700 }}>{t}</span>
+                <span style={{ color: C.blue, fontSize: 16 }}>✓</span>
+                <span style={{ fontSize: 14, color: C.gray700, fontWeight: 500 }}>{t}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ━━ Stats (다크 배경) ━━ */}
+      {/* ━━ Stats ━━ */}
       <section style={{
-        background: C.navy, padding: '60px 24px', textAlign: 'center',
+        background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`,
+        padding: '56px 24px', textAlign: 'center',
       }}>
-        <p style={{ fontSize: 14, color: C.textLight, marginBottom: 32 }}>
-          실제 프로젝트 데이터로 훈련된 AI가 당신의 프로젝트에 가장 현실적인 기획서를 작성합니다
+        <p style={{ fontSize: 14, color: C.textLight, marginBottom: 28 }}>
+          위시켓의 실전 데이터로 훈련된 AI가 가장 현실적인 기획서를 작성합니다
         </p>
         <div style={{
           maxWidth: 900, margin: '0 auto',
-          display: 'flex', justifyContent: 'center', gap: 48, flexWrap: 'wrap',
+          display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap',
         }}>
           {[
             { v: '13년', l: '외주 매칭 경험' },
@@ -425,94 +522,79 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             { v: '2,178억', l: '누적 거래 규모' },
             { v: '65,000+', l: '검증된 IT 파트너' },
           ].map((s, i) => (
-            <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: C.mintText }}>{s.v}</div>
+            <div key={i}>
+              <div style={{ fontSize: 'clamp(26px, 4vw, 38px)', fontWeight: 800, color: C.blueSoft }}>{s.v}</div>
               <div style={{ fontSize: 14, color: C.textLight, marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ━━ Final CTA (다크 그라데이션) ━━ */}
-      <section id="cta-section" style={{
+      {/* ━━ Final CTA ━━ */}
+      <section style={{
         background: `linear-gradient(180deg, ${C.navyLight} 0%, ${C.navy} 100%)`,
-        padding: '80px 24px', textAlign: 'center',
+        padding: '72px 24px', textAlign: 'center',
       }}>
         <h2 style={{
-          fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800,
-          color: C.white, lineHeight: 1.3, marginBottom: 16,
+          fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 800,
+          color: C.white, lineHeight: 1.35, marginBottom: 14,
         }}>
-          정말 쉽습니다.<br />대화만 하면 기획서가 완성돼요
+          지금 바로 시작하세요
         </h2>
-        <p style={{ fontSize: 16, color: C.textLight, marginBottom: 40 }}>
-          이메일을 입력하면 AI가 5분 내에 전문 RFP 기획서를 무료로 작성해드립니다
+        <p style={{ fontSize: 16, color: C.textLight, marginBottom: 32, maxWidth: 480, margin: '0 auto 32px' }}>
+          이메일을 입력하면 완성된 기획서를 <strong style={{ color: C.blueSoft }}>PDF로 보내드립니다.</strong>
+          <br />이메일 없이도 바로 시작할 수 있어요.
         </p>
 
-        {/* Email Form */}
-        <form onSubmit={handleSubmit} style={{
-          maxWidth: 480, margin: '0 auto', display: 'flex', gap: 10,
-        }}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setError(''); }}
-            placeholder="이메일을 입력하세요"
-            style={{
-              flex: 1, height: 52, padding: '0 18px', borderRadius: 12,
-              border: error ? '1.5px solid #EF4444' : '1.5px solid rgba(255,255,255,0.15)',
-              background: 'rgba(255,255,255,0.06)', color: C.white, fontSize: 15,
-              outline: 'none', transition: 'all 0.2s ease',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = C.mint; e.target.style.background = 'rgba(255,255,255,0.1)'; }}
-            onBlur={(e) => { e.target.style.borderColor = error ? '#EF4444' : 'rgba(255,255,255,0.15)'; e.target.style.background = 'rgba(255,255,255,0.06)'; }}
-          />
-          <button type="submit" disabled={loading} style={{
-            padding: '0 28px', height: 52, borderRadius: 12, border: 'none',
-            background: `linear-gradient(135deg, ${C.mint}, #059669)`,
-            color: C.white, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : 'pointer',
-            opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
-            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-            transition: 'all 0.2s ease',
-          }}>
-            {loading ? '...' : '무료로 시작 →'}
-          </button>
-        </form>
-
-        {error && (
-          <p style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>{error}</p>
-        )}
-
-        {/* Trust chips */}
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
-          gap: 16, marginTop: 24,
-        }}>
-          {['회원가입 불필요', '완전 무료', '5분이면 완료', '바로 다운로드'].map(t => (
-            <span key={t} style={{
-              fontSize: 13, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
+        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+          <form onSubmit={handleEmailStart} style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
+              placeholder="기획서 받을 이메일"
+              style={{
+                flex: 1, height: 52, padding: '0 18px', borderRadius: 12,
+                border: '1.5px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)', color: C.white, fontSize: 15,
+                outline: 'none', transition: 'all 0.2s',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = C.blue; e.target.style.boxShadow = `0 0 0 3px ${C.blueGlow}`; }}
+              onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.12)'; e.target.style.boxShadow = 'none'; }}
+            />
+            <button type="submit" disabled={loading} style={{
+              padding: '0 24px', height: 52, borderRadius: 12, border: 'none',
+              background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+              color: C.white, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : 'pointer',
+              opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
+              boxShadow: `0 4px 16px ${C.blueGlow}`,
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.mint} strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              {t}
-            </span>
-          ))}
+              {loading ? '...' : '시작하기 →'}
+            </button>
+          </form>
+
+          <button onClick={handleGuestStart} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: C.gray400, fontSize: 14, padding: '12px 16px',
+            textDecoration: 'underline', textUnderlineOffset: '3px',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.white; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.gray400; }}
+          >
+            이메일 없이 바로 시작하기
+          </button>
         </div>
       </section>
 
-      {/* ━━ Footer (위시켓 공통 푸터) ━━ */}
-      <footer style={{ background: C.gray50, borderTop: `1px solid ${C.gray200}`, padding: '48px 24px 32px' }}>
+      {/* ━━ Footer ━━ */}
+      <footer style={{ background: C.gray50, borderTop: `1px solid ${C.gray200}`, padding: '44px 24px 28px' }}>
         <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-          {/* Service links */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32,
-            flexWrap: 'wrap',
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 28, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: C.gray600 }}>서비스 전체보기</span>
             {[
-              { label: '위시켓', href: 'https://www.wishket.com', color: C.mint },
+              { label: '위시켓', href: 'https://www.wishket.com', color: C.blue },
               { label: '요즘IT', href: 'https://yozm.wishket.com', color: '#F472B6' },
-              { label: 'AIDP', href: '#', color: '#60A5FA' },
+              { label: 'AI 진단', href: 'https://wishket-ai-diagnosis.vercel.app', color: '#10B981' },
             ].map(s => (
               <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{
                 fontSize: 14, color: C.gray500, textDecoration: 'none',
@@ -524,10 +606,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             ))}
           </div>
 
-          {/* Links grid */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: 24, marginBottom: 32,
+            gap: 24, marginBottom: 28,
           }}>
             <div>
               <div style={{ fontSize: 12, color: C.gray400, marginBottom: 4 }}>고객 문의</div>
@@ -549,9 +630,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             ))}
           </div>
 
-          {/* Legal */}
           <div style={{
-            borderTop: `1px solid ${C.gray200}`, paddingTop: 20,
+            borderTop: `1px solid ${C.gray200}`, paddingTop: 18,
             display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center',
           }}>
             <a href="https://www.wishket.com/terms/" target="_blank" rel="noopener noreferrer"
@@ -565,8 +645,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </footer>
 
-      {/* ━━ Sticky Bottom CTA (위시켓 AI 진단 동일) ━━ */}
-      <StickyBar onStart={scrollToCTA} />
+      {/* ━━ Sticky Bottom Bar ━━ */}
+      <StickyBar onStart={handleGuestStart} />
     </div>
   );
 }
@@ -577,11 +657,9 @@ function StickyBar({ onStart }: { onStart: () => void }) {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setVisible(window.scrollY > 400);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const fn = () => setVisible(window.scrollY > 400);
+    window.addEventListener('scroll', fn);
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
   if (!visible || dismissed) return null;
@@ -589,7 +667,7 @@ function StickyBar({ onStart }: { onStart: () => void }) {
   return (
     <div style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
-      background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)',
+      background: 'rgba(11, 17, 32, 0.95)', backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderTop: '1px solid rgba(255,255,255,0.06)',
       padding: '12px 24px',
@@ -600,18 +678,17 @@ function StickyBar({ onStart }: { onStart: () => void }) {
       }}>
         <span style={{ fontSize: 15, color: '#CBD5E1' }}>
           내 프로젝트{' '}
-          <span style={{
-            color: '#34D399', fontWeight: 600,
-            textDecoration: 'underline', textUnderlineOffset: '3px',
-          }}>기획서</span>를 AI가 5분 만에 작성해드립니다
+          <span style={{ color: '#93C5FD', fontWeight: 600 }}>기획서</span>를 AI가 5분 만에 무료 작성
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* [PROBE:🔴해결] Sticky Bar → 바로 시작 (스크롤 아님) */}
           <button onClick={onStart} style={{
             padding: '10px 24px', borderRadius: 10, border: 'none',
-            background: '#10B981', color: '#FFFFFF', fontSize: 15, fontWeight: 700,
-            cursor: 'pointer', transition: 'all 0.2s ease',
+            background: '#2563EB', color: '#FFFFFF', fontSize: 15, fontWeight: 700,
+            cursor: 'pointer', transition: 'all 0.2s',
+            boxShadow: '0 2px 12px rgba(37, 99, 235, 0.3)',
           }}>
-            지금 시작하기
+            바로 시작하기
           </button>
           <button onClick={() => setDismissed(true)} style={{
             background: 'none', border: 'none', color: '#94A3B8',

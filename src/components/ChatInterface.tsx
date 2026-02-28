@@ -31,7 +31,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: `안녕하세요! ${email.split('@')[0]}님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해볼까요? 7가지 질문에 답해주시면 5분 안에 완성됩니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`,
+      content: email.startsWith('guest@')
+        ? `안녕하세요! 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해볼까요? 7가지 질문에 답해주시면 5분 안에 전문 수준의 기획서가 완성됩니다.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`
+        : `안녕하세요! ${email.split('@')[0]}님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해볼까요? 7가지 질문에 답해주시면 5분 안에 완성됩니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`,
     },
   ]);
   const [input, setInput] = useState('');
