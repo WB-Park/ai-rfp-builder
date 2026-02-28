@@ -356,6 +356,9 @@ let detectedType: ProjectTypeInfo | null = null;
 let detectedProjectType: string = '';
 let previousAnswers: Record<number, string> = {};
 let followUpCount: Record<number, number> = {};
+// 🆕 기능 선택 시스템 상태
+let accumulatedFeatures: { name: string; description: string; priority: 'P1' | 'P2' | 'P3' }[] = [];
+let featureSelectionActive: boolean = false;
 
 // ═══════════════════════════════════════════════════════
 //  🆕 동적 다음 토픽 결정 엔진
@@ -393,92 +396,96 @@ function generateContextualQuestion(topicStep: number, rfpData: RFPData): { ques
   const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 20) : '프로젝트';
 
   // ────────────────────────────────────────────
-  // 핵심 원칙: "왜 이 정보가 필요한지 이유"를 먼저 말하고,
-  // 구체적으로 어떤 정보를 달라고 요청한다.
-  // 팁/인사이트는 최소화. 정보수집이 목적.
+  // 핵심 원칙: PRD 요구사항 정의에만 집중.
+  // 견적, 예산, 비용, 시장 인사이트 언급 금지.
+  // "왜 이 정보가 PRD에 필요한지" 이유만 말하고 질문.
   // ────────────────────────────────────────────
 
   switch (topicId) {
     case 'targetUsers': {
       if (detectedProjectType === '플랫폼') {
         return {
-          question: `플랫폼은 **공급자와 수요자 양쪽의 화면을 별도 설계**해야 하기 때문에, 양쪽 사용자가 누구인지 알아야 합니다.\n\n**${projectName}**에서 매칭되는 양쪽은 각각 누구인가요?\n예: "프리랜서 개발자 ↔ IT 외주를 원하는 기업"`,
+          question: `플랫폼은 **공급자와 수요자 양쪽의 화면을 별도 설계**해야 합니다.\n\n**${projectName}**에서 매칭되는 양쪽은 각각 누구인가요?\n예: "프리랜서 개발자 ↔ IT 외주를 원하는 기업"`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       } else if (detectedProjectType === '이커머스') {
         return {
-          question: `쇼핑몰은 타겟 고객에 따라 **상품 정렬 방식, 결제 수단, UI 톤**이 완전히 달라집니다.\n\n**${projectName}**의 주 구매자는 어떤 분들인가요?\n연령대, 성별, 주 구매 상황 등을 알려주세요.`,
+          question: `타겟 고객에 따라 **상품 노출 방식, UI 톤, 필요 기능**이 완전히 달라집니다.\n\n**${projectName}**의 주 구매자는 어떤 분들인가요?\n연령대, 성별, 주 구매 상황 등을 알려주세요.`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       } else if (detectedProjectType === 'SaaS') {
         return {
-          question: `SaaS는 **구매 결정자와 실사용자가 다른 경우**가 많아, 양쪽을 모두 파악해야 정확한 기능 설계가 가능합니다.\n\n**${projectName}**을 사용할 기업 규모와 실사용자는 누구인가요?\n(예: "50인 이하 스타트업의 마케터")`,
+          question: `SaaS는 **의사결정자와 실사용자가 다른 경우**가 많아, 양쪽의 니즈를 파악해야 기능 설계가 정확해집니다.\n\n**${projectName}**을 사용할 기업 규모와 실사용자는 누구인가요?`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       } else if (detectedProjectType === 'AI 서비스') {
         return {
-          question: `AI 서비스는 사용자의 기술 수준에 따라 **UI 복잡도와 결과 표시 방식**이 크게 달라집니다.\n\n**${projectName}**의 사용자는 AI에 익숙한 전문가인가요, 아니면 일반인인가요?`,
+          question: `사용자의 기술 수준에 따라 **UI 복잡도와 결과 표시 방식**이 크게 달라집니다.\n\n**${projectName}**의 사용자는 AI에 익숙한 전문가인가요, 일반인인가요?`,
           quickReplies: ti.quickRepliesMap.targetUsers,
         };
       }
       return {
-        question: `타겟 사용자를 명확히 정의해야 **화면 구성, 기능 우선순위, UX 난이도**를 정할 수 있습니다.\n\n**${projectName}**을 주로 누가 사용하게 될까요?\n연령대, 직업, 기술 수준 등을 알려주세요.`,
+        question: `타겟 사용자에 따라 **화면 구성과 기능 우선순위**가 결정됩니다.\n\n**${projectName}**을 주로 누가 사용하게 될까요?\n연령대, 직업, 기술 수준 등을 알려주세요.`,
         quickReplies: ti.quickRepliesMap.targetUsers,
       };
     }
 
     case 'coreFeatures': {
-      const overviewText = rfpData.overview?.toLowerCase() || '';
-      let contextHint = '';
-      if (overviewText.includes('배달') || overviewText.includes('음식')) {
-        contextHint = '\n\n이 유형이면 보통 주문 접수, 실시간 추적, 리뷰 기능이 포함됩니다.';
-      } else if (overviewText.includes('교육') || overviewText.includes('강의')) {
-        contextHint = '\n\n이 유형이면 보통 강의 관리, 진도 추적, 퀴즈/평가가 포함됩니다.';
-      } else if (overviewText.includes('예약')) {
-        contextHint = '\n\n이 유형이면 보통 캘린더, 실시간 가용성, 알림 기능이 포함됩니다.';
-      }
+      // 🆕 기능 추천 & 선택 시스템
+      // CEO 피드백: 추천기능을 전부 나열하고 사용자가 선택하는 방식
+      const mustHave = ti.mustHaveFeatures;
+      const quickFeatures = ti.quickRepliesMap.coreFeatures;
+      // 추천 기능 = quickRepliesMap에서 필수와 겹치지 않는 것
+      const recommended = quickFeatures.filter(f =>
+        !mustHave.some(m => m.toLowerCase().includes(f.toLowerCase().slice(0, 3)) || f.toLowerCase().includes(m.toLowerCase().slice(0, 3)))
+      );
+
+      // 기능 선택 시작
+      featureSelectionActive = true;
+      accumulatedFeatures = [];
+
+      const mustHaveList = mustHave.map(f => `• ${f}`).join('\n');
+      const recommendedList = recommended.map(f => `• ${f}`).join('\n');
+
+      const question = `PRD의 핵심은 **기능 정의**입니다.\n\n**${ti.type}** 프로젝트에서 추천하는 기능 목록입니다:\n\n🔴 **필수 기능** (이 유형에 거의 항상 필요)\n${mustHaveList}\n\n🟡 **추천 기능** (프로젝트에 따라 선택)\n${recommendedList}\n\n포함할 기능을 선택해주세요.\n여러 개를 콤마로 나열하거나, 하나씩 선택하셔도 됩니다.\n"**전체 필수 포함**"을 누르면 필수 기능이 모두 추가됩니다.`;
 
       return {
-        question: `핵심 기능 목록이 있어야 개발사가 **정확한 견적과 일정**을 산출할 수 있습니다.\n\n**${projectName}**에 꼭 들어가야 할 핵심 기능 3~5개를 알려주세요.${contextHint}\n\n여러 개를 한 번에 나열하셔도 되고, 하나씩 말씀해주셔도 됩니다.`,
-        quickReplies: ti.quickRepliesMap.coreFeatures,
+        question,
+        quickReplies: ['전체 필수 포함', ...recommended.slice(0, 4), '직접 입력할게요'],
       };
     }
 
     case 'referenceServices': {
       const typeExample = ti.competitorExample;
       return {
-        question: `참고 서비스를 알려주시면 개발사가 **디자인 수준과 기능 범위를 즉시 이해**할 수 있어, 커뮤니케이션 비용이 크게 줄어듭니다.\n\n비슷하게 만들고 싶은 서비스가 있나요?\n"${typeExample}의 **이 부분처럼**" 식으로 말씀해주시면 가장 좋습니다.`,
+        question: `참고 서비스가 있으면 **디자인 방향과 기능 수준**을 PRD에 구체적으로 명시할 수 있습니다.\n\n비슷하게 만들고 싶은 서비스가 있나요?\n"${typeExample}의 **이 부분처럼**" 식으로 말씀해주시면 가장 좋습니다.`,
         quickReplies: ti.quickRepliesMap.referenceServices,
       };
     }
 
     case 'techRequirements': {
       return {
-        question: `웹인지 앱인지에 따라 **개발 기간, 비용, 필요한 개발사 역량**이 완전히 달라집니다.\n\n**${projectName}**을(를) 웹으로 만들까요, 앱으로 만들까요?\n특별한 선호가 없으시면 "개발사 추천에 따름"도 괜찮습니다.`,
+        question: `웹인지 앱인지에 따라 **기술 스택과 설계 방식**이 완전히 달라집니다.\n\n**${projectName}**을(를) 웹으로 만들까요, 앱으로 만들까요?\n특별한 선호가 없으시면 "개발사 추천에 따름"도 괜찮습니다.`,
         quickReplies: ti.quickRepliesMap.techRequirements,
       };
     }
 
     case 'budgetTimeline': {
-      const featureCount = rfpData.coreFeatures.length;
-      let featureContext = featureCount > 0
-        ? `\n\n현재 ${featureCount}개 기능 기준, ${ti.type} 평균 예산은 **${ti.avgBudget}**, 기간은 **${ti.avgDuration}**입니다.`
-        : `\n\n${ti.type} 프로젝트 평균: **${ti.avgBudget}**, **${ti.avgDuration}**`;
       return {
-        question: `예산과 일정이 있어야 개발사가 **실현 가능한 범위를 조율**해서 제안할 수 있습니다.${featureContext}\n\n희망 예산 범위와 완료 시점이 있으신가요? 대략적이어도 괜찮습니다.`,
+        question: `일정과 예산이 PRD에 포함되어야 **실현 가능한 범위**로 기능을 조율할 수 있습니다.\n\n희망하는 완료 시점과 예산 범위가 있으신가요?\n대략적이어도 괜찮고, "미정"이셔도 됩니다.`,
         quickReplies: ti.quickRepliesMap.budgetTimeline,
       };
     }
 
     case 'additionalRequirements': {
       return {
-        question: `마지막으로 개발사에 **미리 전달해야 분쟁을 예방**할 수 있는 사항들이 있습니다.\n\n소스코드 소유권, 하자보수 기간, 디자인 포함 여부 등 꼭 전달할 내용이 있으신가요?`,
+        question: `PRD에 포함할 **추가 조건**이 있으신가요?\n\n예: 소스코드 소유권, 하자보수, 디자인 포함 여부, 특정 보안 요건 등`,
         quickReplies: ti.quickRepliesMap.additionalRequirements,
       };
     }
 
     default:
-      return { question: '다음 단계를 진행해볼까요?' };
+      return { question: '다음으로 넘어갈게요.' };
   }
 }
 
@@ -492,54 +499,93 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
   const topicId = STEP_TO_TOPIC[topicStep];
 
   // ────────────────────────────────────────────
-  // 핵심 원칙: 피드백은 짧게. 팁/코칭 최소화.
-  // "잘 반영했습니다" + 핵심 확인사항 1개만.
+  // 핵심 원칙: PRD 정의에만 집중.
+  // 견적/예산/비용/시장인사이트 절대 언급 금지.
+  // 피드백은 "반영했습니다" 수준으로 짧게.
   // ────────────────────────────────────────────
 
   switch (topicId) {
     case 'overview': {
-      const { projectType, typeInfo, confidence } = detectProjectType(a);
+      const { projectType, typeInfo } = detectProjectType(a);
       detectedType = typeInfo;
       detectedProjectType = projectType;
 
       return {
-        message: `${typeInfo.insightEmoji} **${typeInfo.type}** 프로젝트로 파악했습니다. 이 유형 평균 예산은 ${typeInfo.avgBudget}, 기간은 ${typeInfo.avgDuration}입니다.`,
+        message: `${typeInfo.insightEmoji} **${typeInfo.type}** 프로젝트로 파악했습니다.`,
         thinkingLabel: '프로젝트 유형 분석 중...',
       };
     }
 
     case 'targetUsers': {
       return {
-        message: '타겟 사용자 정보를 반영했습니다.',
-        thinkingLabel: '타겟 사용자 반영 중...',
+        message: '타겟 사용자를 반영했습니다.',
+        thinkingLabel: '반영 중...',
       };
     }
 
     case 'coreFeatures': {
-      const features = parseFeatures(a);
-      const ti = detectedType;
+      // 🆕 기능 선택 시스템 — 추천 기능에서 선택하는 방식
+      const ti = detectedType || DEFAULT_PROJECT_TYPE;
+      const mustHave = ti.mustHaveFeatures;
+      const quickFeatures = ti.quickRepliesMap.coreFeatures;
+      const allRecommended = [...new Set([...mustHave, ...quickFeatures])];
 
-      // 누락 기능 감지 — 이건 실질적으로 유용하므로 유지
-      const missingFeatures: string[] = [];
-      if (ti) {
-        for (const must of ti.mustHaveFeatures) {
-          const hasIt = features.some(f => {
-            const fn = f.name.toLowerCase();
-            const ml = must.toLowerCase();
-            return fn.includes(ml.slice(0, 3)) || ml.includes(fn.slice(0, 3));
-          });
-          if (!hasIt) missingFeatures.push(must);
+      // "전체 필수 포함" 처리
+      if (a === '전체 필수 포함') {
+        for (const f of mustHave) {
+          if (!accumulatedFeatures.some(af => af.name === f)) {
+            const dbMatch = Object.entries(FEATURE_DB).find(([k]) =>
+              f.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(f.toLowerCase().slice(0, 3))
+            );
+            accumulatedFeatures.push({
+              name: f,
+              description: dbMatch ? `${dbMatch[1].desc} [${dbMatch[1].complexity} | ${dbMatch[1].weeks}]` : `${f} — 상세 요구사항은 개발사와 협의`,
+              priority: 'P1',
+            });
+          }
+        }
+      } else if (a === '직접 입력할게요') {
+        // 자유 입력 모드 — 다음 메시지에서 처리
+        return {
+          message: '원하시는 기능을 자유롭게 입력해주세요.\n여러 개를 콤마(,)나 줄바꿈으로 구분하시면 됩니다.',
+          thinkingLabel: '입력 대기 중...',
+        };
+      } else if (a !== '이대로 진행') {
+        // 개별 기능 선택 또는 자유 텍스트 입력
+        const newFeatures = parseFeatures(a);
+        for (const nf of newFeatures) {
+          if (!accumulatedFeatures.some(af => af.name.toLowerCase() === nf.name.toLowerCase())) {
+            accumulatedFeatures.push(nf);
+          }
         }
       }
 
-      const featureList = features.map(f => `• ${f.name}`).join('\n');
-      let missingText = missingFeatures.length > 0
-        ? `\n\n이 유형에서 보통 포함하는 기능 중 빠진 것이 있습니다: **${missingFeatures.slice(0, 3).join(', ')}**\n추가하시겠어요?`
-        : '';
+      // 선택된 기능 표시
+      const selectedList = accumulatedFeatures.map(f => `✅ ${f.name}`).join('\n');
+      const selectedNames = accumulatedFeatures.map(f => f.name.toLowerCase());
+      const remaining = allRecommended.filter(r =>
+        !selectedNames.some(s =>
+          s.includes(r.toLowerCase().slice(0, 3)) || r.toLowerCase().includes(s.slice(0, 3))
+        )
+      );
+
+      let message: string;
+      if (accumulatedFeatures.length === 0) {
+        message = '기능을 선택해주세요.';
+      } else if (remaining.length > 0 && a !== '이대로 진행') {
+        message = `**선택된 기능 (${accumulatedFeatures.length}개):**\n${selectedList}\n\n아직 선택 가능한 추천 기능:\n${remaining.map(r => `• ${r}`).join('\n')}\n\n더 추가하시겠어요?`;
+      } else {
+        message = `**최종 선택 기능 (${accumulatedFeatures.length}개):**\n${selectedList}`;
+        featureSelectionActive = false;
+      }
+
+      const qr = (remaining.length > 0 && a !== '이대로 진행')
+        ? ['이대로 진행', ...remaining.slice(0, 5)]
+        : undefined;
 
       return {
-        message: `${features.length}개 기능을 반영했습니다.\n\n${featureList}${missingText}`,
-        quickReplies: missingFeatures.length > 0 ? ['이대로 진행', ...missingFeatures.slice(0, 3)] : undefined,
+        message,
+        quickReplies: qr,
         thinkingLabel: '기능 목록 반영 중...',
       };
     }
@@ -549,40 +595,29 @@ function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPDa
         return { message: '넘어갈게요.' };
       }
       return {
-        message: '참고 서비스를 반영했습니다. 개발사에 전달할 때 큰 도움이 됩니다.',
-        thinkingLabel: '참고 서비스 반영 중...',
+        message: '참고 서비스를 반영했습니다.',
+        thinkingLabel: '반영 중...',
       };
     }
 
     case 'techRequirements': {
       return {
         message: '기술 요구사항을 반영했습니다.',
-        thinkingLabel: '기술 요구사항 반영 중...',
+        thinkingLabel: '반영 중...',
       };
     }
 
     case 'budgetTimeline': {
-      const hasBudget = /\d/.test(a);
-      const isUndecided = a.includes('미정') || a.includes('모르');
-      const ti = detectedType;
-
-      if (!hasBudget || isUndecided) {
-        return {
-          message: `예산 미정으로 반영합니다. 참고로 ${ti?.type || '유사'} 프로젝트 평균은 **${ti?.avgBudget || '1,500~3,000만원'}**입니다.`,
-          thinkingLabel: '예산 정보 반영 중...',
-        };
-      }
-
       return {
-        message: '예산 및 일정 정보를 반영했습니다.',
-        thinkingLabel: '예산 정보 반영 중...',
+        message: '일정/예산 정보를 반영했습니다.',
+        thinkingLabel: '반영 중...',
       };
     }
 
     case 'additionalRequirements': {
       return {
         message: '추가 요구사항을 반영했습니다.',
-        thinkingLabel: 'RFP 최종 정리 중...',
+        thinkingLabel: '반영 중...',
       };
     }
 
@@ -632,15 +667,18 @@ export function generateFallbackResponse(
   rfpData?: RFPData
 ): FallbackResponse {
   const topicId = STEP_TO_TOPIC[currentStep] || 'overview';
-  const isSkip = userMessage.trim() === '건너뛰기' || userMessage.trim() === '이대로 진행';
+  const trimmed = userMessage.trim();
+  const isSkip = trimmed === '건너뛰기';
+  const isCoreFeatureFinalize = topicId === 'coreFeatures' && trimmed === '이대로 진행';
 
   // ─── 1. RFP 데이터 업데이트 ───
   let rfpUpdate: FallbackResponse['rfpUpdate'] = null;
 
-  if (!isSkip) {
-    if (topicId === 'coreFeatures') {
-      rfpUpdate = { section: topicId, value: parseFeatures(userMessage) };
-    } else if (topicId === 'overview') {
+  if (topicId === 'coreFeatures') {
+    // 🆕 기능 선택 — feedback에서 accumulatedFeatures를 관리하므로 여기서는 나중에 설정
+    // rfpUpdate는 feedback 이후에 설정됨
+  } else if (!isSkip) {
+    if (topicId === 'overview') {
       const { typeInfo } = detectProjectType(userMessage);
       rfpUpdate = { section: topicId, value: `${userMessage.trim()} — ${typeInfo.type} 프로젝트` };
     } else if (topicId === 'targetUsers') {
@@ -677,8 +715,24 @@ export function generateFallbackResponse(
   // ─── 3. 전문가 피드백 ───
   const feedback = getContextualFeedback(currentStep, userMessage, simulatedRfpData);
 
+  // ─── 3.5. 🆕 coreFeatures 누적 처리 (feedback 이후) ───
+  if (topicId === 'coreFeatures') {
+    if (accumulatedFeatures.length > 0) {
+      rfpUpdate = { section: 'coreFeatures', value: accumulatedFeatures };
+      simulatedRfpData.coreFeatures = accumulatedFeatures;
+    } else if (isCoreFeatureFinalize || isSkip) {
+      rfpUpdate = { section: 'coreFeatures', value: [] };
+    }
+  }
+
   // ─── 4. 🆕 동적 다음 토픽 결정 ───
-  const nextStepNumber = determineNextTopic(simulatedRfpData, currentStep);
+  let nextStepNumber = determineNextTopic(simulatedRfpData, currentStep);
+
+  // 🆕 기능 선택 멀티라운드: 아직 선택 중이면 coreFeatures에 머무름
+  if (topicId === 'coreFeatures' && featureSelectionActive && !isCoreFeatureFinalize && !isSkip) {
+    nextStepNumber = currentStep;
+  }
+
   const shouldComplete = nextStepNumber === null;
   const covered = getTopicsCovered(simulatedRfpData);
   const progress = Math.round((covered.length / TOPICS.length) * 100);
@@ -698,9 +752,13 @@ export function generateFallbackResponse(
       return topic ? `✅ ${topic.icon} ${topic.label}` : '';
     }).filter(Boolean).join('\n')}${ti ? `\n\n📊 이 ${ti.type} 프로젝트 추천 MVP: ${ti.mvpScope}` : ''}\n\n아래 버튼을 눌러 **전문 PRD**를 완성하세요!`;
     thinkingLabel = 'RFP 문서 구조 설계 중...';
+  } else if (topicId === 'coreFeatures' && featureSelectionActive && nextStepNumber === currentStep) {
+    // 🆕 기능 선택 멀티라운드 — 피드백만 표시 (다음 토픽 질문 없이)
+    message = feedback.message;
+    quickReplies = feedback.quickReplies;
   } else {
     // 다음 질문으로 진행
-    const nextQ = generateContextualQuestion(nextStepNumber, simulatedRfpData);
+    const nextQ = generateContextualQuestion(nextStepNumber!, simulatedRfpData);
     const nextTopic = TOPICS.find(t => t.stepNumber === nextStepNumber);
     const topicLabel = nextTopic ? `${nextTopic.icon} ${nextTopic.label}` : '';
 
