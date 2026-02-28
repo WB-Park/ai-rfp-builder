@@ -299,210 +299,296 @@ const FEATURE_DB: Record<string, { desc: string; complexity: string; weeks: stri
 };
 
 // ═══════════════════════════════════════════════════════
-//  🆕 서비스 키워드 기반 맞춤 기능 추천 DB (v11)
-//  "배달 앱"이면 배달 앱 전용 기능을, "교육 플랫폼"이면 교육 전용 기능을 추천
+//  🆕 v12: 문장 심층 분석 기반 기능 추천 시스템
+//  카테고리 분류 X → 입력 문장의 키워드를 전부 분석하여 기능 조합
+//  유명 서비스명이면 해당 서비스의 실제 기능 목록 반환
 // ═══════════════════════════════════════════════════════
-interface ServiceFeatureSet {
-  keywords: string[];  // 매칭 키워드
-  label: string;       // 서비스 카테고리 라벨
-  must: { name: string; desc: string }[];       // 필수 기능
-  recommended: { name: string; desc: string }[]; // 추천 기능
-}
 
-const SERVICE_FEATURES_DB: ServiceFeatureSet[] = [
-  {
-    keywords: ['배달', '딜리버리', 'delivery', '음식 주문', '배민', '요기요', '쿠팡이츠', '푸드'],
-    label: '배달/음식 주문 서비스',
-    must: [
-      { name: '실시간 주문 관리', desc: '주문 접수→조리→배달 상태 실시간 추적' },
-      { name: '지도/위치 기반 배달 추적', desc: 'GPS 기반 라이더 위치 실시간 표시' },
-      { name: '결제 시스템', desc: '카드/간편결제/계좌이체 PG 연동' },
-      { name: '매장/메뉴 관리', desc: '메뉴 등록, 가격, 옵션, 품절 관리' },
-    ],
-    recommended: [
-      { name: '리뷰/별점', desc: '배달 완료 후 음식·배달 평가' },
-      { name: '쿠폰/프로모션', desc: '할인 쿠폰, 첫 주문 이벤트' },
-      { name: '찜/즐겨찾기', desc: '자주 시키는 매장 저장' },
-      { name: '주문 내역/재주문', desc: '이전 주문 기반 원클릭 재주문' },
-      { name: '푸시 알림', desc: '주문 상태 변경, 프로모션 알림' },
-      { name: '라이더 매칭 시스템', desc: '배달 라이더 자동/수동 배정' },
-    ],
-  },
-  {
-    keywords: ['교육', '강의', '학습', 'lms', '인강', '온라인 수업', '클래스', 'e-learning', '과외', '튜터'],
-    label: '교육/학습 플랫폼',
-    must: [
-      { name: '강의 영상 플레이어', desc: '동영상 스트리밍, 배속, 이어보기' },
-      { name: '수강 관리', desc: '수강신청, 진도율 추적, 수료증' },
-      { name: '회원/로그인', desc: '학생·강사 역할 분리, 소셜 로그인' },
-      { name: '결제/수강권', desc: '강의 구매, 구독, 쿠폰 적용' },
-    ],
-    recommended: [
-      { name: '과제/퀴즈', desc: '과제 제출, 자동 채점 퀴즈' },
-      { name: '실시간 화상 수업', desc: 'WebRTC 기반 라이브 클래스' },
-      { name: '수강 후기/별점', desc: '강의 평가 및 리뷰' },
-      { name: '강사 대시보드', desc: '매출, 수강생 현황, 강의 관리' },
-      { name: '알림', desc: '새 강의, 과제 마감, 공지사항 알림' },
-      { name: 'Q&A 게시판', desc: '강의별 질문/답변 커뮤니티' },
+// ── 1) 유명 서비스 DB: 서비스명 → 실제 핵심 기능 ──
+const KNOWN_SERVICES: Record<string, { label: string; features: { name: string; desc: string; must: boolean }[] }> = {
+  '위시켓': {
+    label: '위시켓 (IT 외주 매칭 플랫폼)',
+    features: [
+      { name: '프로젝트 등록', desc: '의뢰인이 프로젝트 요구사항/예산/기간 작성하여 등록', must: true },
+      { name: '파트너스 지원 시스템', desc: '개발사/프리랜서가 프로젝트에 지원서 제출', must: true },
+      { name: '매칭 알고리즘', desc: '프로젝트 요건과 파트너스 역량 기반 자동 매칭', must: true },
+      { name: '에스크로 안전결제', desc: '중개 수수료 + 단계별 안전결제 (마일스톤 정산)', must: true },
+      { name: '파트너스 프로필/포트폴리오', desc: '경력, 기술 스택, 과거 작업물, 평점 표시', must: true },
+      { name: '프로젝트 관리 대시보드', desc: '진행 상태, 일정, 산출물, 커뮤니케이션 관리', must: true },
+      { name: '의뢰인/파트너스 채팅', desc: '프로젝트별 1:1 메시지, 파일 공유', must: false },
+      { name: '리뷰/평판 시스템', desc: '프로젝트 완료 후 상호 평가 (별점+텍스트)', must: false },
+      { name: '분쟁 해결 시스템', desc: '중재 요청, 증거 제출, 위시켓 중재 처리', must: false },
+      { name: '알림', desc: '새 프로젝트, 지원서, 메시지, 정산 알림', must: false },
+      { name: '관리자 백오피스', desc: '프로젝트/유저/정산/분쟁 관리, 통계', must: false },
+      { name: '검색/필터', desc: '기술스택, 예산, 기간, 지역별 프로젝트/파트너 검색', must: false },
     ],
   },
-  {
-    keywords: ['예약', '부킹', 'booking', '병원', '미용실', '숙소', '호텔', '펜션', '캠핑', '식당', '레스토랑'],
-    label: '예약 서비스',
-    must: [
-      { name: '캘린더 예약 시스템', desc: '날짜/시간 선택, 실시간 가용성' },
-      { name: '예약 관리', desc: '예약 확인/변경/취소, 노쇼 관리' },
-      { name: '회원/로그인', desc: '예약자 정보 관리, 소셜 로그인' },
-      { name: '알림/리마인더', desc: '예약 확인, 방문 전 리마인드' },
-    ],
-    recommended: [
-      { name: '결제/선결제', desc: '예약 시 결제 또는 현장 결제' },
-      { name: '리뷰/별점', desc: '방문 후 서비스 평가' },
-      { name: '업체 관리 페이지', desc: '예약 현황, 스케줄, 고객 관리' },
-      { name: '지도/위치', desc: '매장 위치 표시, 길찾기' },
-      { name: '대기열 시스템', desc: '대기 번호 발급, 실시간 순번' },
-      { name: '쿠폰/혜택', desc: '재방문 할인, 첫 예약 쿠폰' },
-    ],
-  },
-  {
-    keywords: ['쇼핑', '커머스', '쇼핑몰', '판매', '상품', 'e-commerce', '스토어', '마켓', '구매'],
-    label: '쇼핑/이커머스',
-    must: [
-      { name: '상품 등록/관리', desc: '상품 정보, 이미지, 옵션, 재고' },
-      { name: '장바구니/결제', desc: '장바구니, PG 연동, 간편결제' },
-      { name: '주문/배송 관리', desc: '주문 상태, 송장 등록, 배송 추적' },
-      { name: '회원/로그인', desc: '소셜 로그인, 회원 등급, 마이페이지' },
-    ],
-    recommended: [
-      { name: '검색/필터', desc: '상품 검색, 카테고리, 가격 필터' },
-      { name: '리뷰/별점', desc: '상품 리뷰, 포토 리뷰, 평점' },
-      { name: '찜/위시리스트', desc: '관심 상품 저장' },
-      { name: '쿠폰/프로모션', desc: '할인 쿠폰, 포인트, 적립금' },
-      { name: '추천 시스템', desc: '맞춤 상품 추천, 연관 상품' },
-      { name: '판매자 정산', desc: '수수료 계산, 정산 리포트' },
+  '배달의민족': {
+    label: '배달의민족 (음식 배달 플랫폼)',
+    features: [
+      { name: '매장/메뉴 관리', desc: '업주가 메뉴, 가격, 옵션, 품절 상태 관리', must: true },
+      { name: '실시간 주문 시스템', desc: '주문 접수→조리→배달 상태 실시간 관리', must: true },
+      { name: '배달 추적 (GPS)', desc: '라이더 위치 실시간 지도 표시', must: true },
+      { name: '결제', desc: 'PG 연동 (카드/간편결제/계좌이체)', must: true },
+      { name: '라이더 배차 시스템', desc: '주문별 라이더 자동/수동 배정', must: true },
+      { name: '리뷰/별점', desc: '음식, 배달 서비스 별점 및 리뷰', must: false },
+      { name: '쿠폰/프로모션', desc: '할인 쿠폰, 첫 주문 혜택, 이벤트', must: false },
+      { name: '주문 내역/재주문', desc: '과거 주문 조회, 원클릭 재주문', must: false },
+      { name: '찜/즐겨찾기', desc: '자주 시키는 매장 저장', must: false },
+      { name: '푸시 알림', desc: '주문 상태, 프로모션 알림', must: false },
+      { name: '사장님 앱 (업주 관리)', desc: '주문 접수, 메뉴 관리, 매출 확인', must: false },
+      { name: '정산 시스템', desc: '업주·라이더 수수료 계산, 정산 주기 관리', must: false },
     ],
   },
-  {
-    keywords: ['매칭', '중개', '마켓플레이스', '연결', '플랫폼', '프리랜서', '구인', '구직', '소개팅', '인력'],
-    label: '매칭/중개 플랫폼',
-    must: [
-      { name: '프로필 시스템', desc: '공급자/수요자 프로필, 포트폴리오' },
-      { name: '매칭/검색', desc: '조건 기반 매칭, 필터 검색' },
-      { name: '채팅/메시지', desc: '매칭 후 1:1 실시간 대화' },
-      { name: '회원/역할 분리', desc: '공급자·수요자 별도 가입/관리' },
-    ],
-    recommended: [
-      { name: '결제/에스크로', desc: '안전결제, 중개 수수료 처리' },
-      { name: '리뷰/평판', desc: '거래 후 상호 평가' },
-      { name: '알림', desc: '새 매칭, 메시지, 거래 상태 알림' },
-      { name: '관리자 대시보드', desc: '매칭 현황, 분쟁 관리, 통계' },
-      { name: '포트폴리오/실적', desc: '공급자 작업물, 경력 표시' },
-      { name: '견적/제안서', desc: '수요자에게 견적 보내기' },
-    ],
-  },
-  {
-    keywords: ['채팅', 'sns', '소셜', '커뮤니티', '메신저', '카톡', '인스타', '피드', '소통'],
-    label: 'SNS/커뮤니티',
-    must: [
-      { name: '실시간 채팅', desc: '1:1/그룹 메시지, 읽음 확인' },
-      { name: '피드/타임라인', desc: '게시물 작성, 좋아요, 댓글' },
-      { name: '회원/프로필', desc: '프로필, 팔로우/팔로잉' },
-      { name: '알림 시스템', desc: '좋아요, 댓글, DM 알림' },
-    ],
-    recommended: [
-      { name: '이미지/영상 업로드', desc: '미디어 첨부, 갤러리' },
-      { name: '해시태그/검색', desc: '태그 기반 콘텐츠 탐색' },
-      { name: '스토리/숏폼', desc: '24시간 사라지는 콘텐츠' },
-      { name: '신고/차단', desc: '유해 콘텐츠 신고, 사용자 차단' },
-      { name: '그룹/채널', desc: '관심사 기반 그룹 생성' },
-      { name: '푸시 알림', desc: '실시간 활동 알림' },
+  '배민': { label: '배달의민족', features: [] }, // alias → 배달의민족
+  '당근마켓': {
+    label: '당근마켓 (지역 기반 중고거래)',
+    features: [
+      { name: '중고 물품 등록', desc: '사진, 설명, 가격, 카테고리, 거래 방식', must: true },
+      { name: '위치 기반 피드', desc: 'GPS 기반 동네 설정, 주변 매물 노출', must: true },
+      { name: '1:1 채팅', desc: '판매자-구매자 실시간 대화, 가격 흥정', must: true },
+      { name: '매너 온도/프로필', desc: '거래 평가 기반 신뢰도 점수', must: true },
+      { name: '검색/필터', desc: '키워드, 카테고리, 가격대, 거리 필터', must: false },
+      { name: '찜/관심 목록', desc: '관심 상품 저장, 가격 변동 알림', must: false },
+      { name: '동네 인증', desc: 'GPS 기반 거주지 인증', must: false },
+      { name: '동네생활 (커뮤니티)', desc: '동네 게시판, 정보 공유', must: false },
+      { name: '안전결제', desc: '택배 거래 시 에스크로 결제', must: false },
+      { name: '푸시 알림', desc: '채팅, 관심상품, 키워드 알림', must: false },
+      { name: '신고/차단', desc: '사기 의심 신고, 비매너 사용자 차단', must: false },
     ],
   },
-  {
-    keywords: ['건강', '헬스', '운동', '피트니스', '다이어트', '의료', '병원', '진료', '약', '케어'],
-    label: '건강/헬스케어',
-    must: [
-      { name: '건강 기록 관리', desc: '운동/식단/수면/체중 기록' },
-      { name: '회원/로그인', desc: '개인 건강 데이터 보호, 소셜 로그인' },
-      { name: '대시보드/통계', desc: '건강 데이터 시각화, 추이 분석' },
-      { name: '알림/리마인더', desc: '운동, 약 복용, 검진 리마인더' },
-    ],
-    recommended: [
-      { name: '운동 프로그램', desc: '루틴 추천, 영상 가이드' },
-      { name: '전문가 상담', desc: '의사/트레이너 1:1 상담' },
-      { name: '예약 시스템', desc: '진료/PT 예약' },
-      { name: '웨어러블 연동', desc: '스마트워치 데이터 동기화' },
-      { name: '커뮤니티', desc: '건강 팁 공유, 챌린지' },
-      { name: '결제/구독', desc: '프리미엄 플랜, 상담 결제' },
+  '에어비앤비': {
+    label: '에어비앤비 (숙소 예약 플랫폼)',
+    features: [
+      { name: '숙소 등록/관리', desc: '호스트가 사진, 설명, 가격, 규칙, 가용일 관리', must: true },
+      { name: '예약 시스템', desc: '날짜 선택, 실시간 가용성, 즉시/승인 예약', must: true },
+      { name: '결제/환불', desc: 'PG 연동, 호스트 정산, 환불 정책 적용', must: true },
+      { name: '검색/지도', desc: '위치·날짜·인원·가격 필터, 지도 기반 탐색', must: true },
+      { name: '호스트-게스트 메시지', desc: '예약 전후 1:1 채팅', must: false },
+      { name: '리뷰/별점', desc: '숙소·호스트·게스트 상호 평가', must: false },
+      { name: '위시리스트', desc: '관심 숙소 저장, 공유', must: false },
+      { name: '호스트 대시보드', desc: '예약 관리, 수익 통계, 캘린더', must: false },
+      { name: '알림', desc: '예약 확인, 메시지, 리뷰 알림', must: false },
+      { name: '슈퍼호스트 배지', desc: '우수 호스트 인증 시스템', must: false },
     ],
   },
-  {
-    keywords: ['saas', 'b2b', '대시보드', '관리', '구독', '비즈니스', '업무', 'crm', 'erp', '인사', '회계'],
-    label: 'SaaS/B2B 서비스',
-    must: [
-      { name: '팀/조직 관리', desc: '워크스페이스, 멤버 초대, 권한' },
-      { name: '대시보드', desc: '핵심 KPI, 데이터 시각화' },
-      { name: '회원/인증', desc: 'SSO, 2FA, 역할 기반 접근 제어' },
-      { name: '구독/과금', desc: '플랜별 과금, 결제, 인보이스' },
-    ],
-    recommended: [
-      { name: 'API 연동', desc: '외부 서비스 연동, 웹훅' },
-      { name: '리포트/내보내기', desc: 'PDF/Excel 리포트 생성' },
-      { name: '알림/Slack 연동', desc: '이벤트 알림, 메신저 통합' },
-      { name: '감사 로그', desc: '작업 이력, 변경 추적' },
-      { name: '온보딩 가이드', desc: '사용자 튜토리얼, 도움말' },
-      { name: '멀티 테넌시', desc: '고객사별 데이터 격리' },
+  '클래스101': {
+    label: '클래스101 (온라인 클래스 플랫폼)',
+    features: [
+      { name: '강의 영상 스트리밍', desc: '동영상 플레이어, 배속, 이어보기, 챕터', must: true },
+      { name: '수강 관리', desc: '수강신청, 진도율 추적, 수료증', must: true },
+      { name: '결제/구독', desc: '단건 구매, 올클래스 구독, 쿠폰', must: true },
+      { name: '크리에이터 스튜디오', desc: '강사 강의 등록, 수익 관리', must: true },
+      { name: '키트(재료) 배송', desc: '수강에 필요한 재료 키트 주문/배송', must: false },
+      { name: '커뮤니티/댓글', desc: '강의별 질문, 수강생 소통', must: false },
+      { name: '리뷰/별점', desc: '강의 후기, 평점', must: false },
+      { name: '검색/카테고리', desc: '분야별 강의 탐색, 추천', must: false },
+      { name: '알림', desc: '새 강의, 할인, 댓글 알림', must: false },
+      { name: '챌린지/미션', desc: '학습 동기부여 미션, 인증', must: false },
     ],
   },
-  {
-    keywords: ['ai', '인공지능', 'gpt', '챗봇', 'llm', '머신러닝', '자동화', '생성'],
-    label: 'AI 서비스',
-    must: [
-      { name: 'AI 처리 엔진', desc: 'LLM/ML 모델 연동, API 호출' },
-      { name: '입력/출력 인터페이스', desc: '텍스트·파일 입력, 결과 표시' },
-      { name: '회원/사용량 관리', desc: '로그인, API 크레딧, 사용 이력' },
-      { name: '결과 저장/내보내기', desc: 'AI 결과물 저장, 다운로드' },
-    ],
-    recommended: [
-      { name: '프롬프트 템플릿', desc: '자주 쓰는 질문/명령어 저장' },
-      { name: '히스토리', desc: '이전 대화/생성 내역 관리' },
-      { name: '결제/구독', desc: 'API 크레딧 충전, 프리미엄 플랜' },
-      { name: '공유/협업', desc: '결과물 공유, 팀 워크스페이스' },
-      { name: '파일 업로드', desc: '문서/이미지 분석용 업로드' },
-      { name: '관리자 통계', desc: '사용량, 비용, 성과 대시보드' },
+  '토스': {
+    label: '토스 (금융 슈퍼앱)',
+    features: [
+      { name: '간편 송금', desc: '계좌번호/연락처로 즉시 송금', must: true },
+      { name: '내 계좌 조회', desc: '전 금융사 계좌/카드/대출 통합 조회', must: true },
+      { name: '결제', desc: 'QR/바코드 결제, 온라인 결제', must: true },
+      { name: '본인 인증', desc: '생체인증, PIN, 공동인증서', must: true },
+      { name: '소비 분석', desc: '카테고리별 지출 통계, 예산 관리', must: false },
+      { name: '투자', desc: '주식, 펀드, 가상화폐 매매', must: false },
+      { name: '대출 비교', desc: '금리 비교, 비대면 대출 신청', must: false },
+      { name: '보험', desc: '보험 분석, 추천, 가입', must: false },
+      { name: '알림', desc: '입출금, 결제, 이벤트 알림', must: false },
+      { name: '이벤트/혜택', desc: '포인트, 만보기, 행운퀴즈', must: false },
     ],
   },
+  '야놀자': {
+    label: '야놀자 (숙소/레저 예약)',
+    features: [
+      { name: '숙소 예약', desc: '호텔/펜션/모텔 날짜·인원별 검색 및 예약', must: true },
+      { name: '결제/환불', desc: '선결제, 현장결제, 취소/환불 정책', must: true },
+      { name: '숙소 상세/사진', desc: '객실 정보, 어메니티, 사진 갤러리', must: true },
+      { name: '검색/필터', desc: '지역, 날짜, 가격, 평점, 부대시설 필터', must: true },
+      { name: '리뷰/별점', desc: '숙박 후기, 사진 리뷰', must: false },
+      { name: '쿠폰/할인', desc: '특가, 쿠폰, 포인트 적립', must: false },
+      { name: '레저/액티비티 예약', desc: '워터파크, 스파, 체험 예약', must: false },
+      { name: '찜/위시리스트', desc: '관심 숙소 저장', must: false },
+      { name: '알림', desc: '예약 확인, 체크인 안내, 프로모션', must: false },
+      { name: '업주 관리 시스템', desc: '객실 관리, 예약 현황, 정산', must: false },
+    ],
+  },
+  '크몽': {
+    label: '크몽 (프리랜서 서비스 마켓)',
+    features: [
+      { name: '서비스(전문가 상품) 등록', desc: '프리랜서가 서비스 설명/가격/옵션 등록', must: true },
+      { name: '주문/구매', desc: '서비스 선택, 옵션, 결제', must: true },
+      { name: '에스크로 결제', desc: '작업 완료 확인 후 정산', must: true },
+      { name: '1:1 상담 채팅', desc: '구매 전/후 의뢰인-전문가 대화', must: true },
+      { name: '전문가 프로필/포트폴리오', desc: '경력, 작업물, 평점, 판매 실적', must: true },
+      { name: '리뷰/별점', desc: '거래 완료 후 서비스 평가', must: false },
+      { name: '검색/카테고리', desc: '분야별 서비스 탐색, 키워드 검색', must: false },
+      { name: '알림', desc: '주문, 메시지, 작업 상태 알림', must: false },
+      { name: '정산 시스템', desc: '수수료 차감, 출금 관리', must: false },
+      { name: '분쟁/환불 처리', desc: '작업물 불만 시 중재 절차', must: false },
+    ],
+  },
+  '오늘의집': {
+    label: '오늘의집 (인테리어 커머스+커뮤니티)',
+    features: [
+      { name: '인테리어 콘텐츠 피드', desc: '사진/영상 인테리어 사례 공유', must: true },
+      { name: '상품 커머스', desc: '가구/소품 판매, 장바구니, 결제', must: true },
+      { name: '검색/필터', desc: '스타일, 공간, 가격별 상품/콘텐츠 탐색', must: true },
+      { name: '리뷰/별점', desc: '상품 리뷰, 포토 리뷰', must: false },
+      { name: '스크랩/북마크', desc: '사진, 상품 저장', must: false },
+      { name: '시공 전문가 매칭', desc: '인테리어 시공업체 견적, 매칭', must: false },
+      { name: '집들이 게시판', desc: '사용자 인테리어 후기 커뮤니티', must: false },
+      { name: '3D 인테리어', desc: '공간 시뮬레이션', must: false },
+      { name: '알림', desc: '할인, 배송, 새 콘텐츠 알림', must: false },
+    ],
+  },
+  '번개장터': {
+    label: '번개장터 (중고거래 마켓)',
+    features: [
+      { name: '상품 등록', desc: '사진, 설명, 가격, 카테고리, 상태', must: true },
+      { name: '검색/필터', desc: '키워드, 카테고리, 가격대, 상태 필터', must: true },
+      { name: '1:1 채팅', desc: '판매자-구매자 흥정, 거래 약속', must: true },
+      { name: '번개페이 (안전결제)', desc: '에스크로 결제, 택배/직거래', must: true },
+      { name: '리뷰/평점', desc: '거래 후 판매자 평가', must: false },
+      { name: '찜/알림', desc: '관심 상품, 가격 변동 알림', must: false },
+      { name: '택배 연동', desc: '배송 조회, 송장 입력', must: false },
+      { name: '신고/차단', desc: '사기 방지, 비매너 신고', must: false },
+    ],
+  },
+};
+// 배민 alias 처리
+KNOWN_SERVICES['배민'] = KNOWN_SERVICES['배달의민족'];
+KNOWN_SERVICES['airbnb'] = KNOWN_SERVICES['에어비앤비'];
+
+// ── 2) 키워드→기능 원자 DB: 문장에서 키워드가 발견되면 해당 기능 추가 ──
+interface FeatureAtom { name: string; desc: string; priority: number } // priority: 낮을수록 필수에 가까움
+const FEATURE_KEYWORDS: [string[], FeatureAtom][] = [
+  // 매칭/중개 관련
+  [['매칭', '연결', '중개', '마켓플레이스'], { name: '매칭 알고리즘', desc: '조건 기반 공급자-수요자 자동 매칭', priority: 1 }],
+  [['프리랜서', '외주', '개발자 찾기', '전문가'], { name: '전문가 프로필/포트폴리오', desc: '경력, 기술 스택, 과거 작업물 표시', priority: 1 }],
+  [['프리랜서', '외주', '의뢰', '프로젝트 등록'], { name: '프로젝트/의뢰 등록', desc: '요구사항, 예산, 기간 작성하여 등록', priority: 1 }],
+  [['지원', '제안', '견적', '입찰'], { name: '지원서/견적 제출', desc: '프로젝트에 대한 제안서, 견적 제출 기능', priority: 1 }],
+  // 결제/정산
+  [['결제', '구매', '과금', '유료'], { name: '결제 시스템', desc: 'PG 연동 (카드/간편결제/계좌이체)', priority: 1 }],
+  [['에스크로', '안전결제', '안전거래'], { name: '에스크로 안전결제', desc: '작업/거래 완료 확인 후 대금 정산', priority: 1 }],
+  [['정산', '수수료', '수익'], { name: '정산 시스템', desc: '판매자/공급자 수수료 계산, 정산 주기 관리', priority: 2 }],
+  [['구독', '멤버십', '월정액'], { name: '구독/과금', desc: '플랜별 과금, 정기 결제, 해지', priority: 1 }],
+  // 커뮤니케이션
+  [['채팅', '메시지', '대화', '문의'], { name: '1:1 채팅/메시지', desc: '실시간 대화, 파일 공유, 읽음 확인', priority: 1 }],
+  [['알림', '푸시', '노티'], { name: '알림 시스템', desc: '푸시/인앱/이메일 알림, 설정 관리', priority: 2 }],
+  // 사용자 관리
+  [['회원', '로그인', '가입'], { name: '회원/로그인', desc: '소셜 로그인(카카오/네이버/구글), 프로필', priority: 1 }],
+  [['관리자', '백오피스', '어드민'], { name: '관리자 대시보드', desc: '유저, 콘텐츠, 주문, 통계 관리', priority: 2 }],
+  [['역할', '권한', '공급자', '수요자'], { name: '역할 분리 시스템', desc: '사용자 유형별 (공급/수요/관리) 별도 화면·권한', priority: 1 }],
+  // 리뷰/평가
+  [['리뷰', '별점', '평가', '후기'], { name: '리뷰/평판 시스템', desc: '거래·서비스 완료 후 별점+텍스트 평가', priority: 2 }],
+  // 검색/탐색
+  [['검색', '필터', '탐색', '찾기'], { name: '검색/필터', desc: '키워드 검색, 다중 조건 필터, 정렬', priority: 2 }],
+  // 콘텐츠/게시
+  [['게시판', '커뮤니티', '피드', '글'], { name: '게시판/커뮤니티', desc: '글 작성, 댓글, 좋아요, 이미지 첨부', priority: 2 }],
+  [['콘텐츠', '블로그', '뉴스', '기사'], { name: '콘텐츠 관리(CMS)', desc: '콘텐츠 등록, 에디터, 카테고리, 태그', priority: 2 }],
+  // 배달/물류
+  [['배달', '배송', '택배', '물류'], { name: '배달/배송 추적', desc: '실시간 위치 추적, 배송 상태 관리', priority: 1 }],
+  [['라이더', '배차', '기사'], { name: '배차/라이더 매칭', desc: '주문별 배달원 자동/수동 배정', priority: 1 }],
+  // 위치/지도
+  [['지도', '위치', 'GPS', '길찾기'], { name: '지도/위치 서비스', desc: 'GPS 현재 위치, 장소 검색, 경로 안내', priority: 2 }],
+  // 예약
+  [['예약', '부킹', '스케줄'], { name: '예약 시스템', desc: '캘린더 기반 날짜/시간 선택, 실시간 가용성', priority: 1 }],
+  // 쇼핑/커머스
+  [['상품', '판매', '쇼핑', '구매', '커머스'], { name: '상품 등록/관리', desc: '상품 정보, 이미지, 옵션, 재고, 가격', priority: 1 }],
+  [['장바구니', '카트'], { name: '장바구니', desc: '상품 담기, 수량 변경, 합계 계산', priority: 2 }],
+  [['주문', '주문관리'], { name: '주문 관리', desc: '주문 접수, 상태 변경, 취소/환불', priority: 1 }],
+  [['쿠폰', '할인', '프로모션', '이벤트'], { name: '쿠폰/프로모션', desc: '할인 쿠폰, 적립금, 이벤트 관리', priority: 3 }],
+  // 교육/학습
+  [['강의', '수강', '학습', '교육', '인강'], { name: '강의/학습 관리', desc: '영상 스트리밍, 진도율, 수료증', priority: 1 }],
+  [['과제', '퀴즈', '시험'], { name: '과제/퀴즈', desc: '과제 제출, 자동 채점, 퀴즈', priority: 2 }],
+  // AI
+  [['ai', '인공지능', 'gpt', '챗봇', 'llm'], { name: 'AI 처리 엔진', desc: 'AI/ML 모델 연동, 자동 분석/생성', priority: 1 }],
+  // 대시보드/분석
+  [['대시보드', '통계', '분석', '리포트'], { name: '대시보드/통계', desc: 'KPI 시각화, 차트, 리포트 다운로드', priority: 2 }],
+  // 찜/위시리스트
+  [['찜', '즐겨찾기', '위시리스트', '관심'], { name: '찜/위시리스트', desc: '관심 항목 저장, 변동 알림', priority: 3 }],
+  // 신고/안전
+  [['신고', '차단', '분쟁', '중재'], { name: '신고/분쟁 처리', desc: '악성 사용자 신고, 분쟁 중재 절차', priority: 3 }],
+  // SaaS 특화
+  [['팀', '워크스페이스', '조직', '멤버'], { name: '팀/워크스페이스 관리', desc: '조직 생성, 멤버 초대, 권한 설정', priority: 1 }],
+  [['api', '연동', '웹훅', '플러그인'], { name: 'API/외부 연동', desc: 'REST API, 웹훅, 서드파티 연동', priority: 2 }],
+  // 중고거래
+  [['중고', '중고거래', '리셀', '판매'], { name: '중고 물품 등록', desc: '사진, 설명, 가격, 상태 등록', priority: 1 }],
+  [['직거래', '택배거래'], { name: '거래 방식 선택', desc: '직거래(위치 약속) / 택배거래(안전결제)', priority: 2 }],
+  // 숙소/여행
+  [['숙소', '호텔', '펜션', '모텔', '숙박'], { name: '숙소 등록/관리', desc: '숙소 정보, 사진, 가격, 가용일 관리', priority: 1 }],
+  [['체크인', '체크아웃'], { name: '체크인/체크아웃 관리', desc: '무인 체크인, 키 관리, 규칙 안내', priority: 2 }],
+  // 건강/운동
+  [['운동', '헬스', '피트니스', '트레이닝'], { name: '운동/건강 기록', desc: '운동 루틴, 기록, 통계, 목표 관리', priority: 1 }],
+  [['진료', '의료', '병원'], { name: '진료 예약/관리', desc: '의사 선택, 진료 예약, 진료 기록', priority: 1 }],
+  // 소셜/SNS
+  [['sns', '소셜', '팔로우', '피드'], { name: '소셜 피드', desc: '게시물 작성, 좋아요, 댓글, 팔로우', priority: 1 }],
+  [['스토리', '숏폼', '릴스'], { name: '스토리/숏폼 콘텐츠', desc: '짧은 영상/사진 콘텐츠 업로드', priority: 2 }],
 ];
 
 /**
- * 서비스 설명(overview)에서 키워드를 분석하여
- * 해당 서비스에 맞는 맞춤 기능 목록을 반환
+ * v12: 문장 심층 분석 기반 기능 추천
+ * 1) 유명 서비스명 매칭 → 해당 서비스 실제 기능 반환
+ * 2) 문장의 모든 키워드를 분석 → 기능 원자 조합
  */
 function getServiceFeatures(overviewText: string): { label: string; features: SelectableFeature[] } | null {
-  const t = overviewText.toLowerCase();
+  const t = overviewText.toLowerCase().trim();
+  if (!t || t.length < 2) return null;
 
-  let bestMatch: ServiceFeatureSet | null = null;
-  let bestScore = 0;
-
-  for (const service of SERVICE_FEATURES_DB) {
-    let score = 0;
-    for (const kw of service.keywords) {
-      if (t.includes(kw)) score += kw.length; // 긴 키워드일수록 높은 점수
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = service;
+  // ── Step 1: 유명 서비스명 매칭 (가장 우선) ──
+  for (const [serviceName, data] of Object.entries(KNOWN_SERVICES)) {
+    if (data.features.length === 0) continue; // alias with empty features
+    if (t.includes(serviceName.toLowerCase()) || t.includes(serviceName)) {
+      return {
+        label: data.label,
+        features: data.features.map(f => ({
+          name: f.name,
+          desc: f.desc,
+          category: f.must ? 'must' as const : 'recommended' as const,
+        })),
+      };
     }
   }
 
-  if (!bestMatch || bestScore === 0) return null;
+  // ── Step 2: 키워드 원자 조합 — 문장의 모든 단어를 분석 ──
+  const matched: Map<string, { feat: FeatureAtom; matchCount: number }> = new Map();
 
-  const features: SelectableFeature[] = [
-    ...bestMatch.must.map(f => ({ name: f.name, desc: f.desc, category: 'must' as const })),
-    ...bestMatch.recommended.map(f => ({ name: f.name, desc: f.desc, category: 'recommended' as const })),
-  ];
+  for (const [keywords, feat] of FEATURE_KEYWORDS) {
+    let matchCount = 0;
+    for (const kw of keywords) {
+      if (t.includes(kw.toLowerCase())) matchCount++;
+    }
+    if (matchCount > 0) {
+      const existing = matched.get(feat.name);
+      if (!existing || matchCount > existing.matchCount) {
+        matched.set(feat.name, { feat, matchCount });
+      }
+    }
+  }
 
-  return { label: bestMatch.label, features };
+  if (matched.size === 0) return null;
+
+  // 정렬: matchCount 높은 순 → priority 낮은 순
+  const sorted = [...matched.values()]
+    .sort((a, b) => b.matchCount - a.matchCount || a.feat.priority - b.feat.priority);
+
+  // 상위 기능은 필수, 나머지는 추천
+  const mustCount = Math.max(3, Math.ceil(sorted.length * 0.4));
+  const features: SelectableFeature[] = sorted.map((item, i) => ({
+    name: item.feat.name,
+    desc: item.feat.desc,
+    category: i < mustCount ? 'must' as const : 'recommended' as const,
+  }));
+
+  // 라벨 생성 (서비스 설명 앞 30자)
+  const label = `"${overviewText.slice(0, 40)}" 분석 결과`;
+
+  return { label, features };
 }
 
 // ═══════════════════════════════════════════════════════
