@@ -1,8 +1,13 @@
 'use client';
 
-// PRD 화면 2: RFP 작성 (Split View)
-// AIDP B2C DNA — Glassmorphism header, chat bubbles, quick reply chips, markdown
-// + 세션 데이터 Supabase 실시간 저장
+// PRD 화면 2: RFP 작성 (Split View) v7
+// FORGE Iteration: 업계 최고 수준 채팅 UX
+// - 타이핑 애니메이션 ("AI 분석 중..." 컨텍스트 메시지)
+// - 모바일 반응형 (스택 레이아웃)
+// - 메시지 타임스탬프
+// - 스텝 진행 축하 애니메이션
+// - 자동 높이 조절 textarea
+// - 스무스 스크롤 + 스크롤 투 바텀 버튼
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { STEPS, RFPData, emptyRFPData, REQUIRED_STEPS } from '@/types/rfp';
@@ -10,6 +15,7 @@ import { STEPS, RFPData, emptyRFPData, REQUIRED_STEPS } from '@/types/rfp';
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: number;
 }
 
 interface ChatInterfaceProps {
@@ -18,22 +24,51 @@ interface ChatInterfaceProps {
   sessionId?: string;
 }
 
-// 간단한 마크다운 → HTML 변환 (bold, newline, hr)
+// 마크다운 → HTML
 function renderMarkdown(text: string) {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border-default);margin:12px 0;"/>')
+    .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border-default);margin:16px 0;"/>')
     .replace(/💡/g, '<span style="display:inline-block;margin-right:4px">💡</span>')
     .replace(/\n/g, '<br/>');
 }
+
+// 시간 포맷
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  const h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const ampm = h >= 12 ? '오후' : '오전';
+  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${ampm} ${hour}:${m}`;
+}
+
+// 단계별 축하 메시지
+const STEP_CELEBRATIONS: Record<number, string> = {
+  2: '좋은 출발이에요!',
+  3: '절반 가까이 왔어요!',
+  4: '잘 하고 계세요!',
+  5: '거의 다 왔어요!',
+  6: '마지막 단계에요!',
+  7: '완성 직전이에요!',
+};
+
+// 분석 중 메시지 (컨텍스트별)
+const THINKING_MESSAGES = [
+  '프로젝트를 분석하고 있어요...',
+  '위시켓 데이터를 조회하고 있어요...',
+  '최적의 답변을 준비하고 있어요...',
+  '유사 프로젝트 사례를 검색하고 있어요...',
+];
 
 export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
       content: email.startsWith('guest@')
-        ? `안녕하세요! 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해볼까요? 7가지 질문에 답해주시면 5분 안에 전문 수준의 기획서가 완성됩니다.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`
-        : `안녕하세요! ${email.split('@')[0]}님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 프로젝트 기획서(RFP)를 함께 작성해볼까요? 7가지 질문에 답해주시면 5분 안에 완성됩니다.\n\n첫 번째 질문입니다. 어떤 서비스를 만들고 싶으신가요? 한 줄이면 충분합니다.`,
+        ? `안녕하세요! 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 기획서(RFP)를 함께 작성해볼까요? **7가지 질문**에 답해주시면 **5분 안에** 전문 수준의 기획서가 완성됩니다.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`
+        : `안녕하세요! **${email.split('@')[0]}**님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 기획서(RFP)를 함께 작성해볼까요? **7가지 질문**에 답해주시면 **5분 안에** 완성됩니다.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
+      timestamp: Date.now(),
     },
   ]);
   const [input, setInput] = useState('');
@@ -42,14 +77,62 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
+  const [thinkingLabel, setThinkingLabel] = useState('');
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [celebrationStep, setCelebrationStep] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // 모바일 감지
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
-  // 세션 데이터를 Supabase에 저장 (fire-and-forget)
+  // 스크롤 투 바텀
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // 스크롤 위치 감지 (스크롤 투 바텀 버튼 표시용)
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 100);
+    };
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // textarea 자동 높이
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, []);
+
+  // 축하 애니메이션 타이머
+  useEffect(() => {
+    if (celebrationStep > 0) {
+      const timer = setTimeout(() => setCelebrationStep(0), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [celebrationStep]);
+
+  // Supabase 세션 저장
   const saveSession = useCallback(async (
     updatedRfpData: RFPData,
     updatedMessages: ChatMessage[],
@@ -70,27 +153,25 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         }),
       });
     } catch (err) {
-      console.error('Session save failed (non-blocking):', err);
+      console.error('Session save failed:', err);
     }
   }, [sessionId]);
 
   const sendMessage = async (userMessage: string) => {
     if (!userMessage.trim() || loading) return;
 
-    const newMessages = [...messages, { role: 'user' as const, content: userMessage }];
+    const newMessages: ChatMessage[] = [...messages, { role: 'user' as const, content: userMessage, timestamp: Date.now() }];
     setMessages(newMessages);
     setLoading(true);
     setQuickReplies([]);
+    setThinkingLabel(THINKING_MESSAGES[Math.floor(Math.random() * THINKING_MESSAGES.length)]);
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: newMessages.map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           currentStep,
           rfpData,
         }),
@@ -118,9 +199,16 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       if (data.nextStep) {
         updatedStep = data.nextStep;
         setCurrentStep(data.nextStep);
+        // 축하 트리거
+        if (STEP_CELEBRATIONS[data.nextStep]) {
+          setCelebrationStep(data.nextStep);
+        }
       } else if (data.nextAction !== 'clarify') {
         updatedStep = Math.min(currentStep + 1, 8);
         setCurrentStep(updatedStep);
+        if (STEP_CELEBRATIONS[updatedStep]) {
+          setCelebrationStep(updatedStep);
+        }
       }
 
       if (data.nextAction === 'complete' || currentStep >= 7) {
@@ -128,24 +216,32 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setIsComplete(true);
       }
 
-      const finalMessages = [...newMessages, { role: 'assistant' as const, content: data.message }];
+      // 서버에서 thinkingLabel이 오면 사용
+      if (data.thinkingLabel) {
+        setThinkingLabel(data.thinkingLabel);
+      }
+
+      const finalMessages: ChatMessage[] = [
+        ...newMessages,
+        { role: 'assistant' as const, content: data.message, timestamp: Date.now() }
+      ];
       setMessages(finalMessages);
 
-      // 빠른 응답 칩 설정
       if (data.quickReplies && data.quickReplies.length > 0) {
         setQuickReplies(data.quickReplies);
       }
 
-      // Supabase에 세션 데이터 저장 (non-blocking)
       saveSession(updatedRfpData, finalMessages, updatedStep, completed);
 
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: '죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.',
+        timestamp: Date.now(),
       }]);
     } finally {
       setLoading(false);
+      setThinkingLabel('');
       inputRef.current?.focus();
     }
   };
@@ -154,6 +250,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     if (!input.trim() || loading) return;
     const msg = input.trim();
     setInput('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
     await sendMessage(msg);
   };
 
@@ -178,23 +275,138 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const progressPercent = Math.min((currentStep / 7) * 100, 100);
   const stepsRemaining = Math.max(7 - currentStep + 1, 0);
 
+  // 모바일에서 RFP 프리뷰 패널
+  const previewPanel = (
+    <div style={{
+      width: isMobile ? '100%' : '50%',
+      background: 'var(--surface-1)',
+      overflowY: 'auto',
+      ...(isMobile ? {
+        position: 'fixed' as const,
+        top: 0,
+        left: showPreview ? 0 : '100%',
+        right: 0,
+        bottom: 0,
+        zIndex: 50,
+        transition: 'left 0.3s ease-out',
+      } : {}),
+    }}>
+      {/* 모바일 닫기 버튼 */}
+      {isMobile && (
+        <div style={{
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--border-default)',
+          background: 'var(--surface-0)',
+          position: 'sticky' as const,
+          top: 0,
+          zIndex: 2,
+        }}>
+          <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>RFP 미리보기</span>
+          <button
+            onClick={() => setShowPreview(false)}
+            style={{
+              background: 'none', border: 'none', fontSize: 20,
+              color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px 8px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      <div style={{ padding: isMobile ? '16px' : 'var(--space-xl)' }}>
+        <div style={{
+          background: 'var(--surface-0)',
+          borderRadius: 'var(--card-radius)',
+          padding: isMobile ? '16px' : 'var(--space-xl)',
+          boxShadow: 'var(--shadow-sm)',
+          minHeight: isMobile ? 'auto' : 'calc(100vh - 64px)',
+        }}>
+          {!isMobile && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              marginBottom: 'var(--space-xl)',
+              paddingBottom: 'var(--space-md)',
+              borderBottom: '1px solid var(--border-default)',
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: 'var(--letter-tight)' }}>
+                RFP 미리보기
+              </h2>
+              <span style={{
+                fontSize: 12, color: 'var(--text-quaternary)',
+                background: 'var(--surface-2)', padding: '4px 10px',
+                borderRadius: 'var(--radius-full)', fontWeight: 500,
+              }}>
+                실시간 업데이트
+              </span>
+            </div>
+          )}
+
+          {rfpData.overview ? (
+            <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+              <RFPSection number={1} title="프로젝트 개요" content={rfpData.overview} />
+              {rfpData.targetUsers && <RFPSection number={2} title="타겟 사용자" content={rfpData.targetUsers} />}
+              {rfpData.coreFeatures.length > 0 && (
+                <div>
+                  <SectionLabel number={3} title="핵심 기능" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
+                    {rfpData.coreFeatures.map((f, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)',
+                        padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
+                      }}>
+                        <span className={`chip-${f.priority.toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority}</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', display: 'block' }}>{f.name}</span>
+                          {f.description && f.description !== f.name && (
+                            <span style={{ color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5, display: 'block', marginTop: 4 }}>{f.description}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {rfpData.referenceServices && <RFPSection number={4} title="참고 서비스" content={rfpData.referenceServices} />}
+              {rfpData.techRequirements && <RFPSection number={5} title="기술 요구사항" content={rfpData.techRequirements} />}
+              {rfpData.budgetTimeline && <RFPSection number={6} title="예산 및 일정" content={rfpData.budgetTimeline} />}
+              {rfpData.additionalRequirements && <RFPSection number={7} title="추가 요구사항" content={rfpData.additionalRequirements} />}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
+              <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>
+                📝
+              </div>
+              <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
+                아직 작성된 내용이 없어요
+              </p>
+              <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
+                AI와 대화하면 여기에 RFP가 실시간으로 채워집니다
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-0)' }}>
       {/* Left: Chat Panel */}
       <div style={{
-        width: '50%',
+        width: isMobile ? '100%' : '50%',
         display: 'flex',
         flexDirection: 'column',
-        borderRight: '1px solid var(--border-default)'
+        borderRight: isMobile ? 'none' : '1px solid var(--border-default)',
       }}>
-        {/* Glassmorphism Header */}
-        <div className="glass-header" style={{ padding: '16px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
+        {/* Header */}
+        <div className="glass-header" style={{ padding: isMobile ? '12px 16px' : '16px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
               <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
+                width: 8, height: 8, borderRadius: '50%',
                 background: isComplete ? 'var(--color-success)' : 'var(--color-primary)',
                 boxShadow: isComplete
                   ? '0 0 8px rgba(52, 199, 89, 0.4)'
@@ -203,33 +415,65 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                 {currentStep <= 7 ? STEPS[currentStep - 1]?.label : 'RFP 완성'}
               </span>
+              {/* 축하 뱃지 */}
+              {celebrationStep > 0 && STEP_CELEBRATIONS[celebrationStep] && (
+                <span className="animate-fade-in" style={{
+                  fontSize: 12, color: 'var(--color-primary)',
+                  fontWeight: 500, marginLeft: 4,
+                }}>
+                  {STEP_CELEBRATIONS[celebrationStep]}
+                </span>
+              )}
             </div>
-            <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>
-              {Math.min(currentStep, 7)}/7
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* 모바일: RFP 미리보기 버튼 */}
+              {isMobile && rfpData.overview && (
+                <button
+                  onClick={() => setShowPreview(true)}
+                  style={{
+                    fontSize: 12, fontWeight: 600, color: 'var(--color-primary)',
+                    background: 'var(--color-primary-alpha)', border: 'none',
+                    padding: '4px 12px', borderRadius: 'var(--radius-full)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  미리보기
+                </button>
+              )}
+              <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                {Math.min(currentStep, 7)}/7
+              </span>
+            </div>
           </div>
 
           {/* Progress bar */}
           <div className="progress-bar">
-            <div className="progress-bar__fill" style={{ width: `${progressPercent}%` }} />
+            <div className="progress-bar__fill" style={{
+              width: `${progressPercent}%`,
+              transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+            }} />
           </div>
 
           {stepsRemaining > 0 && stepsRemaining <= 3 && currentStep <= 7 && (
             <p className="animate-fade-in" style={{ fontSize: 12, color: 'var(--color-primary)', marginTop: 6, fontWeight: 500 }}>
-              {stepsRemaining}개 질문만 더!
+              {stepsRemaining === 1 ? '마지막 질문!' : `${stepsRemaining}개 질문만 더!`}
             </p>
           )}
         </div>
 
         {/* Messages */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--space-md)'
-        }}>
+        <div
+          ref={messagesContainerRef}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: isMobile ? '16px' : '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-md)',
+            scrollBehavior: 'smooth',
+          }}
+        >
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -252,19 +496,35 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   </svg>
                 </div>
               )}
-              <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
-                {msg.role === 'assistant' ? (
-                  <div
-                    style={{ margin: 0, lineHeight: 1.6 }}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
-                  />
-                ) : (
-                  <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+              <div style={{ maxWidth: msg.role === 'user' ? '80%' : '85%' }}>
+                <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
+                  {msg.role === 'assistant' ? (
+                    <div
+                      style={{ margin: 0, lineHeight: 1.7 }}
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                    />
+                  ) : (
+                    <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+                  )}
+                </div>
+                {/* 타임스탬프 */}
+                {msg.timestamp && (
+                  <div style={{
+                    fontSize: 11,
+                    color: 'var(--text-quaternary)',
+                    marginTop: 4,
+                    textAlign: msg.role === 'user' ? 'right' : 'left',
+                    paddingLeft: msg.role === 'assistant' ? 4 : 0,
+                    paddingRight: msg.role === 'user' ? 4 : 0,
+                  }}>
+                    {formatTime(msg.timestamp)}
+                  </div>
                 )}
               </div>
             </div>
           ))}
 
+          {/* AI 분석 중 표시 */}
           {loading && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-sm)' }}>
               <div style={{
@@ -279,10 +539,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 </svg>
               </div>
               <div className="chat-bubble-assistant animate-fade-in">
-                <div style={{ display: 'flex', gap: 6, padding: '4px 0' }}>
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                  </div>
+                  {thinkingLabel && (
+                    <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                      {thinkingLabel}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -290,10 +557,36 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           <div ref={messagesEndRef} />
         </div>
 
+        {/* 스크롤 투 바텀 버튼 */}
+        {showScrollBtn && (
+          <button
+            onClick={scrollToBottom}
+            style={{
+              position: 'absolute',
+              bottom: isMobile ? 170 : 140,
+              left: isMobile ? '50%' : '25%',
+              transform: 'translateX(-50%)',
+              width: 36, height: 36,
+              borderRadius: '50%',
+              background: 'var(--surface-0)',
+              border: '1px solid var(--border-strong)',
+              boxShadow: 'var(--shadow-md)',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 5,
+              transition: 'all var(--duration-fast)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        )}
+
         {/* Quick Reply Chips */}
         {quickReplies.length > 0 && !loading && !isComplete && (
           <div style={{
-            padding: '8px 24px',
+            padding: isMobile ? '8px 16px' : '8px 24px',
             display: 'flex',
             gap: '8px',
             flexWrap: 'wrap',
@@ -334,7 +627,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 
         {/* Input Area */}
         <div style={{
-          padding: '16px 24px',
+          padding: isMobile ? '12px 16px' : '16px 24px',
           borderTop: '1px solid var(--border-default)',
           background: 'var(--surface-0)',
         }}>
@@ -373,7 +666,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    adjustTextareaHeight();
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder="답변을 입력하세요..."
                   rows={1}
@@ -446,80 +742,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       </div>
 
       {/* Right: RFP Preview Panel */}
-      <div style={{ width: '50%', background: 'var(--surface-1)', overflowY: 'auto' }}>
-        <div style={{ padding: 'var(--space-xl)' }}>
-          <div style={{
-            background: 'var(--surface-0)',
-            borderRadius: 'var(--card-radius)',
-            padding: 'var(--space-xl)',
-            boxShadow: 'var(--shadow-sm)',
-            minHeight: 'calc(100vh - 64px)',
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: 'var(--space-xl)',
-              paddingBottom: 'var(--space-md)',
-              borderBottom: '1px solid var(--border-default)',
-            }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: 'var(--letter-tight)' }}>
-                RFP 미리보기
-              </h2>
-              <span style={{
-                fontSize: 12, color: 'var(--text-quaternary)',
-                background: 'var(--surface-2)', padding: '4px 10px',
-                borderRadius: 'var(--radius-full)', fontWeight: 500,
-              }}>
-                실시간 업데이트
-              </span>
-            </div>
-
-            {rfpData.overview ? (
-              <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-                <RFPSection number={1} title="프로젝트 개요" content={rfpData.overview} />
-                {rfpData.targetUsers && <RFPSection number={2} title="타겟 사용자" content={rfpData.targetUsers} />}
-                {rfpData.coreFeatures.length > 0 && (
-                  <div>
-                    <SectionLabel number={3} title="핵심 기능" />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
-                      {rfpData.coreFeatures.map((f, i) => (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)',
-                          padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
-                        }}>
-                          <span className={`chip-${f.priority.toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority}</span>
-                          <div style={{ flex: 1 }}>
-                            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', display: 'block' }}>{f.name}</span>
-                            {f.description && f.description !== f.name && (
-                              <span style={{ color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5, display: 'block', marginTop: 4 }}>{f.description}</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {rfpData.referenceServices && <RFPSection number={4} title="참고 서비스" content={rfpData.referenceServices} />}
-                {rfpData.techRequirements && <RFPSection number={5} title="기술 요구사항" content={rfpData.techRequirements} />}
-                {rfpData.budgetTimeline && <RFPSection number={6} title="예산 및 일정" content={rfpData.budgetTimeline} />}
-                {rfpData.additionalRequirements && <RFPSection number={7} title="추가 요구사항" content={rfpData.additionalRequirements} />}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: 'var(--space-4xl) var(--space-lg)' }}>
-                <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>
-                  📝
-                </div>
-                <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
-                  아직 작성된 내용이 없어요
-                </p>
-                <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
-                  AI와 대화하면 여기에 RFP가 실시간으로 채워집니다
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {!isMobile && previewPanel}
+      {isMobile && previewPanel}
     </div>
   );
 }
