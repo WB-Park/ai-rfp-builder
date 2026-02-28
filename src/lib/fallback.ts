@@ -460,9 +460,76 @@ const KNOWN_SERVICES: Record<string, { label: string; features: { name: string; 
     ],
   },
 };
-// 배민 alias 처리
+// ── 별명(alias) 매핑: 축약어, 영문명 등 ──
+// 배달
 KNOWN_SERVICES['배민'] = KNOWN_SERVICES['배달의민족'];
+KNOWN_SERVICES['baemin'] = KNOWN_SERVICES['배달의민족'];
+// 중고거래
+KNOWN_SERVICES['당근'] = KNOWN_SERVICES['당근마켓'];
+KNOWN_SERVICES['daangn'] = KNOWN_SERVICES['당근마켓'];
+KNOWN_SERVICES['번장'] = KNOWN_SERVICES['번개장터'];
+// 숙소/여행
 KNOWN_SERVICES['airbnb'] = KNOWN_SERVICES['에어비앤비'];
+KNOWN_SERVICES['에어비엔비'] = KNOWN_SERVICES['에어비앤비'];
+KNOWN_SERVICES['야놀자'] = KNOWN_SERVICES['야놀자']; // 이미 있지만 명시
+// 교육
+KNOWN_SERVICES['클래스'] = KNOWN_SERVICES['클래스101'];
+KNOWN_SERVICES['class101'] = KNOWN_SERVICES['클래스101'];
+// 금융
+KNOWN_SERVICES['toss'] = KNOWN_SERVICES['토스'];
+// 프리랜서 마켓
+KNOWN_SERVICES['kmong'] = KNOWN_SERVICES['크몽'];
+// 인테리어
+KNOWN_SERVICES['오집'] = KNOWN_SERVICES['오늘의집'];
+// 위시켓 관련
+KNOWN_SERVICES['wishket'] = KNOWN_SERVICES['위시켓'];
+
+// ── 추가 유명 서비스 DB ──
+KNOWN_SERVICES['숨고'] = {
+  label: '숨고 (전문가 매칭 플랫폼)',
+  features: [
+    { name: '고수 프로필/포트폴리오', desc: '전문가 경력, 작업 사진, 자격증, 리뷰', must: true },
+    { name: '견적 요청 폼', desc: '서비스 종류별 맞춤 견적 요청 양식', must: true },
+    { name: '자동 매칭/견적 발송', desc: '요청 조건에 맞는 고수에게 자동 견적 요청', must: true },
+    { name: '1:1 채팅', desc: '고객-고수 직접 상담, 파일 공유', must: true },
+    { name: '결제', desc: 'PG 연동, 서비스 비용 결제', must: true },
+    { name: '리뷰/평점', desc: '서비스 완료 후 별점+텍스트 리뷰', must: false },
+    { name: '카테고리/검색', desc: '서비스 분야별 탐색, 키워드 검색', must: false },
+    { name: '알림', desc: '견적 도착, 채팅, 예약 알림', must: false },
+    { name: '고수 랭킹', desc: '분야별 상위 고수 노출', must: false },
+    { name: '정산 시스템', desc: '고수 수수료 차감, 정산 관리', must: false },
+  ],
+};
+KNOWN_SERVICES['soomgo'] = KNOWN_SERVICES['숨고'];
+KNOWN_SERVICES['탈잉'] = {
+  label: '탈잉 (취미/실무 클래스 플랫폼)',
+  features: [
+    { name: '클래스 등록/관리', desc: '튜터가 클래스 설명, 일정, 가격 등록', must: true },
+    { name: '예약/수강신청', desc: '일정 선택, 인원 확인, 결제', must: true },
+    { name: '결제/환불', desc: 'PG 연동, 취소/환불 정책 적용', must: true },
+    { name: '튜터 프로필', desc: '경력, 리뷰, 개설 클래스 목록', must: true },
+    { name: '리뷰/별점', desc: '수강 후기, 사진 리뷰', must: false },
+    { name: '검색/카테고리', desc: '지역, 분야, 일정별 클래스 탐색', must: false },
+    { name: '1:1 문의', desc: '튜터에게 직접 질문', must: false },
+    { name: '알림', desc: '수업 리마인더, 새 클래스 알림', must: false },
+    { name: '정산', desc: '튜터 수수료 차감, 정산 주기', must: false },
+  ],
+};
+KNOWN_SERVICES['무신사'] = {
+  label: '무신사 (패션 커머스)',
+  features: [
+    { name: '상품 등록/관리', desc: '상품 정보, 이미지, 사이즈, 재고 관리', must: true },
+    { name: '장바구니/결제', desc: '장바구니, PG 결제, 간편결제', must: true },
+    { name: '검색/필터', desc: '브랜드, 카테고리, 가격, 사이즈 필터', must: true },
+    { name: '주문/배송 관리', desc: '주문 상태, 배송 추적, 교환/환불', must: true },
+    { name: '리뷰/스타일링', desc: '상품 리뷰, 코디 사진 공유', must: false },
+    { name: '쿠폰/포인트', desc: '할인 쿠폰, 적립금, 등급별 혜택', must: false },
+    { name: '매거진/콘텐츠', desc: '패션 매거진, 스타일 가이드', must: false },
+    { name: '브랜드 스토어', desc: '브랜드별 전용 페이지', must: false },
+    { name: '찜/위시리스트', desc: '관심 상품 저장, 가격 변동 알림', must: false },
+  ],
+};
+KNOWN_SERVICES['musinsa'] = KNOWN_SERVICES['무신사'];
 
 // ── 2) 키워드→기능 원자 DB: 문장에서 키워드가 발견되면 해당 기능 추가 ──
 interface FeatureAtom { name: string; desc: string; priority: number } // priority: 낮을수록 필수에 가까움

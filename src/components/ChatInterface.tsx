@@ -597,10 +597,53 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     border: '1px solid var(--border-default)',
                     overflow: 'hidden',
                   }}>
+                    {/* 전체 선택/해제 바 */}
+                    <div style={{
+                      padding: '10px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--surface-0)',
+                      borderBottom: '1px solid var(--border-default)',
+                    }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        기능 선택 ({Object.values(featureSelection).filter(Boolean).length}/{msg.selectableFeatures.length})
+                      </span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => {
+                            const all: Record<string, boolean> = {};
+                            msg.selectableFeatures!.forEach(f => { all[f.name] = true; });
+                            setFeatureSelection(all);
+                          }}
+                          style={{
+                            fontSize: 12, fontWeight: 500, color: 'var(--color-primary)',
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            padding: '2px 6px', fontFamily: 'var(--font-kr)',
+                          }}
+                        >
+                          전체 선택
+                        </button>
+                        <button
+                          onClick={() => {
+                            const none: Record<string, boolean> = {};
+                            msg.selectableFeatures!.forEach(f => { none[f.name] = false; });
+                            setFeatureSelection(none);
+                          }}
+                          style={{
+                            fontSize: 12, fontWeight: 500, color: 'var(--text-tertiary)',
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            padding: '2px 6px', fontFamily: 'var(--font-kr)',
+                          }}
+                        >
+                          전체 해제
+                        </button>
+                      </div>
+                    </div>
                     {/* 필수 기능 */}
                     {msg.selectableFeatures.filter(f => f.category === 'must').length > 0 && (
                       <div style={{ padding: '10px 14px 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        🔴 필수 기능
+                        🔴 필수 기능 ({msg.selectableFeatures.filter(f => f.category === 'must').length}개)
                       </div>
                     )}
                     {msg.selectableFeatures.filter(f => f.category === 'must').map((feat) => (
@@ -644,7 +687,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     {/* 추천 기능 */}
                     {msg.selectableFeatures.filter(f => f.category === 'recommended').length > 0 && (
                       <div style={{ padding: '10px 14px 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        🟡 추천 기능
+                        🟡 추천 기능 ({msg.selectableFeatures.filter(f => f.category === 'recommended').length}개)
                       </div>
                     )}
                     {msg.selectableFeatures.filter(f => f.category === 'recommended').map((feat) => (
@@ -693,8 +736,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       justifyContent: 'space-between',
                       background: 'var(--surface-0)',
                     }}>
-                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                        {Object.values(featureSelection).filter(Boolean).length}개 선택됨
+                      <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                        💡 필요한 기능만 선택하세요
                       </span>
                       <button
                         onClick={() => {
@@ -709,7 +752,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                           sendMessage(payload);
                         }}
                         style={{
-                          padding: '8px 20px',
+                          padding: '8px 24px',
                           borderRadius: 'var(--radius-full)',
                           border: 'none',
                           background: Object.values(featureSelection).filter(Boolean).length > 0
@@ -723,7 +766,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                           transition: 'all 0.2s',
                         }}
                       >
-                        선택 완료
+                        {Object.values(featureSelection).filter(Boolean).length}개 선택 완료
                       </button>
                     </div>
                   </div>
