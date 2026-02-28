@@ -7,6 +7,9 @@ import { generateFallbackResponse } from '@/lib/fallback';
 
 const HAS_API_KEY = !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'placeholder';
 
+// Vercel serverless function timeout: 60초
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, currentStep, rfpData } = await req.json();

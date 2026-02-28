@@ -1115,6 +1115,9 @@ function generateFallbackRFP(rfpData: RFPData): string {
 // API Handler
 // ═══════════════════════════════════════════
 
+// Vercel serverless function timeout: 60초 (Claude API 응답 대기)
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { rfpData, sessionId }: { rfpData: RFPData; sessionId?: string } =
