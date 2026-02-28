@@ -1,16 +1,11 @@
 'use client';
 
-// PRD 화면 2: RFP 작성 (Split View) v7
-// FORGE Iteration: 업계 최고 수준 채팅 UX
-// - 타이핑 애니메이션 ("AI 분석 중..." 컨텍스트 메시지)
-// - 모바일 반응형 (스택 레이아웃)
-// - 메시지 타임스탬프
-// - 스텝 진행 축하 애니메이션
-// - 자동 높이 조절 textarea
-// - 스무스 스크롤 + 스크롤 투 바텀 버튼
+// AI RFP Builder — Chat Interface v8 (Dynamic Conversation)
+// 동적 질문 시스템: 토픽 기반 프로그레스, 맥락 인지 질문 순서
+// 고정 X/7 → 토픽 커버리지 기반 프로그레스
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { STEPS, RFPData, emptyRFPData, REQUIRED_STEPS } from '@/types/rfp';
+import { RFPData, emptyRFPData, TOPICS, TopicId, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -43,16 +38,6 @@ function formatTime(ts: number): string {
   return `${ampm} ${hour}:${m}`;
 }
 
-// 단계별 축하 메시지
-const STEP_CELEBRATIONS: Record<number, string> = {
-  2: '좋은 출발이에요!',
-  3: '절반 가까이 왔어요!',
-  4: '잘 하고 계세요!',
-  5: '거의 다 왔어요!',
-  6: '마지막 단계에요!',
-  7: '완성 직전이에요!',
-};
-
 // 분석 중 메시지 (컨텍스트별)
 const THINKING_MESSAGES = [
   '프로젝트를 분석하고 있어요...',
@@ -66,8 +51,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     {
       role: 'assistant',
       content: email.startsWith('guest@')
-        ? `안녕하세요! 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 기획서(RFP)를 함께 작성해볼까요? **7가지 질문**에 답해주시면 **5분 안에** 전문 수준의 기획서가 완성됩니다.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`
-        : `안녕하세요! **${email.split('@')[0]}**님, 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 기획서(RFP)를 함께 작성해볼까요? **7가지 질문**에 답해주시면 **5분 안에** 완성됩니다.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
+        ? `안녕하세요! 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 기획서(RFP)를 함께 작성해볼까요? 대화하듯 답변해주시면 **AI가 맞춤형 질문**을 이어갑니다.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`
+        : `안녕하세요! **${email.split('@')[0]}**님, 위시켓 AI RFP Builder입니다.\n\n대화하듯 답변해주시면 **AI가 맞춤형 질문**을 이어갑니다. 핵심 정보만 수집하면 바로 완성할 수 있어요.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
       timestamp: Date.now(),
     },
   ]);
@@ -81,7 +66,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [celebrationStep, setCelebrationStep] = useState(0);
+  // 동적 토픽 추적
+  const [topicsCovered, setTopicsCovered] = useState<TopicId[]>([]);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [canComplete, setCanComplete] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -103,7 +91,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // 스크롤 위치 감지 (스크롤 투 바텀 버튼 표시용)
+  // 스크롤 위치 감지
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -123,14 +111,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
     }
   }, []);
-
-  // 축하 애니메이션 타이머
-  useEffect(() => {
-    if (celebrationStep > 0) {
-      const timer = setTimeout(() => setCelebrationStep(0), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [celebrationStep]);
 
   // Supabase 세션 저장
   const saveSession = useCallback(async (
@@ -196,22 +176,40 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setRfpData(updatedRfpData);
       }
 
+      // 동적 스텝 업데이트
       if (data.nextStep) {
         updatedStep = data.nextStep;
         setCurrentStep(data.nextStep);
-        // 축하 트리거
-        if (STEP_CELEBRATIONS[data.nextStep]) {
-          setCelebrationStep(data.nextStep);
-        }
       } else if (data.nextAction !== 'clarify') {
         updatedStep = Math.min(currentStep + 1, 8);
         setCurrentStep(updatedStep);
-        if (STEP_CELEBRATIONS[updatedStep]) {
-          setCelebrationStep(updatedStep);
-        }
       }
 
-      if (data.nextAction === 'complete' || currentStep >= 7) {
+      // 토픽 커버리지 업데이트
+      if (data.topicsCovered && Array.isArray(data.topicsCovered)) {
+        setTopicsCovered(data.topicsCovered);
+      } else {
+        // 수동 계산
+        const covered = getTopicsCovered(updatedRfpData);
+        setTopicsCovered(covered);
+      }
+
+      // 프로그레스 업데이트
+      if (data.progress !== undefined) {
+        setProgressPercent(data.progress);
+      } else {
+        const covered = getTopicsCovered(updatedRfpData);
+        setProgressPercent(Math.round((covered.length / TOPICS.length) * 100));
+      }
+
+      // 완료 가능 여부
+      if (data.canComplete !== undefined) {
+        setCanComplete(data.canComplete);
+      } else {
+        setCanComplete(isReadyToComplete(updatedRfpData));
+      }
+
+      if (data.nextAction === 'complete') {
         completed = true;
         setIsComplete(true);
       }
@@ -261,7 +259,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   };
 
   const handleSkip = () => {
-    if (REQUIRED_STEPS.includes(currentStep as 1 | 3)) return;
+    // 필수 토픽(overview, coreFeatures)은 건너뛸 수 없음
+    const currentTopicId = TOPICS.find(t => t.stepNumber === currentStep)?.id;
+    if (currentTopicId === 'overview' || currentTopicId === 'coreFeatures') return;
     sendMessage('건너뛰기');
   };
 
@@ -272,8 +272,14 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     }
   };
 
-  const progressPercent = Math.min((currentStep / 7) * 100, 100);
-  const stepsRemaining = Math.max(7 - currentStep + 1, 0);
+  // 현재 토픽 라벨
+  const currentTopic = TOPICS.find(t => t.stepNumber === currentStep);
+  const currentTopicLabel = currentTopic ? `${currentTopic.icon} ${currentTopic.label}` : 'RFP 작성';
+  const canSkipCurrent = currentTopic ? !currentTopic.required : false;
+
+  // 커버된 토픽 수 / 전체
+  const coveredCount = topicsCovered.length;
+  const totalTopics = TOPICS.length;
 
   // 모바일에서 RFP 프리뷰 패널
   const previewPanel = (
@@ -344,13 +350,34 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             </div>
           )}
 
+          {/* 토픽 커버리지 칩 */}
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--space-lg)',
+          }}>
+            {TOPICS.map(topic => {
+              const isCovered = topicsCovered.includes(topic.id);
+              return (
+                <span key={topic.id} style={{
+                  fontSize: 11, fontWeight: 500,
+                  padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                  background: isCovered ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
+                  color: isCovered ? 'var(--color-primary)' : 'var(--text-quaternary)',
+                  border: `1px solid ${isCovered ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent'}`,
+                  transition: 'all 0.3s ease',
+                }}>
+                  {isCovered ? '✓' : ''} {topic.icon} {topic.label}
+                </span>
+              );
+            })}
+          </div>
+
           {rfpData.overview ? (
             <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-              <RFPSection number={1} title="프로젝트 개요" content={rfpData.overview} />
-              {rfpData.targetUsers && <RFPSection number={2} title="타겟 사용자" content={rfpData.targetUsers} />}
+              <RFPSection title="프로젝트 개요" icon="📋" content={rfpData.overview} />
+              {rfpData.targetUsers && <RFPSection title="타겟 사용자" icon="👥" content={rfpData.targetUsers} />}
               {rfpData.coreFeatures.length > 0 && (
                 <div>
-                  <SectionLabel number={3} title="핵심 기능" />
+                  <SectionLabel title="핵심 기능" icon="⚙️" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
                     {rfpData.coreFeatures.map((f, i) => (
                       <div key={i} style={{
@@ -369,10 +396,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   </div>
                 </div>
               )}
-              {rfpData.referenceServices && <RFPSection number={4} title="참고 서비스" content={rfpData.referenceServices} />}
-              {rfpData.techRequirements && <RFPSection number={5} title="기술 요구사항" content={rfpData.techRequirements} />}
-              {rfpData.budgetTimeline && <RFPSection number={6} title="예산 및 일정" content={rfpData.budgetTimeline} />}
-              {rfpData.additionalRequirements && <RFPSection number={7} title="추가 요구사항" content={rfpData.additionalRequirements} />}
+              {rfpData.referenceServices && <RFPSection title="참고 서비스" icon="🔍" content={rfpData.referenceServices} />}
+              {rfpData.techRequirements && <RFPSection title="기술 요구사항" icon="💻" content={rfpData.techRequirements} />}
+              {rfpData.budgetTimeline && <RFPSection title="예산 및 일정" icon="💰" content={rfpData.budgetTimeline} />}
+              {rfpData.additionalRequirements && <RFPSection title="추가 요구사항" icon="📝" content={rfpData.additionalRequirements} />}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
@@ -407,21 +434,24 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
-                background: isComplete ? 'var(--color-success)' : 'var(--color-primary)',
+                background: isComplete ? 'var(--color-success)' : canComplete ? '#F59E0B' : 'var(--color-primary)',
                 boxShadow: isComplete
                   ? '0 0 8px rgba(52, 199, 89, 0.4)'
+                  : canComplete
+                  ? '0 0 8px rgba(245, 158, 11, 0.4)'
                   : '0 0 8px rgba(var(--color-primary-rgb), 0.4)',
               }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                {currentStep <= 7 ? STEPS[currentStep - 1]?.label : 'RFP 완성'}
+                {isComplete ? 'RFP 완성 준비' : currentTopicLabel}
               </span>
-              {/* 축하 뱃지 */}
-              {celebrationStep > 0 && STEP_CELEBRATIONS[celebrationStep] && (
+              {canComplete && !isComplete && (
                 <span className="animate-fade-in" style={{
-                  fontSize: 12, color: 'var(--color-primary)',
+                  fontSize: 11, color: '#F59E0B',
                   fontWeight: 500, marginLeft: 4,
+                  padding: '2px 8px', borderRadius: 'var(--radius-full)',
+                  background: 'rgba(245, 158, 11, 0.08)',
                 }}>
-                  {STEP_CELEBRATIONS[celebrationStep]}
+                  완성 가능
                 </span>
               )}
             </div>
@@ -441,12 +471,12 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 </button>
               )}
               <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>
-                {Math.min(currentStep, 7)}/7
+                {coveredCount}/{totalTopics} 토픽
               </span>
             </div>
           </div>
 
-          {/* Progress bar */}
+          {/* Progress bar — 토픽 커버리지 기반 */}
           <div className="progress-bar">
             <div className="progress-bar__fill" style={{
               width: `${progressPercent}%`,
@@ -454,11 +484,29 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             }} />
           </div>
 
-          {stepsRemaining > 0 && stepsRemaining <= 3 && currentStep <= 7 && (
-            <p className="animate-fade-in" style={{ fontSize: 12, color: 'var(--color-primary)', marginTop: 6, fontWeight: 500 }}>
-              {stepsRemaining === 1 ? '마지막 질문!' : `${stepsRemaining}개 질문만 더!`}
-            </p>
-          )}
+          {/* 토픽 인디케이터 */}
+          <div style={{
+            display: 'flex', gap: 4, marginTop: 8, overflowX: 'auto',
+            scrollbarWidth: 'none',
+          }}>
+            {TOPICS.map(topic => {
+              const isCovered = topicsCovered.includes(topic.id);
+              const isCurrent = topic.stepNumber === currentStep;
+              return (
+                <span key={topic.id} style={{
+                  fontSize: 11, whiteSpace: 'nowrap',
+                  padding: '3px 8px', borderRadius: 'var(--radius-full)',
+                  background: isCurrent ? 'var(--color-primary)' : isCovered ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
+                  color: isCurrent ? 'white' : isCovered ? 'var(--color-primary)' : 'var(--text-quaternary)',
+                  fontWeight: isCurrent ? 600 : 400,
+                  transition: 'all 0.3s ease',
+                  flexShrink: 0,
+                }}>
+                  {isCovered && !isCurrent ? '✓ ' : ''}{topic.icon}
+                </span>
+              );
+            })}
+          </div>
         </div>
 
         {/* Messages */}
@@ -593,35 +641,43 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             borderTop: '1px solid var(--border-default)',
             background: 'var(--surface-1)',
           }}>
-            {quickReplies.map((reply, i) => (
-              <button
-                key={i}
-                onClick={() => handleQuickReply(reply)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1.5px solid var(--color-primary)',
-                  background: 'var(--surface-0)',
-                  color: 'var(--color-primary)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  fontFamily: 'var(--font-kr)',
-                  cursor: 'pointer',
-                  transition: 'all var(--duration-fast) var(--ease-out)',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--color-primary)';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--surface-0)';
-                  e.currentTarget.style.color = 'var(--color-primary)';
-                }}
-              >
-                {reply}
-              </button>
-            ))}
+            {quickReplies.map((reply, i) => {
+              const isRfpGenerate = reply === '바로 RFP 생성하기';
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleQuickReply(reply)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-full)',
+                    border: isRfpGenerate ? 'none' : '1.5px solid var(--color-primary)',
+                    background: isRfpGenerate ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))' : 'var(--surface-0)',
+                    color: isRfpGenerate ? 'white' : 'var(--color-primary)',
+                    fontSize: 13,
+                    fontWeight: isRfpGenerate ? 600 : 500,
+                    fontFamily: 'var(--font-kr)',
+                    cursor: 'pointer',
+                    transition: 'all var(--duration-fast) var(--ease-out)',
+                    whiteSpace: 'nowrap',
+                    boxShadow: isRfpGenerate ? '0 2px 8px rgba(var(--color-primary-rgb), 0.3)' : 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isRfpGenerate) {
+                      e.currentTarget.style.background = 'var(--color-primary)';
+                      e.currentTarget.style.color = 'white';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isRfpGenerate) {
+                      e.currentTarget.style.background = 'var(--surface-0)';
+                      e.currentTarget.style.color = 'var(--color-primary)';
+                    }
+                  }}
+                >
+                  {isRfpGenerate ? '✨ ' : ''}{reply}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -658,7 +714,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--color-primary-rgb), 0.3)';
               }}
             >
-              RFP 완성하기
+              PRD 기획서 완성하기
             </button>
           ) : (
             <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'flex-end' }}>
@@ -719,7 +775,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </button>
-                {!REQUIRED_STEPS.includes(currentStep as 1 | 3) && currentStep <= 7 && (
+                {canSkipCurrent && !isComplete && (
                   <button
                     onClick={handleSkip}
                     disabled={loading}
@@ -749,26 +805,26 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 }
 
 /* Sub-components */
-function SectionLabel({ number, title }: { number: number; title: string }) {
+function SectionLabel({ title, icon }: { title: string; icon: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
       <span style={{
-        width: 24, height: 24, borderRadius: '50%',
+        width: 24, height: 24, borderRadius: 'var(--radius-sm)',
         background: 'var(--color-primary-alpha)', color: 'var(--color-primary)',
-        fontSize: 12, fontWeight: 700,
+        fontSize: 13,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {number}
+        {icon}
       </span>
       <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h3>
     </div>
   );
 }
 
-function RFPSection({ number, title, content }: { number: number; title: string; content: string }) {
+function RFPSection({ title, icon, content }: { title: string; icon: string; content: string }) {
   return (
     <div>
-      <SectionLabel number={number} title={title} />
+      <SectionLabel title={title} icon={icon} />
       <p style={{
         font: 'var(--text-body)',
         color: 'var(--text-secondary)',

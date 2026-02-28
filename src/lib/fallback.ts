@@ -1,8 +1,9 @@
-// AI RFP Builder — Dynamic Conversation Engine v7
-// FORGE Iteration: 자연스러운 컨설턴트 대화 → 전문 RFP
+// AI RFP Builder — Dynamic Conversation Engine v8
+// 핵심 변경: 고정 7단계 → 맥락 기반 동적 질문 생성
+// 앞 질문의 답변에 따라 뒷 질문이 자동으로 맞춤 생성됨
 // 위시켓 13년 7만+ 외주 프로젝트 데이터 기반
 
-import { STEPS } from '@/types/rfp';
+import { RFPData, TopicId, TOPIC_TO_STEP, STEP_TO_TOPIC, getTopicsCovered, isReadyToComplete, TOPICS } from '@/types/rfp';
 
 interface FallbackResponse {
   message: string;
@@ -13,21 +14,14 @@ interface FallbackResponse {
   nextAction: string;
   nextStep: number | null;
   quickReplies?: string[];
-  thinkingLabel?: string; // AI 분석 중 표시 메시지
+  thinkingLabel?: string;
+  topicsCovered?: TopicId[];
+  progress?: number;
+  canComplete?: boolean;
 }
 
-const SECTION_MAP: Record<number, string> = {
-  1: 'overview',
-  2: 'targetUsers',
-  3: 'coreFeatures',
-  4: 'referenceServices',
-  5: 'techRequirements',
-  6: 'budgetTimeline',
-  7: 'additionalRequirements',
-};
-
 // ═══════════════════════════════════════════════════════
-//  프로젝트 유형 인텔리전스 DB
+//  프로젝트 유형 인텔리전스 DB (기존 유지)
 // ═══════════════════════════════════════════════════════
 interface ProjectTypeInfo {
   type: string;
@@ -39,13 +33,14 @@ interface ProjectTypeInfo {
   commonMistakes: string[];
   techTip: string;
   commonRisk: string;
-  targetQuestions: string[];
-  targetQuickReplies: string[];
-  featureQuickReplies: string[];
-  insightEmoji: string;           // 유형별 이모지
-  marketInsight: string;          // 시장 인사이트
-  mvpScope: string;               // MVP 추천 범위
-  competitorExample: string;      // 벤치마크 예시
+  insightEmoji: string;
+  marketInsight: string;
+  mvpScope: string;
+  competitorExample: string;
+  // 동적 질문용 추가 필드
+  topicPriority: TopicId[];        // 이 유형에 맞는 토픽 순서
+  deepDiveQuestions: Record<TopicId, string[]>; // 토픽별 심화 질문
+  quickRepliesMap: Record<TopicId, string[]>;   // 토픽별 퀵 리플라이
 }
 
 const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
@@ -59,13 +54,23 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['앱스토어 심사 기간(1~2주) 미반영', '디바이스 파편화 대응 미고려', '오프라인 모드 미설계'],
     techTip: 'Flutter/React Native 크로스플랫폼으로 iOS/Android 동시 개발 시 비용 30~40% 절감.',
     commonRisk: '앱스토어 심사(평균 1~2주)를 일정에 반드시 포함.',
-    targetQuestions: ['이 앱을 주로 사용할 분들은 어떤 분들인가요?', '하루 중 언제 이 앱을 가장 많이 사용할 것 같으세요?'],
-    targetQuickReplies: ['20~30대 직장인', '전 연령 일반 사용자', '10~20대 학생/MZ세대', '40~60대 시니어'],
-    featureQuickReplies: ['소셜 로그인', '결제 기능', '채팅/메시지', '지도/위치 기반', '푸시 알림', '예약 기능'],
     insightEmoji: '📱',
     marketInsight: '2025년 모바일 앱 시장은 슈퍼앱 트렌드에서 버티컬 특화 앱으로 전환 중입니다.',
     mvpScope: '핵심 기능 3개 + 소셜 로그인 + 푸시 알림',
-    competitorExample: '당근마켓, 토스, 오늘의집 등이 대표적인 성공 사례',
+    competitorExample: '당근마켓, 토스, 오늘의집',
+    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'techRequirements', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['이 앱의 핵심 가치를 한 문장으로 표현하면?', '유사한 앱이 있다면, 어떤 점이 다른가요?'],
+      targetUsers: ['하루 중 언제 이 앱을 가장 많이 사용할 것 같으세요?', '앱을 처음 실행했을 때 사용자가 가장 먼저 해야 할 행동은?'],
+      coreFeatures: ['이 기능들 중 "이것만 되면 출시할 수 있다"는 핵심 1가지는?', '사용자가 가장 자주 쓸 기능은 무엇인가요?'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['20~30대 직장인', '전 연령 일반 사용자', '10~20대 학생/MZ세대', '40~60대 시니어'],
+      coreFeatures: ['소셜 로그인', '결제 기능', '채팅/메시지', '지도/위치 기반', '푸시 알림', '예약 기능'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['모바일 앱 (iOS/Android)', '웹 + 앱 둘 다', '아직 미정이에요'],
+      budgetTimeline: ['1,000~3,000만원', '3,000~5,000만원', '5,000만원 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
   '웹 서비스': {
     type: '웹 서비스',
@@ -77,13 +82,23 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['모바일 사용자 비율 과소평가', 'SEO 미고려', '브라우저 호환성 미테스트'],
     techTip: 'Next.js가 SEO, 성능, 개발 생산성 측면에서 현재 가장 검증된 선택.',
     commonRisk: '브라우저 호환성(Chrome, Safari, Edge)을 초기에 정의해야 수정 비용 절감.',
-    targetQuestions: ['이 웹 서비스를 주로 사용하는 사용자는 누구인가요?', 'PC와 모바일 중 어디에서 더 많이 접속할 것 같으세요?'],
-    targetQuickReplies: ['B2B 기업 고객', '일반 소비자(B2C)', '내부 직원용', '특정 전문가 그룹'],
-    featureQuickReplies: ['회원가입/로그인', '대시보드', '게시판', '검색/필터', '관리자 패널', '결제'],
     insightEmoji: '🌐',
     marketInsight: '웹 서비스는 초기 진입장벽이 가장 낮고, 이후 앱으로 확장하기 용이합니다.',
     mvpScope: '핵심 페이지 5개 이내 + 회원 시스템 + 반응형',
-    competitorExample: '노션, 슬랙, 피그마 등 웹 퍼스트 서비스가 시장을 주도',
+    competitorExample: '노션, 슬랙, 피그마',
+    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'budgetTimeline', 'referenceServices', 'techRequirements', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['이 서비스의 수익 모델은 무엇인가요?', 'PC와 모바일 중 어디에서 더 많이 접속할 것 같으세요?'],
+      targetUsers: ['사용자가 이 서비스를 얼마나 자주 방문할 것 같나요?'],
+      coreFeatures: ['관리자가 직접 콘텐츠를 수정해야 하나요?', '검색 기능이 중요한가요?'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['B2B 기업 고객', '일반 소비자(B2C)', '내부 직원용', '특정 전문가 그룹'],
+      coreFeatures: ['회원가입/로그인', '대시보드', '게시판', '검색/필터', '관리자 패널', '결제'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹 서비스', '웹 + 앱 둘 다', '아직 미정이에요'],
+      budgetTimeline: ['1,000~3,000만원', '3,000~5,000만원', '5,000만원 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
   '웹사이트': {
     type: '웹사이트',
@@ -95,13 +110,23 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['콘텐츠 준비 지연으로 전체 딜레이', 'CMS 없이 정적으로만 제작', '호스팅 비용 미고려'],
     techTip: 'WordPress나 Next.js로 개발 기간 50% 이상 단축 가능.',
     commonRisk: '콘텐츠(텍스트, 이미지)는 발주사가 미리 준비해야 일정이 맞습니다.',
-    targetQuestions: ['이 웹사이트의 방문자는 주로 어떤 분들인가요?', '주요 목적은 무엇인가요?'],
-    targetQuickReplies: ['잠재 고객', '기존 고객', '투자자/파트너', '일반 대중'],
-    featureQuickReplies: ['콘텐츠 관리(CMS)', '문의 폼', '블로그', '포트폴리오', '뉴스/공지사항', 'FAQ'],
     insightEmoji: '🏠',
     marketInsight: '웹사이트는 성공률이 85%로 가장 높습니다. 명확한 목적만 있으면 실패가 적어요.',
     mvpScope: '메인 + 소개 + 서비스 + 문의 페이지',
     competitorExample: '잘 만든 브랜드 사이트 하나가 영업사원 10명 역할',
+    // 웹사이트는 간소한 플로우 (5개 질문이면 충분)
+    topicPriority: ['overview', 'coreFeatures', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['웹사이트의 주요 목적은 무엇인가요? (브랜딩/리드 수집/정보 제공)'],
+      targetUsers: [], coreFeatures: ['콘텐츠를 직접 수정할 수 있어야 하나요? (CMS 필요 여부)'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['잠재 고객', '기존 고객', '투자자/파트너', '일반 대중'],
+      coreFeatures: ['콘텐츠 관리(CMS)', '문의 폼', '블로그', '포트폴리오', '뉴스/공지사항', 'FAQ'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹사이트(반응형)', '아직 미정이에요'],
+      budgetTimeline: ['500~1,000만원', '1,000~2,000만원', '2,000만원 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
   '이커머스': {
     type: '이커머스',
@@ -113,13 +138,23 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['재고 관리 복잡도 과소평가', 'PG 심사 기간(2~3주) 미반영', '정산 시스템 후순위 처리'],
     techTip: 'PG 연동(토스페이먼츠)은 심사에 2~3주 소요. 초기 설계에 반드시 포함.',
     commonRisk: '교환/환불 프로세스와 정산 시스템이 가장 복잡한 부분.',
-    targetQuestions: ['어떤 상품/서비스를 판매하시나요?', '구매자가 주로 어떤 경로로 상품을 찾게 될까요?'],
-    targetQuickReplies: ['20~40대 온라인 쇼핑 이용자', 'B2B 도매/기업 구매자', '특정 취미/관심사 커뮤니티', '전 연령 일반 소비자'],
-    featureQuickReplies: ['장바구니/결제', '상품 관리', '주문/배송 추적', '리뷰/평점', '쿠폰/포인트', '검색/필터'],
     insightEmoji: '🛒',
     marketInsight: '이커머스는 PG+정산+교환환불이 개발의 60%를 차지합니다.',
     mvpScope: '상품 등록 + 장바구니 + 결제 + 주문 관리',
-    competitorExample: '무신사, 마켓컬리, 크림 등 버티컬 커머스가 성공 모델',
+    competitorExample: '무신사, 마켓컬리, 크림',
+    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['어떤 상품/서비스를 판매하시나요?', '결제 후 배송이 필요한 실물 상품인가요, 디지털 상품인가요?'],
+      targetUsers: ['구매자가 주로 어떤 경로로 상품을 찾게 될까요?'],
+      coreFeatures: ['교환/환불 프로세스가 필요한가요?', '판매자 정산 기능이 필요한가요?'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['20~40대 온라인 쇼핑 이용자', 'B2B 도매/기업 구매자', '특정 취미/관심사 커뮤니티', '전 연령 일반 소비자'],
+      coreFeatures: ['장바구니/결제', '상품 관리', '주문/배송 추적', '리뷰/평점', '쿠폰/포인트', '검색/필터'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹 서비스', '모바일 앱', '웹 + 앱 둘 다', '아직 미정이에요'],
+      budgetTimeline: ['3,000~5,000만원', '5,000~8,000만원', '1억 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
   '플랫폼': {
     type: '플랫폼',
@@ -131,13 +166,23 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['"닭과 달걀" 문제 해결 전략 부재', '정산 시스템 후순위', '공급자/수요자 UX 미분리'],
     techTip: '양면 마켓플레이스는 초기에 한쪽에 집중하는 것이 성공률이 높습니다.',
     commonRisk: '양면 시장의 "닭과 달걀" 문제 해결 전략이 필수.',
-    targetQuestions: ['공급자와 수요자 각각 어떤 분들인가요?', '초기에 어느 쪽을 먼저 모을 계획인가요?'],
-    targetQuickReplies: ['전문가 ↔ 일반 소비자', '기업 ↔ 프리랜서', '판매자 ↔ 구매자', '서비스 제공자 ↔ 이용자'],
-    featureQuickReplies: ['매칭/검색', '채팅/메시지', '결제/정산', '리뷰/평가', '프로필/포트폴리오', '관리자 대시보드'],
     insightEmoji: '🔗',
     marketInsight: '플랫폼 성공의 핵심은 기술이 아니라 초기 사용자 확보 전략입니다.',
     mvpScope: '한쪽 사용자 + 매칭 + 채팅 (결제는 2차)',
-    competitorExample: '위시켓, 크몽, 숨고 등 한국형 플랫폼 성공 모델',
+    competitorExample: '위시켓, 크몽, 숨고',
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['공급자와 수요자 각각 어떤 분들인가요?', '초기에 어느 쪽을 먼저 모을 계획인가요?'],
+      targetUsers: ['공급자와 수요자 중 어느 쪽의 가입 절차가 더 복잡한가요?'],
+      coreFeatures: ['매칭 방식은 어떤 걸 원하시나요? (검색 기반 / 추천 기반 / 입찰 기반)'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['전문가 ↔ 일반 소비자', '기업 ↔ 프리랜서', '판매자 ↔ 구매자', '서비스 제공자 ↔ 이용자'],
+      coreFeatures: ['매칭/검색', '채팅/메시지', '결제/정산', '리뷰/평가', '프로필/포트폴리오', '관리자 대시보드'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹 서비스', '모바일 앱', '웹 + 앱 둘 다', '아직 미정이에요'],
+      budgetTimeline: ['3,000~5,000만원', '5,000만~1억', '1억 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
   'SaaS': {
     type: 'SaaS',
@@ -149,67 +194,23 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['요금 체계를 너무 복잡하게 설계', '온보딩 미설계', '멀티테넌시 보안 미고려'],
     techTip: '초기에는 단일 요금제 → PMF 검증 후 세분화. Stripe/토스페이먼츠 추천.',
     commonRisk: 'SaaS는 지속 운영이 핵심. 유지보수 계약을 사전에 반드시 협의.',
-    targetQuestions: ['사용할 기업/팀의 규모는 어느 정도인가요?', '구매 의사결정자와 실사용자가 다른가요?'],
-    targetQuickReplies: ['스타트업/소규모 팀', '중견기업', '대기업', '1인 기업/프리랜서'],
-    featureQuickReplies: ['대시보드/분석', '팀 관리/권한', '구독 결제', 'API 연동', '데이터 내보내기', '알림/리포트'],
     insightEmoji: '☁️',
     marketInsight: 'SaaS는 MRR(월간 반복 매출) 구조가 핵심. 첫 100명 유료 고객이 PMF 지표.',
     mvpScope: '핵심 기능 1개 + 구독 결제 + 온보딩',
-    competitorExample: '채널톡, 토스페이먼츠, 리멤버 등 한국 SaaS 성공 사례',
-  },
-  '매칭 플랫폼': {
-    type: '매칭 플랫폼',
-    avgBudget: '4,000~1억',
-    avgDuration: '8~14주',
-    successRate: '55%',
-    keyFeatures: ['프로필/포트폴리오', '매칭 알고리즘', '채팅', '결제/정산'],
-    mustHaveFeatures: ['프로필 시스템', '검색/필터', '1:1 채팅', '결제/정산'],
-    commonMistakes: ['초기에 알고리즘보다 수동 큐레이션이 효과적', '초기 사용자 확보 전략 부재', '리뷰/신뢰 시스템 후순위'],
-    techTip: '초기 매칭은 수동 큐레이션 → 데이터 축적 후 알고리즘 전환이 리스크가 낮습니다.',
-    commonRisk: '초기 사용자 확보 전략(공급자 vs 수요자 먼저)을 명확히 해야 합니다.',
-    targetQuestions: ['매칭되는 양쪽은 각각 어떤 분들인가요?', '매칭 기준은 무엇인가요?'],
-    targetQuickReplies: ['전문가 ↔ 고객', '구직자 ↔ 기업', '튜터 ↔ 학생', '서비스 제공자 ↔ 이용자'],
-    featureQuickReplies: ['프로필/포트폴리오', '매칭 검색', '채팅/메시지', '결제/정산', '리뷰/평가', '알림'],
-    insightEmoji: '🤝',
-    marketInsight: '매칭 플랫폼은 "양쪽 다 만족"이 핵심. 한쪽에 먼저 집중하세요.',
-    mvpScope: '프로필 + 검색 + 채팅 (결제는 오프라인 선처리)',
-    competitorExample: '크몽, 숨고, 탈잉 등이 초기 수동 매칭으로 시작해 성장',
-  },
-  '헬스케어': {
-    type: '헬스케어',
-    avgBudget: '4,000~1억',
-    avgDuration: '10~16주',
-    successRate: '60%',
-    keyFeatures: ['건강 데이터 관리', '전문가 연결', '알림/리마인더'],
-    mustHaveFeatures: ['개인정보보호(민감정보)', '데이터 암호화', '접근 권한 관리'],
-    commonMistakes: ['의료법/개인정보보호법 미검토', '데이터 보안 부족', '규제 승인 기간 미고려'],
-    techTip: '개인정보보호법과 의료법을 초기 설계에 반드시 반영해야 합니다.',
-    commonRisk: '의료 데이터 규제(PIPA)로 서버 위치와 암호화 수준이 법적 요구사항.',
-    targetQuestions: ['서비스 이용자가 환자인가요, 의료 전문가인가요, 양쪽 모두인가요?'],
-    targetQuickReplies: ['일반인/환자', '의료 전문가', '보호자/가족', '기업(임직원 건강관리)'],
-    featureQuickReplies: ['건강 데이터 기록', '전문가 상담', '알림/리마인더', '예약', '기기 연동', '리포트/분석'],
-    insightEmoji: '🏥',
-    marketInsight: '헬스케어는 규제 대응이 개발비의 30%를 차지할 수 있습니다.',
-    mvpScope: '핵심 건강 기능 + 보안 인프라 (규제 먼저 확인)',
-    competitorExample: '닥터나우, 굿닥, 눔 등이 규제 내에서 혁신 중',
-  },
-  '핀테크': {
-    type: '핀테크',
-    avgBudget: '5,000만~2억',
-    avgDuration: '12~20주',
-    successRate: '52%',
-    keyFeatures: ['본인인증(KYC)', '계좌 연동', '거래 내역', '보안'],
-    mustHaveFeatures: ['본인인증(KYC)', '금융보안(2FA)', '거래 로깅', '금융위 인허가'],
-    commonMistakes: ['금융 규제 비용 과소평가', '보안 감사 비용 미반영', '인허가(3~6개월) 미고려'],
-    techTip: '금융위 인허가, 전자금융업 등록 등 규제 요건을 개발 전에 반드시 확인.',
-    commonRisk: '금융 규제 준수 비용이 초기 예상의 30~50% 추가될 수 있습니다.',
-    targetQuestions: ['금융 서비스의 구체적 유형은 무엇인가요?', '기존 금융 인허가를 보유하고 계신가요?'],
-    targetQuickReplies: ['일반 소비자', '투자자', '소상공인/자영업자', '기업 재무팀'],
-    featureQuickReplies: ['본인인증(KYC)', '결제/송금', '계좌 연동', '거래 내역/리포트', '보안(2FA)', '자산 관리'],
-    insightEmoji: '💰',
-    marketInsight: '핀테크는 기술보다 규제 대응이 프로젝트 성패를 좌우합니다.',
-    mvpScope: '핵심 금융 기능 1개 + KYC + 보안 (인허가 병행)',
-    competitorExample: '토스, 뱅크샐러드, 카카오페이 등이 규제를 돌파한 사례',
+    competitorExample: '채널톡, 토스페이먼츠, 리멤버',
+    topicPriority: ['overview', 'targetUsers', 'coreFeatures', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['사용할 기업/팀의 규모는 어느 정도인가요?', '구매 의사결정자와 실사용자가 다른가요?'],
+      targetUsers: ['유료 전환 핵심 트리거가 무엇이라 생각하세요?'],
+      coreFeatures: ['팀 협업 기능이 필요한가요?', '외부 서비스 연동(API)이 필요한가요?'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['스타트업/소규모 팀', '중견기업', '대기업', '1인 기업/프리랜서'],
+      coreFeatures: ['대시보드/분석', '팀 관리/권한', '구독 결제', 'API 연동', '데이터 내보내기', '알림/리포트'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹 서비스', '웹 + 앱 둘 다', '아직 미정이에요'],
+      budgetTimeline: ['3,000~5,000만원', '5,000~8,000만원', '1억 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
   'AI 서비스': {
     type: 'AI 기반 서비스',
@@ -221,67 +222,50 @@ const PROJECT_TYPES: Record<string, ProjectTypeInfo> = {
     commonMistakes: ['AI 정확도 기대치 미설정', 'API 비용 과소평가', '응답 속도 미고려'],
     techTip: 'AI 모델 직접 개발보다 API(OpenAI, Claude) 활용이 초기 비용 80%+ 절감.',
     commonRisk: 'AI API 비용이 사용량 비례하므로 비용 관리 전략 필수.',
-    targetQuestions: ['AI가 해결해야 할 핵심 문제는 무엇인가요?'],
-    targetQuickReplies: ['일반 소비자', '전문가/전문직', '기업 직원', '콘텐츠 크리에이터'],
-    featureQuickReplies: ['AI 챗봇/대화', '이미지 생성/분석', '문서 자동 생성', '데이터 분석', '추천 시스템', '음성 인식'],
     insightEmoji: '🤖',
     marketInsight: '2025년 AI 서비스 핵심은 "AI 래퍼" — 기존 API 위에 UX를 입히는 것.',
     mvpScope: 'AI 핵심 기능 1개 + 결과 화면 + 사용량 제한',
-    competitorExample: '뤼튼, 스켈터랩스, 업스테이지 등이 API 기반으로 빠르게 성장',
+    competitorExample: '뤼튼, 스켈터랩스, 업스테이지',
+    topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'techRequirements', 'budgetTimeline', 'referenceServices', 'additionalRequirements'],
+    deepDiveQuestions: {
+      overview: ['AI가 해결해야 할 핵심 문제는 무엇인가요?', '기존에 이 문제를 어떻게 해결하고 있었나요?'],
+      targetUsers: ['사용자가 AI 결과물을 얼마나 신뢰해야 하나요? (참고용 vs 의사결정용)'],
+      coreFeatures: ['AI 정확도 목표치가 있나요?', 'AI 응답 시간 요구사항은?'],
+      referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
+    },
+    quickRepliesMap: {
+      overview: [], targetUsers: ['일반 소비자', '전문가/전문직', '기업 직원', '콘텐츠 크리에이터'],
+      coreFeatures: ['AI 챗봇/대화', '이미지 생성/분석', '문서 자동 생성', '데이터 분석', '추천 시스템', '음성 인식'],
+      referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹 서비스', '모바일 앱', '웹 + 앱 둘 다', '아직 미정이에요'],
+      budgetTimeline: ['3,000~5,000만원', '5,000만~1억', '1억 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
+    },
   },
-  '예약 서비스': {
-    type: '예약 서비스',
-    avgBudget: '2,000~5,000만원',
-    avgDuration: '6~10주',
-    successRate: '72%',
-    keyFeatures: ['일정 관리', '예약/취소', '알림', '결제'],
-    mustHaveFeatures: ['캘린더 UI', '예약 확인/취소', '알림(SMS/푸시)', '동시 예약 방지'],
-    commonMistakes: ['시간대 처리 미고려', '동시 예약(race condition) 미방지', '취소/환불 정책 미설계'],
-    techTip: '캘린더 UI가 UX의 80%를 좌우. 검증된 캘린더 라이브러리가 핵심.',
-    commonRisk: '동시 예약 방지는 반드시 서버 단에서 처리해야 합니다.',
-    targetQuestions: ['어떤 종류의 예약인가요?', '예약 관리자와 예약자 중 어디에 먼저 집중하시나요?'],
-    targetQuickReplies: ['일반 소비자/고객', '매장/사업자', '전문가(의사/트레이너 등)', '기업 관리자'],
-    featureQuickReplies: ['캘린더/일정', '예약/취소', '결제', '알림/리마인더', '리뷰/평가', '관리자 대시보드'],
-    insightEmoji: '📅',
-    marketInsight: '예약 서비스는 "노쇼 방지"가 비즈니스 성패를 좌우합니다.',
-    mvpScope: '캘린더 + 예약/취소 + 알림',
-    competitorExample: '네이버 예약, 테이블링, 카카오 예약 등이 시장을 장악',
+};
+
+// 간소한 프로젝트 유형 (상세 데이터 없는 유형용 기본값)
+const DEFAULT_PROJECT_TYPE: ProjectTypeInfo = {
+  type: '소프트웨어 서비스',
+  avgBudget: '2,000~5,000만원',
+  avgDuration: '6~12주',
+  successRate: '70%',
+  keyFeatures: ['핵심 비즈니스 로직', '사용자 인증', '데이터 관리'],
+  mustHaveFeatures: ['사용자 인증', '핵심 기능', '데이터 백업'],
+  commonMistakes: ['요구사항 변경이 가장 흔한 지연 원인', 'MVP 범위 과다 설정', '테스트 기간 부족'],
+  techTip: '첫 MVP는 핵심 기능 3개 이내로 제한하는 것이 성공 확률이 가장 높습니다.',
+  commonRisk: '스코프 크리프(요구사항 계속 추가)가 가장 흔한 프로젝트 실패 원인.',
+  insightEmoji: '⚙️',
+  marketInsight: '소프트웨어 서비스 성공의 80%는 명확한 범위 정의에서 결정됩니다.',
+  mvpScope: '핵심 기능 3개 이내 + 인증 + 기본 관리',
+  competitorExample: '명확한 문제 해결에 집중한 서비스가 성공률이 높습니다',
+  topicPriority: ['overview', 'coreFeatures', 'targetUsers', 'budgetTimeline', 'techRequirements', 'referenceServices', 'additionalRequirements'],
+  deepDiveQuestions: {
+    overview: [], targetUsers: [], coreFeatures: [], referenceServices: [], techRequirements: [], budgetTimeline: [], additionalRequirements: [],
   },
-  '에듀테크': {
-    type: '에듀테크',
-    avgBudget: '3,000~7,000만원',
-    avgDuration: '8~14주',
-    successRate: '65%',
-    keyFeatures: ['강의 관리', '학습 진도 추적', '퀴즈/평가'],
-    mustHaveFeatures: ['동영상 스트리밍', '학습 대시보드', '퀴즈/테스트', '수료증'],
-    commonMistakes: ['동영상 호스팅 비용 과소평가', '콘텐츠 DRM 미고려', '오프라인 학습 미지원'],
-    techTip: '동영상 스트리밍은 클라우드 서비스로 인프라 비용 절감 가능.',
-    commonRisk: '동영상 호스팅/CDN 비용이 예상보다 높을 수 있으니 사전 산정 필수.',
-    targetQuestions: ['학습 대상은 누구인가요?', '학습 방식은 어떤 형태인가요?'],
-    targetQuickReplies: ['학생(초중고)', '대학생/취준생', '직장인/전문가', '시니어/평생교육'],
-    featureQuickReplies: ['강의 콘텐츠 관리', '학습 진도 추적', '퀴즈/평가', '수료증 발급', '결제/구독', '커뮤니티/Q&A'],
-    insightEmoji: '📚',
-    marketInsight: '에듀테크 핵심은 "완강률". 학습자 이탈 방지 UX가 가장 중요합니다.',
-    mvpScope: '강의 업로드 + 수강 + 진도 추적',
-    competitorExample: '클래스101, 인프런, 패스트캠퍼스 등이 각자 영역에서 성장',
-  },
-  '소프트웨어 서비스': {
-    type: '소프트웨어 서비스',
-    avgBudget: '2,000~5,000만원',
-    avgDuration: '6~12주',
-    successRate: '70%',
-    keyFeatures: ['핵심 비즈니스 로직', '사용자 인증', '데이터 관리'],
-    mustHaveFeatures: ['사용자 인증', '핵심 기능', '데이터 백업'],
-    commonMistakes: ['요구사항 변경이 가장 흔한 지연 원인', 'MVP 범위 과다 설정', '테스트 기간 부족'],
-    techTip: '첫 MVP는 핵심 기능 3개 이내로 제한하는 것이 성공 확률이 가장 높습니다.',
-    commonRisk: '스코프 크리프(요구사항 계속 추가)가 가장 흔한 프로젝트 실패 원인.',
-    targetQuestions: ['이 서비스를 주로 사용하는 분들은 누구인가요?'],
-    targetQuickReplies: ['일반 소비자', '기업 고객(B2B)', '내부 직원용', '특정 전문가 그룹'],
-    featureQuickReplies: ['회원가입/로그인', '대시보드', '검색/필터', '결제', '알림', '관리자 패널'],
-    insightEmoji: '⚙️',
-    marketInsight: '소프트웨어 서비스 성공의 80%는 명확한 범위 정의에서 결정됩니다.',
-    mvpScope: '핵심 기능 3개 이내 + 인증 + 기본 관리',
-    competitorExample: '명확한 문제 해결에 집중한 서비스가 성공률이 높습니다',
+  quickRepliesMap: {
+    overview: [], targetUsers: ['일반 소비자', '기업 고객(B2B)', '내부 직원용', '특정 전문가 그룹'],
+    coreFeatures: ['회원가입/로그인', '대시보드', '검색/필터', '결제', '알림', '관리자 패널'],
+    referenceServices: ['건너뛰기', '직접 입력할게요'], techRequirements: ['웹 서비스', '모바일 앱', '웹 + 앱 둘 다', '아직 미정이에요'],
+    budgetTimeline: ['1,000~3,000만원', '3,000~5,000만원', '5,000만원 이상', '아직 미정'], additionalRequirements: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
   },
 };
 
@@ -308,7 +292,7 @@ const FEATURE_DB: Record<string, { desc: string; complexity: string; weeks: stri
 };
 
 // ═══════════════════════════════════════════════════════
-//  프로젝트 유형 감지
+//  프로젝트 유형 감지 (기존 유지)
 // ═══════════════════════════════════════════════════════
 function detectProjectType(text: string): { projectType: string; typeInfo: ProjectTypeInfo; confidence: string } {
   const t = text.trim().toLowerCase();
@@ -319,86 +303,201 @@ function detectProjectType(text: string): { projectType: string; typeInfo: Proje
     ['쇼핑몰', '이커머스', 5], ['커머스', '이커머스', 5], ['쇼핑', '이커머스', 4], ['판매', '이커머스', 3], ['상품', '이커머스', 3],
     ['플랫폼', '플랫폼', 3], ['마켓플레이스', '플랫폼', 5], ['중개', '플랫폼', 3],
     ['saas', 'SaaS', 5], ['구독', 'SaaS', 3], ['b2b', 'SaaS', 3], ['대시보드', 'SaaS', 2],
-    ['매칭', '매칭 플랫폼', 5], ['연결', '매칭 플랫폼', 2],
-    ['예약', '예약 서비스', 5], ['부킹', '예약 서비스', 5],
-    ['교육', '에듀테크', 4], ['학습', '에듀테크', 4], ['강의', '에듀테크', 5], ['lms', '에듀테크', 5],
-    ['헬스', '헬스케어', 4], ['건강', '헬스케어', 3], ['의료', '헬스케어', 5], ['병원', '헬스케어', 4],
-    ['금융', '핀테크', 4], ['핀테크', '핀테크', 5], ['투자', '핀테크', 3], ['결제', '핀테크', 2],
+    ['매칭', '플랫폼', 5], ['연결', '플랫폼', 2],
+    ['예약', '웹 서비스', 3], ['부킹', '웹 서비스', 3],
+    ['교육', '웹 서비스', 3], ['학습', '웹 서비스', 3], ['강의', '웹 서비스', 4],
+    ['헬스', '웹 서비스', 3], ['건강', '웹 서비스', 2], ['의료', '웹 서비스', 4],
+    ['금융', '웹 서비스', 3], ['핀테크', '웹 서비스', 4], ['투자', '웹 서비스', 2],
     ['ai', 'AI 서비스', 4], ['챗봇', 'AI 서비스', 5], ['인공지능', 'AI 서비스', 5], ['gpt', 'AI 서비스', 5],
   ];
 
   const scores: Record<string, number> = {};
   for (const [key, val, weight] of keywords) {
-    if (t.includes(key)) {
-      scores[val] = (scores[val] || 0) + weight;
-    }
+    if (t.includes(key)) scores[val] = (scores[val] || 0) + weight;
   }
 
   let projectType = '소프트웨어 서비스';
   let maxScore = 0;
   for (const [type, score] of Object.entries(scores)) {
-    if (score > maxScore) {
-      maxScore = score;
-      projectType = type;
-    }
+    if (score > maxScore) { maxScore = score; projectType = type; }
   }
 
   const confidence = maxScore >= 5 ? '높음' : maxScore >= 3 ? '중간' : '낮음';
-  const typeInfo = PROJECT_TYPES[projectType] || PROJECT_TYPES['소프트웨어 서비스'];
+  const typeInfo = PROJECT_TYPES[projectType] || DEFAULT_PROJECT_TYPE;
 
   return { projectType, typeInfo, confidence };
 }
 
 // ═══════════════════════════════════════════════════════
-//  기능 파싱 + 자동 보강
+//  기능 파싱 (기존 유지)
 // ═══════════════════════════════════════════════════════
-function parseFeatures(text: string, _projectType?: string): { name: string; description: string; priority: string }[] {
+function parseFeatures(text: string): { name: string; description: string; priority: 'P1' | 'P2' | 'P3' }[] {
   let items = text.split(/[\n]/).map(s => s.trim()).filter(Boolean);
-  if (items.length === 1) {
-    items = text.split(/[,，/·•\-]/).map(s => s.trim()).filter(s => s.length > 1);
-  }
+  if (items.length === 1) items = text.split(/[,，/·•\-]/).map(s => s.trim()).filter(s => s.length > 1);
   items = items.map(s => s.replace(/^[\d①②③④⑤⑥⑦⑧⑨⑩]+[\.\)]\s*/, '').trim());
 
   return items.slice(0, 10).map((raw, i) => {
     const name = raw.length > 50 ? raw.slice(0, 50) : raw;
-    let matchedFeature: typeof FEATURE_DB[string] | null = null;
-
+    let matchedFeature: (typeof FEATURE_DB)[string] | null = null;
     for (const [keyword, info] of Object.entries(FEATURE_DB)) {
-      if (raw.includes(keyword)) {
-        matchedFeature = info;
-        break;
-      }
+      if (raw.includes(keyword)) { matchedFeature = info; break; }
     }
-
     const description = matchedFeature
       ? `${matchedFeature.desc} [${matchedFeature.complexity} | ${matchedFeature.weeks}]`
       : `${raw} — 상세 요구사항은 개발사와 협의 필요 [★★★☆☆ | 1~2주(추정)]`;
-
-    return {
-      name,
-      description,
-      priority: i < 2 ? 'P1' : i < 4 ? 'P2' : 'P3',
-    };
+    return { name, description, priority: i < 2 ? 'P1' : i < 4 ? 'P2' : 'P3' };
   });
 }
 
 // ═══════════════════════════════════════════════════════
-//  전역 상태
+//  전역 대화 상태
 // ═══════════════════════════════════════════════════════
 let detectedType: ProjectTypeInfo | null = null;
 let detectedProjectType: string = '';
 let previousAnswers: Record<number, string> = {};
+let followUpCount: Record<number, number> = {};
 
 // ═══════════════════════════════════════════════════════
-//  자연스러운 전문가 피드백 v7
-//  핵심: 짧고 임팩트 → 데이터 근거 → 실행 가능한 조언
+//  🆕 동적 다음 토픽 결정 엔진
+//  rfpData를 분석하여 가장 가치 있는 다음 질문을 결정
 // ═══════════════════════════════════════════════════════
-function getExpertFeedback(step: number, answer: string): { message: string; quickReplies?: string[]; thinkingLabel?: string } {
+function determineNextTopic(rfpData: RFPData, currentTopicStep: number): number | null {
+  const ti = detectedType || DEFAULT_PROJECT_TYPE;
+  const covered = getTopicsCovered(rfpData);
+
+  // 완료 가능 여부 체크
+  if (isReadyToComplete(rfpData) && covered.length >= 5) {
+    return null; // 완료 제안
+  }
+
+  // 프로젝트 유형별 우선순위에 따라 다음 토픽 선택
+  const topicOrder = ti.topicPriority;
+
+  for (const topicId of topicOrder) {
+    if (!covered.includes(topicId)) {
+      return TOPIC_TO_STEP[topicId];
+    }
+  }
+
+  // 모든 토픽이 커버되면 완료
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  🆕 맥락 기반 동적 질문 생성
+//  이전 답변을 참조하여 맞춤형 질문 생성
+// ═══════════════════════════════════════════════════════
+function generateContextualQuestion(topicStep: number, rfpData: RFPData): { question: string; quickReplies?: string[] } {
+  const ti = detectedType || DEFAULT_PROJECT_TYPE;
+  const topicId = STEP_TO_TOPIC[topicStep];
+  const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 20) : '프로젝트';
+
+  switch (topicId) {
+    case 'targetUsers': {
+      // 프로젝트 유형에 따라 완전히 다른 질문
+      if (detectedProjectType === '플랫폼') {
+        return {
+          question: `**${projectName}** 플랫폼에서 매칭되는 양쪽 사용자는 각각 누구인가요?\n\n예: "프리랜서 개발자 ↔ IT 외주를 원하는 기업"\n\n💡 플랫폼은 양쪽 사용자를 명확히 구분해야 UX 설계가 정확해집니다.`,
+          quickReplies: ti.quickRepliesMap.targetUsers,
+        };
+      } else if (detectedProjectType === '이커머스') {
+        return {
+          question: `**${projectName}** 쇼핑몰의 주 구매자는 어떤 분들인가요?\n\n연령대, 성별, 구매 습관 등을 알려주시면 UI/UX 방향을 잡을 수 있어요.\n\n💡 이커머스에서 타겟을 잘 정의하면 전환율이 평균 35% 높아집니다.`,
+          quickReplies: ti.quickRepliesMap.targetUsers,
+        };
+      } else if (detectedProjectType === 'SaaS') {
+        return {
+          question: `**${projectName}**을(를) 사용할 기업의 규모와 사용자는 어떤 분들인가요?\n\n구매 의사결정자(CTO, 팀장 등)와 실사용자가 다른 경우 둘 다 알려주세요.\n\n💡 SaaS는 구매자 ≠ 사용자인 경우가 많아, 양쪽 니즈를 모두 고려해야 합니다.`,
+          quickReplies: ti.quickRepliesMap.targetUsers,
+        };
+      } else if (detectedProjectType === 'AI 서비스') {
+        return {
+          question: `**${projectName}**의 사용자는 AI에 얼마나 익숙한 분들인가요?\n\n"AI 전문가" vs "일반인"에 따라 UI 복잡도가 크게 달라집니다.\n\n💡 AI 서비스는 "결과 신뢰도 표시" 유무가 사용자 만족도를 좌우합니다.`,
+          quickReplies: ti.quickRepliesMap.targetUsers,
+        };
+      }
+      return {
+        question: `**${projectName}**을(를) 주로 누가 사용하게 될까요?\n\n연령대, 직업, 기술 수준 등을 알려주시면 최적의 UI/UX를 추천해드릴게요.\n\n💡 위시켓 데이터: 타겟을 명확히 정의한 프로젝트는 견적 정확도가 30%+ 높아집니다.`,
+        quickReplies: ti.quickRepliesMap.targetUsers,
+      };
+    }
+
+    case 'coreFeatures': {
+      const hint = `\n💡 이 유형 추천 기능: ${ti.keyFeatures.join(', ')}`;
+      // 이전에 언급된 키워드 기반 추천
+      const overviewText = rfpData.overview?.toLowerCase() || '';
+      let contextHint = '';
+      if (overviewText.includes('배달') || overviewText.includes('음식')) {
+        contextHint = '\n\n📌 배달/음식 서비스라면: 주문 접수, 실시간 추적, 리뷰가 핵심입니다.';
+      } else if (overviewText.includes('교육') || overviewText.includes('강의')) {
+        contextHint = '\n\n📌 교육 서비스라면: 강의 관리, 진도 추적, 퀴즈/평가가 핵심입니다.';
+      } else if (overviewText.includes('예약')) {
+        contextHint = '\n\n📌 예약 서비스라면: 캘린더, 실시간 가용성, 알림이 핵심입니다.';
+      }
+
+      return {
+        question: `**${projectName}**의 가장 중요한 핵심 기능을 알려주세요. (3~5개 추천)${hint}${contextHint}\n\n여러 개를 한 번에 나열하셔도 되고, 하나씩 말씀해주셔도 됩니다.`,
+        quickReplies: ti.quickRepliesMap.coreFeatures,
+      };
+    }
+
+    case 'referenceServices': {
+      const typeExample = ti.competitorExample;
+      return {
+        question: `비슷하게 만들고 싶은 서비스가 있나요?\n\n예시: "${typeExample}" 등\n"이 서비스의 **이 부분처럼**" 식으로 말씀해주시면 개발사가 정확히 이해합니다.\n\n💡 참고 서비스를 알려주시면 견적 정확도가 40%+ 높아집니다.`,
+        quickReplies: ti.quickRepliesMap.referenceServices,
+      };
+    }
+
+    case 'techRequirements': {
+      const rec = (detectedProjectType === '모바일 앱')
+        ? '\n💡 모바일 앱이시라면 크로스플랫폼(Flutter/RN)으로 비용 30~40% 절감 가능합니다.'
+        : (detectedProjectType === '웹사이트' || detectedProjectType === '웹 서비스' || detectedProjectType === 'SaaS')
+        ? '\n💡 웹 서비스라면 Next.js가 SEO·성능·생산성 모두 우수합니다.'
+        : '';
+      return {
+        question: `**${projectName}**을(를) 웹으로 만들까요, 앱으로 만들까요?${rec}\n\n특별한 기술 선호가 없으시면 "개발사 추천에 따름"도 좋은 선택입니다.`,
+        quickReplies: ti.quickRepliesMap.techRequirements,
+      };
+    }
+
+    case 'budgetTimeline': {
+      const budgetRef = `\n💡 참고: ${ti.type} 프로젝트 평균 ${ti.avgBudget}, ${ti.avgDuration}`;
+      // 기능 수에 따른 예산 힌트
+      const featureCount = rfpData.coreFeatures.length;
+      let featureHint = '';
+      if (featureCount > 5) {
+        featureHint = `\n\n📊 현재 ${featureCount}개 기능이 있어 평균보다 높은 예산이 필요할 수 있습니다.`;
+      }
+      return {
+        question: `예산 범위와 희망 완료 시점이 있으신가요?${budgetRef}${featureHint}\n\n대략적이어도 괜찮습니다. "아직 미정"이시면 위시켓에서 무료 견적 비교가 가능해요.`,
+        quickReplies: ti.quickRepliesMap.budgetTimeline,
+      };
+    }
+
+    case 'additionalRequirements': {
+      return {
+        question: `마지막으로, 개발사에 꼭 전달하고 싶은 사항이 있나요?\n\n💡 **꼭 확인하세요:**\n▸ 소스코드 소유권 → "발주사 귀속" 명시 (미명시 시 분쟁 소지)\n▸ 하자보수 → 최소 6개월 (위시켓 추천)\n▸ 디자인 포함 여부 → 별도 발주 vs 개발사 포함`,
+        quickReplies: ti.quickRepliesMap.additionalRequirements,
+      };
+    }
+
+    default:
+      return { question: '다음 단계를 진행해볼까요?' };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  🆕 맥락 인지 전문가 피드백 v8
+//  이전 모든 답변을 참조한 맞춤 인사이트
+// ═══════════════════════════════════════════════════════
+function getContextualFeedback(topicStep: number, answer: string, rfpData: RFPData): { message: string; quickReplies?: string[]; thinkingLabel?: string } {
   const a = answer.trim();
-  previousAnswers[step] = a;
+  previousAnswers[topicStep] = a;
+  const topicId = STEP_TO_TOPIC[topicStep];
 
-  switch (step) {
-    case 1: {
+  switch (topicId) {
+    case 'overview': {
       const { projectType, typeInfo, confidence } = detectProjectType(a);
       detectedType = typeInfo;
       detectedProjectType = projectType;
@@ -410,43 +509,39 @@ function getExpertFeedback(step: number, answer: string): { message: string; qui
         : `${typeInfo.insightEmoji} **${typeInfo.type}** 유형으로 분류했습니다.`;
 
       return {
-        message: `${confText}\n\n위시켓 7만+ 프로젝트 데이터 분석 결과:\n\n📊 **평균 예산** ${typeInfo.avgBudget} | **기간** ${typeInfo.avgDuration} | **성공률** ${typeInfo.successRate}\n\n💡 ${typeInfo.marketInsight}\n\n⚠️ **이 유형에서 가장 흔한 실수 Top 1:**\n${typeInfo.commonMistakes[0]}`,
+        message: `${confText}\n\n위시켓 7만+ 프로젝트 데이터 분석 결과:\n\n📊 **평균 예산** ${typeInfo.avgBudget} | **기간** ${typeInfo.avgDuration} | **성공률** ${typeInfo.successRate}\n\n💡 ${typeInfo.marketInsight}\n\n⚠️ **이 유형에서 가장 흔한 실수:**\n${typeInfo.commonMistakes[0]}`,
         thinkingLabel: '프로젝트 유형 분석 중...',
       };
     }
 
-    case 2: {
+    case 'targetUsers': {
       const isB2B = a.includes('기업') || a.includes('B2B') || a.includes('업무');
       const isSenior = a.includes('시니어') || a.includes('어르신') || a.includes('50') || a.includes('60');
       const isYoung = a.includes('10대') || a.includes('20대') || a.includes('MZ') || a.includes('학생');
+      const isPlatform = detectedProjectType === '플랫폼';
 
-      let uxKey = '';
       let uxAdvice = '';
-      if (isB2B) {
-        uxKey = 'B2B 고객';
+      if (isPlatform) {
+        uxAdvice = '플랫폼은 공급자/수요자 각각의 가입 플로우와 대시보드를 분리 설계해야 합니다. 한쪽에 먼저 집중하세요.';
+      } else if (isB2B) {
         uxAdvice = '관리자 대시보드 + 권한 관리 + 온보딩 가이드가 핵심입니다. 온보딩만 잘 만들어도 이탈률이 40% 줄어요.';
       } else if (isSenior) {
-        uxKey = '시니어';
-        uxAdvice = '큰 폰트(16px+), 넓은 터치 영역(48px+), 단순한 네비게이션이 필수입니다. 복잡한 제스처는 피하세요.';
+        uxAdvice = '큰 폰트(16px+), 넓은 터치 영역(48px+), 단순한 네비게이션이 필수입니다.';
       } else if (isYoung) {
-        uxKey = 'MZ세대';
         uxAdvice = '3초 안에 핵심 가치를 보여줘야 합니다. 다크모드 + 소셜 공유 + 세련된 UI가 리텐션을 결정해요.';
       } else {
-        uxKey = '일반 사용자';
-        uxAdvice = '첫 사용 시 3단계 이내에 핵심 가치를 경험하게 설계하세요. 직관적 네비게이션이 핵심입니다.';
+        uxAdvice = '첫 사용 시 3단계 이내에 핵심 가치를 경험하게 설계하세요.';
       }
 
-      // 이전 답변(프로젝트 유형) 참조
       const projectRef = detectedType ? ` ${detectedType.type}의` : '';
-
       return {
-        message: `좋습니다! **${uxKey}**를 타겟으로 하시는군요.\n\n💡${projectRef} ${uxKey} 대상 UX 핵심:\n${uxAdvice}\n\n📊 **위시켓 인사이트:** 타겟을 명확히 정의한 프로젝트는 견적 정확도가 30% 이상 높아집니다.`,
+        message: `💡${projectRef} 타겟 대상 UX 핵심:\n${uxAdvice}\n\n📊 **위시켓 인사이트:** 타겟을 명확히 정의한 프로젝트는 견적 정확도가 30% 이상 높아집니다.`,
         thinkingLabel: '타겟 사용자 분석 중...',
       };
     }
 
-    case 3: {
-      const features = parseFeatures(a, detectedProjectType);
+    case 'coreFeatures': {
+      const features = parseFeatures(a);
       const ti = detectedType;
 
       // 누락 기능 감지
@@ -469,41 +564,23 @@ function getExpertFeedback(step: number, answer: string): { message: string; qui
         for (const [keyword, info] of Object.entries(FEATURE_DB)) {
           if (f.name.includes(keyword)) {
             const wMatch = info.weeks.match(/(\d+)~(\d+)/);
-            if (wMatch) {
-              totalWeeksMin += parseInt(wMatch[1]);
-              totalWeeksMax += parseInt(wMatch[2]);
-            }
+            if (wMatch) { totalWeeksMin += parseInt(wMatch[1]); totalWeeksMax += parseInt(wMatch[2]); }
             break;
           }
         }
       });
 
-      // 컴팩트한 기능 분석
       const featureList = features.map(f => {
         let detail = '';
         for (const [keyword, info] of Object.entries(FEATURE_DB)) {
-          if (f.name.includes(keyword)) {
-            detail = ` (${info.complexity} ${info.weeks})`;
-            break;
-          }
+          if (f.name.includes(keyword)) { detail = ` (${info.complexity} ${info.weeks})`; break; }
         }
         return `**[${f.priority}]** ${f.name}${detail}`;
       }).join('\n');
 
-      let timeEstimate = '';
-      if (totalWeeksMin > 0) {
-        timeEstimate = `\n\n⏱️ **예상 개발 기간:** ${totalWeeksMin}~${totalWeeksMax}주 (전체 병렬 진행 시 60~70% 수준)`;
-      }
-
-      let mvpWarning = '';
-      if (features.length > 5) {
-        mvpWarning = `\n\n⚠️ ${features.length}개 기능은 MVP로 다소 많습니다. **P1 먼저 출시 → 피드백 → P2 추가**가 비용 40~60% 절감 전략입니다.`;
-      }
-
-      let missingText = '';
-      if (missingFeatures.length > 0) {
-        missingText = `\n\n🔍 **혹시 빠뜨리신 건 아닌가요?**\n이 유형에서 보통 필요한 기능: ${missingFeatures.slice(0, 3).join(', ')}`;
-      }
+      let timeEstimate = totalWeeksMin > 0 ? `\n\n⏱️ **예상 개발 기간:** ${totalWeeksMin}~${totalWeeksMax}주 (병렬 진행 시 60~70%)` : '';
+      let mvpWarning = features.length > 5 ? `\n\n⚠️ ${features.length}개 기능은 MVP로 다소 많습니다. **P1 먼저 출시 → 피드백 → P2 추가**가 비용 40~60% 절감 전략입니다.` : '';
+      let missingText = missingFeatures.length > 0 ? `\n\n🔍 **혹시 빠뜨리신 건 아닌가요?**\n이 유형에서 보통 필요한 기능: ${missingFeatures.slice(0, 3).join(', ')}` : '';
 
       return {
         message: `기능을 분석했습니다!\n\n${featureList}${timeEstimate}${mvpWarning}${missingText}`,
@@ -512,86 +589,71 @@ function getExpertFeedback(step: number, answer: string): { message: string; qui
       };
     }
 
-    case 4:
+    case 'referenceServices': {
       if (a === '건너뛰기' || a.length < 3) {
-        return {
-          message: '넘어갈게요! 괜찮습니다.\n\n💡 나중에 개발사 미팅 시 경쟁 서비스 2~3개를 조사해서 "이건 참고, 이건 다르게"를 공유하면 소통 시간이 50% 단축됩니다.',
-        };
+        return { message: '넘어갈게요!\n\n💡 나중에 개발사 미팅 시 경쟁 서비스 2~3개를 조사해서 공유하면 소통 시간이 50% 단축됩니다.' };
       }
       return {
         message: `좋은 벤치마크네요!\n\n💡 **견적 정확도 UP 공식:**\n"이 서비스의 **A기능처럼** + 우리는 **B를 다르게** + **C는 안 해도 됨**"\n\n이렇게 구조화하면 개발사가 훨씬 정확한 견적을 줍니다.`,
         thinkingLabel: '참고 서비스 분석 중...',
       };
+    }
 
-    case 5: {
-      const isApp = a.includes('앱') || a.includes('모바일') || a.includes('ios') || a.includes('안드로이드');
+    case 'techRequirements': {
+      const isApp = a.includes('앱') || a.includes('모바일');
       const isWeb = a.includes('웹') || a.includes('사이트');
-      const isBoth = a.includes('둘') || a.includes('다') || a.includes('모두') || (isApp && isWeb);
-      const isUndecided = a.includes('미정') || a.includes('모르');
+      const isBoth = (isApp && isWeb) || a.includes('둘') || a.includes('다');
 
       let advice = '';
       if (isBoth) {
-        advice = '**웹+앱 동시** 개발이시군요.\n\n📊 위시켓 데이터: **"웹 먼저 → 시장 검증 → 앱 확장"** 전략이 성공률 23% 높습니다.\n크로스플랫폼(Flutter/RN)으로 양쪽을 동시에 가면 비용 30~40% 절감도 가능합니다.';
+        advice = '**웹+앱 동시** 개발이시군요.\n\n📊 위시켓 데이터: **"웹 먼저 → 시장 검증 → 앱 확장"** 전략이 성공률 23% 높습니다.';
       } else if (isApp) {
-        advice = '**모바일 앱**이시군요.\n\n📊 2025년 기준 위시켓 크로스플랫폼 선택 비율 **67%** — Flutter가 가성비 최고입니다.\n네이티브 대비 비용 30~40% 절감, 성능은 95% 수준.';
+        advice = '**모바일 앱**이시군요.\n\n📊 2025년 위시켓 크로스플랫폼 선택 비율 **67%** — Flutter가 가성비 최고입니다.';
       } else if (isWeb) {
-        advice = '**웹 서비스**를 선택하셨군요.\n\n💡 Next.js(React 기반)가 SEO·성능·생산성 모두 우수합니다.\n나중에 앱이 필요하면 PWA로 저비용 전환 가능해요.';
-      } else if (isUndecided) {
-        const rec = (detectedProjectType === '모바일 앱' || detectedProjectType === '매칭 플랫폼')
-          ? '이 유형은 **모바일 앱(크로스플랫폼)**이 추천입니다.'
-          : '이 유형은 **웹 서비스(반응형)**를 먼저 개발하는 게 효율적입니다.';
-        advice = `아직 미정이시군요.\n\n💡 ${rec}\n\n특별한 기술 선호가 없다면 개발사 주력 스택을 존중하는 것이 품질 면에서 유리합니다.`;
+        advice = '**웹 서비스**를 선택하셨군요.\n\n💡 Next.js(React 기반)가 SEO·성능·생산성 모두 우수합니다.';
       } else {
-        advice = '확인했습니다!\n\n💡 특별한 기술 선호가 없다면 "기술 스택은 개발사 추천에 따름"으로 명시하면 더 다양한 견적을 받을 수 있습니다.';
+        advice = '💡 특별한 기술 선호가 없다면 "기술 스택은 개발사 추천에 따름"이 가장 다양한 견적을 받는 방법입니다.';
       }
-
-      return {
-        message: advice,
-        thinkingLabel: '기술 요구사항 분석 중...',
-      };
+      return { message: advice, thinkingLabel: '기술 요구사항 분석 중...' };
     }
 
-    case 6: {
+    case 'budgetTimeline': {
       const hasBudget = /\d/.test(a);
-      const isUndecided = a.includes('미정') || a.includes('모르') || a.includes('아직');
+      const isUndecided = a.includes('미정') || a.includes('모르');
       const ti = detectedType;
 
       if (!hasBudget || isUndecided) {
         return {
-          message: `예산 미정이시군요. 충분히 이해합니다!\n\n📊 **${ti?.type || '유사'} 프로젝트 참고** (위시켓 실거래 기준):\nMVP: **${ti?.avgBudget || '1,500~3,000만원'}** | 기간: **${ti?.avgDuration || '6~12주'}**\n\n💡 이 RFP로 **위시켓에서 무료로 5~8곳** 견적 비교가 가능합니다.\n\n⚠️ 예산의 **15~20% 여유분**은 반드시 확보하세요 — 변경 요청은 100% 발생합니다.`,
+          message: `예산 미정이시군요. 충분히 이해합니다!\n\n📊 **${ti?.type || '유사'} 프로젝트 참고** (위시켓 실거래 기준):\nMVP: **${ti?.avgBudget || '1,500~3,000만원'}** | 기간: **${ti?.avgDuration || '6~12주'}**\n\n💡 이 RFP로 **위시켓에서 무료로 5~8곳** 견적 비교가 가능합니다.`,
           thinkingLabel: '시장 가격 데이터 조회 중...',
         };
       }
 
-      // 예산 파싱
-      let budgetVal = 0;
-      const moneyMatch = a.match(/(\d{1,3}[,.]?\d{0,3})\s*만/);
-      if (moneyMatch) budgetVal = parseInt(moneyMatch[1].replace(/[,.]/g, '')) * 10000;
-      const okMatch = a.match(/(\d+)\s*억/);
-      if (okMatch) budgetVal = parseInt(okMatch[1]) * 100000000;
-
       let budgetFeedback = '';
-      if (ti && budgetVal > 0) {
-        const avgLow = parseInt(ti.avgBudget.replace(/[^0-9]/g, '').slice(0, 4)) * 10000;
-        if (budgetVal < avgLow * 0.7) {
-          budgetFeedback = `\n\n⚠️ 말씀하신 예산이 평균(${ti.avgBudget})보다 다소 낮습니다. MVP 범위를 최소화하거나 일부 기능을 2차로 미루는 걸 권장합니다.`;
-        } else {
-          budgetFeedback = `\n\n✅ 이 유형 평균(${ti.avgBudget})과 적절한 범위입니다.`;
+      if (ti) {
+        let budgetVal = 0;
+        const moneyMatch = a.match(/(\d{1,3}[,.]?\d{0,3})\s*만/);
+        if (moneyMatch) budgetVal = parseInt(moneyMatch[1].replace(/[,.]/g, '')) * 10000;
+        const okMatch = a.match(/(\d+)\s*억/);
+        if (okMatch) budgetVal = parseInt(okMatch[1]) * 100000000;
+
+        if (budgetVal > 0) {
+          const avgLow = parseInt(ti.avgBudget.replace(/[^0-9]/g, '').slice(0, 4)) * 10000;
+          budgetFeedback = budgetVal < avgLow * 0.7
+            ? `\n\n⚠️ 말씀하신 예산이 평균(${ti.avgBudget})보다 다소 낮습니다. MVP 범위를 최소화하는 걸 권장합니다.`
+            : `\n\n✅ 이 유형 평균(${ti.avgBudget})과 적절한 범위입니다.`;
         }
       }
 
       return {
-        message: `확인했습니다!${budgetFeedback}\n\n💡 **결제 추천 구조:** 착수금 30% → 중간 40% → 완료 30%\n마일스톤별 "구체적 산출물"을 반드시 계약서에 명시하세요.\n\n📊 **핵심 팁:** 가장 낮은 견적 ≠ 최선. **포트폴리오 + 소통 역량**이 더 중요합니다.`,
+        message: `확인했습니다!${budgetFeedback}\n\n💡 **결제 추천 구조:** 착수금 30% → 중간 40% → 완료 30%\n\n📊 **핵심 팁:** 가장 낮은 견적 ≠ 최선. **포트폴리오 + 소통 역량**이 더 중요합니다.`,
         thinkingLabel: '예산 적정성 분석 중...',
       };
     }
 
-    case 7: {
-      // 전체 여정 요약을 포함한 마무리
-      const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 20) : '프로젝트';
-
+    case 'additionalRequirements': {
       return {
-        message: `모든 정보가 수집되었습니다!\n\n📋 **"${projectName}" 계약 전 필수 체크:**\n▸ 소스코드 소유권: **발주사 귀속** 명시\n▸ 하자보수: **최소 6개월** (위시켓 추천)\n▸ 중간 검수권: 마일스톤별 검수 후 다음 단계\n▸ 추가 개발 단가: 사전 합의\n\n아래 버튼을 눌러 **전문 RFP**를 완성하세요!`,
+        message: `모든 정보가 수집되었습니다!\n\n📋 **계약 전 필수 체크:**\n▸ 소스코드 소유권: **발주사 귀속** 명시\n▸ 하자보수: **최소 6개월** (위시켓 추천)\n▸ 중간 검수권: 마일스톤별 검수 후 다음 단계\n▸ 추가 개발 단가: 사전 합의`,
         thinkingLabel: 'RFP 최종 검토 중...',
       };
     }
@@ -602,69 +664,7 @@ function getExpertFeedback(step: number, answer: string): { message: string; qui
 }
 
 // ═══════════════════════════════════════════════════════
-//  동적 다음 질문 (컨텍스트 인지)
-// ═══════════════════════════════════════════════════════
-function getDynamicNextQuestion(nextStep: number): { question: string; quickReplies?: string[] } {
-  const ti = detectedType;
-
-  switch (nextStep) {
-    case 2: {
-      const customQ = ti?.targetQuestions?.[0];
-      return {
-        question: customQ || '이 서비스를 주로 누가 사용하게 될까요?',
-        quickReplies: ti?.targetQuickReplies || ['20~30대 직장인', '전 연령 일반 사용자', 'B2B 기업 고객', '10~20대 학생'],
-      };
-    }
-
-    case 3: {
-      const hint = ti ? `\n💡 이 유형 추천 기능: ${ti.keyFeatures.join(', ')}` : '';
-      return {
-        question: `가장 중요한 핵심 기능을 알려주세요. (3~5개 추천)${hint}`,
-        quickReplies: ti?.featureQuickReplies || ['회원가입/로그인', '결제', '채팅', '검색/필터', '관리자 패널', '알림'],
-      };
-    }
-
-    case 4: {
-      return {
-        question: '비슷하게 만들고 싶은 서비스가 있나요?\n"이 서비스의 이 부분처럼" 식으로 말씀해주시면 완벽합니다.',
-        quickReplies: ['건너뛰기', '직접 입력할게요'],
-      };
-    }
-
-    case 5: {
-      const rec = (detectedProjectType === '모바일 앱' || detectedProjectType === '매칭 플랫폼')
-        ? '\n💡 이 유형은 모바일 앱이 일반적입니다.'
-        : (detectedProjectType === '웹사이트' || detectedProjectType === '웹 서비스' || detectedProjectType === 'SaaS')
-        ? '\n💡 이 유형은 웹 서비스가 효율적입니다.'
-        : '';
-      return {
-        question: `웹으로 만들까요, 앱으로 만들까요?${rec}`,
-        quickReplies: ['모바일 앱 (iOS/Android)', '웹 서비스', '웹 + 앱 둘 다', '아직 미정이에요'],
-      };
-    }
-
-    case 6: {
-      const budgetRef = ti ? `\n💡 참고: ${ti.type} 평균 ${ti.avgBudget}, ${ti.avgDuration}` : '';
-      return {
-        question: `예산과 희망 완료 시점이 있으신가요?${budgetRef}`,
-        quickReplies: ['1,000~3,000만원', '3,000~5,000만원', '5,000만원 이상', '아직 미정'],
-      };
-    }
-
-    case 7: {
-      return {
-        question: '마지막! 개발사에 꼭 전달하고 싶은 사항이 있나요?',
-        quickReplies: ['소스코드 귀속 필요', '디자인 포함', '유지보수 계약 필요', '건너뛰기'],
-      };
-    }
-
-    default:
-      return { question: STEPS[nextStep - 1]?.question || '' };
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  기타 파서
+//  데이터 파서 (기존 유지)
 // ═══════════════════════════════════════════════════════
 function parseTargetUsers(text: string): string {
   const t = text.trim();
@@ -672,9 +672,7 @@ function parseTargetUsers(text: string): string {
   const ageMatch = t.match(/(\d{1,2})\s*[~\-대]\s*(\d{1,2})?/);
   if (ageMatch) segments.push(`연령대: ${ageMatch[0]}`);
   const roles = ['직장인', '학생', '주부', '프리랜서', '사업자', '소상공인', '기업', 'B2B', 'B2C', '개발자', '디자이너', '마케터', '의사', '환자', '시니어', '어린이', '부모', '자영업', '창업자', '투자자'];
-  for (const role of roles) {
-    if (t.includes(role)) segments.push(role);
-  }
+  for (const role of roles) { if (t.includes(role)) segments.push(role); }
   return segments.length > 0 ? `${t}\n\n[타겟 세그먼트: ${segments.join(', ')}]` : t;
 }
 
@@ -698,64 +696,106 @@ function parseBudgetTimeline(text: string): string {
 }
 
 // ═══════════════════════════════════════════════════════
-//  메인 함수
+//  🆕 메인 함수 v8 — 동적 대화 엔진
 // ═══════════════════════════════════════════════════════
 export function generateFallbackResponse(
   userMessage: string,
-  currentStep: number
+  currentStep: number,
+  rfpData?: RFPData
 ): FallbackResponse {
-  const section = SECTION_MAP[currentStep];
-  const nextStep = currentStep < 7 ? currentStep + 1 : null;
-  const isComplete = currentStep >= 7;
+  const topicId = STEP_TO_TOPIC[currentStep] || 'overview';
   const isSkip = userMessage.trim() === '건너뛰기' || userMessage.trim() === '이대로 진행';
 
-  // RFP 데이터 업데이트
+  // ─── 1. RFP 데이터 업데이트 ───
   let rfpUpdate: FallbackResponse['rfpUpdate'] = null;
 
   if (!isSkip) {
-    if (section === 'coreFeatures') {
-      rfpUpdate = { section, value: parseFeatures(userMessage, detectedProjectType) };
-    } else if (section === 'overview') {
+    if (topicId === 'coreFeatures') {
+      rfpUpdate = { section: topicId, value: parseFeatures(userMessage) };
+    } else if (topicId === 'overview') {
       const { typeInfo } = detectProjectType(userMessage);
-      rfpUpdate = { section, value: `${userMessage.trim()} — ${typeInfo.type} 프로젝트` };
-    } else if (section === 'targetUsers') {
-      rfpUpdate = { section, value: parseTargetUsers(userMessage) };
-    } else if (section === 'techRequirements') {
-      rfpUpdate = { section, value: parseTechRequirements(userMessage) };
-    } else if (section === 'budgetTimeline') {
-      rfpUpdate = { section, value: parseBudgetTimeline(userMessage) };
-    } else if (section) {
-      rfpUpdate = { section, value: userMessage.trim() };
+      rfpUpdate = { section: topicId, value: `${userMessage.trim()} — ${typeInfo.type} 프로젝트` };
+    } else if (topicId === 'targetUsers') {
+      rfpUpdate = { section: topicId, value: parseTargetUsers(userMessage) };
+    } else if (topicId === 'techRequirements') {
+      rfpUpdate = { section: topicId, value: parseTechRequirements(userMessage) };
+    } else if (topicId === 'budgetTimeline') {
+      rfpUpdate = { section: topicId, value: parseBudgetTimeline(userMessage) };
+    } else {
+      rfpUpdate = { section: topicId, value: userMessage.trim() };
     }
   }
 
-  // 전문가 피드백 + 동적 다음 질문
-  let message: string;
-  let quickReplies: string[] | undefined;
-  let thinkingLabel: string | undefined;
+  // ─── 2. 현재 rfpData 시뮬레이션 (서버에서 안 보내줬을 때) ───
+  const simulatedRfpData: RFPData = rfpData || {
+    overview: currentStep >= 1 ? previousAnswers[1] || '' : '',
+    targetUsers: currentStep >= 2 ? previousAnswers[2] || '' : '',
+    coreFeatures: currentStep >= 3 ? (previousAnswers[3] ? parseFeatures(previousAnswers[3]) : []) : [],
+    referenceServices: currentStep >= 4 ? previousAnswers[4] || '' : '',
+    techRequirements: currentStep >= 5 ? previousAnswers[5] || '' : '',
+    budgetTimeline: currentStep >= 6 ? previousAnswers[6] || '' : '',
+    additionalRequirements: currentStep >= 7 ? previousAnswers[7] || '' : '',
+  };
 
-  if (isComplete) {
+  // rfpUpdate 반영
+  if (rfpUpdate && !isSkip) {
+    if (rfpUpdate.section === 'coreFeatures' && Array.isArray(rfpUpdate.value)) {
+      simulatedRfpData.coreFeatures = rfpUpdate.value as RFPData['coreFeatures'];
+    } else if (rfpUpdate.section in simulatedRfpData) {
+      (simulatedRfpData as unknown as Record<string, unknown>)[rfpUpdate.section] = rfpUpdate.value;
+    }
+  }
+
+  // ─── 3. 전문가 피드백 ───
+  const feedback = getContextualFeedback(currentStep, userMessage, simulatedRfpData);
+
+  // ─── 4. 🆕 동적 다음 토픽 결정 ───
+  const nextStepNumber = determineNextTopic(simulatedRfpData, currentStep);
+  const shouldComplete = nextStepNumber === null;
+  const covered = getTopicsCovered(simulatedRfpData);
+  const progress = Math.round((covered.length / TOPICS.length) * 100);
+
+  // ─── 5. 응답 조합 ───
+  let message: string;
+  let quickReplies: string[] | undefined = feedback.quickReplies;
+  let thinkingLabel: string | undefined = feedback.thinkingLabel;
+
+  if (shouldComplete) {
+    // 완료 상태
     const projectName = previousAnswers[1] ? previousAnswers[1].slice(0, 30) : '프로젝트';
     const ti = detectedType;
 
-    message = `모든 정보가 수집되었습니다!\n\n📋 **"${projectName}" RFP 생성 준비 완료**\n\n포함 내용:\n▸ 기능별 상세 분석 + 복잡도·소요기간·수락기준\n▸ 화면 설계 요약 + 데이터 설계\n▸ MVP 로드맵 + 리스크 분석\n▸ 개발사 선정 가이드 + 계약 체크리스트\n${ti ? `\n📊 이 ${ti.type} 프로젝트 추천 MVP: ${ti.mvpScope}` : ''}\n\n아래 버튼을 눌러 **전문 RFP**를 완성하세요!`;
+    message = `${feedback.message}\n\n---\n\n🎉 **"${projectName}" RFP 생성 준비 완료!**\n\n📋 수집된 정보:\n${covered.map(t => {
+      const topic = TOPICS.find(tp => tp.id === t);
+      return topic ? `✅ ${topic.icon} ${topic.label}` : '';
+    }).filter(Boolean).join('\n')}${ti ? `\n\n📊 이 ${ti.type} 프로젝트 추천 MVP: ${ti.mvpScope}` : ''}\n\n아래 버튼을 눌러 **전문 PRD**를 완성하세요!`;
     thinkingLabel = 'RFP 문서 구조 설계 중...';
-  } else if (nextStep && nextStep <= 7) {
-    const feedback = getExpertFeedback(currentStep, userMessage);
-    const nextQ = getDynamicNextQuestion(nextStep);
-    message = `${feedback.message}\n\n---\n\n**${STEPS[nextStep - 1].label}** (${nextStep}/7)\n${nextQ.question}`;
-    quickReplies = feedback.quickReplies || nextQ.quickReplies;
-    thinkingLabel = feedback.thinkingLabel;
   } else {
-    message = '감사합니다! 답변을 RFP에 반영했습니다.';
+    // 다음 질문으로 진행
+    const nextQ = generateContextualQuestion(nextStepNumber, simulatedRfpData);
+    const nextTopic = TOPICS.find(t => t.stepNumber === nextStepNumber);
+    const topicLabel = nextTopic ? `${nextTopic.icon} ${nextTopic.label}` : '';
+
+    // 완료 가능 여부 표시
+    const canCompleteNow = isReadyToComplete(simulatedRfpData);
+    const completeHint = canCompleteNow ? '\n\n💬 이미 충분한 정보가 수집되었어요. "RFP 생성"을 눌러 바로 완성할 수도 있습니다.' : '';
+
+    message = `${feedback.message}\n\n---\n\n**${topicLabel}**\n${nextQ.question}${completeHint}`;
+    quickReplies = feedback.quickReplies || nextQ.quickReplies;
+    if (canCompleteNow && quickReplies) {
+      quickReplies = ['바로 RFP 생성하기', ...quickReplies];
+    }
   }
 
   return {
     message,
     rfpUpdate,
-    nextAction: isComplete ? 'complete' : 'continue',
-    nextStep,
+    nextAction: shouldComplete ? 'complete' : 'continue',
+    nextStep: nextStepNumber,
     quickReplies,
     thinkingLabel,
+    topicsCovered: covered,
+    progress,
+    canComplete: isReadyToComplete(simulatedRfpData),
   };
 }

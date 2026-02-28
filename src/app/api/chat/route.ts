@@ -1,5 +1,6 @@
-// AI RFP Builder — Chat API (PRD F1: 대화형 RFP 작성)
-// Fallback 모드: API 키 없으면 사전 정의된 질문으로 진행
+// AI RFP Builder — Chat API v2 (Dynamic Conversation)
+// Fallback 모드: 동적 맥락 기반 질문 생성
+// AI 모드: Claude Sonnet으로 맞춤형 질문 생성
 import { NextRequest, NextResponse } from 'next/server';
 import { SYSTEM_PROMPT } from '@/lib/prompts';
 import { generateFallbackResponse } from '@/lib/fallback';
@@ -17,22 +18,36 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = messages.filter((m: { role: string }) => m.role === 'user').pop();
     const userText = lastUserMessage?.content || '';
 
-    // ━━ Fallback mode (no API key) ━━
+    // "바로 RFP 생성하기" 처리
+    if (userText === '바로 RFP 생성하기') {
+      return NextResponse.json({
+        message: '🎉 좋습니다! 지금까지 수집된 정보로 전문 RFP를 생성합니다.\n\n아래 버튼을 눌러 완성하세요!',
+        rfpUpdate: null,
+        nextAction: 'complete',
+        nextStep: null,
+        topicsCovered: [],
+        progress: 100,
+        canComplete: true,
+      });
+    }
+
+    // ━━ Fallback mode (no API key) — 동적 대화 엔진 ━━
     if (!HAS_API_KEY) {
-      const fallback = generateFallbackResponse(userText, currentStep);
+      const fallback = generateFallbackResponse(userText, currentStep, rfpData);
       return NextResponse.json(fallback);
     }
 
-    // ━━ AI mode (with API key) ━━
+    // ━━ AI mode (with API key) — Claude Sonnet 동적 질문 ━━
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const contextMessage = `
 현재 RFP 작성 상태:
-- 현재 단계: ${currentStep}/7
+- 현재 토픽 단계: ${currentStep}
 - 수집된 정보: ${JSON.stringify(rfpData, null, 2)}
 
-사용자의 다음 답변을 처리하고, 다음 질문으로 진행하세요.
+사용자의 답변을 처리하고, 맥락에 맞는 다음 질문을 동적으로 생성하세요.
+이전 답변 내용을 참조하여 맞춤형 질문을 만드세요.
 `;
 
     const response = await anthropic.messages.create({
@@ -47,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const content = response.content[0];
     if (content.type !== 'text') {
-      const fallback = generateFallbackResponse(userText, currentStep);
+      const fallback = generateFallbackResponse(userText, currentStep, rfpData);
       return NextResponse.json(fallback);
     }
 
@@ -71,15 +86,17 @@ export async function POST(req: NextRequest) {
       rfpUpdate: parsed.rfp_update,
       nextAction: parsed.next_action,
       nextStep: parsed.next_step,
+      topicsCovered: parsed.topics_covered || [],
+      progress: parsed.progress || 0,
+      canComplete: parsed.can_complete || false,
     });
 
   } catch (error) {
     console.error('Chat API error:', error);
-    // PRD 8.1: Fallback
     try {
       const body = await req.clone().json();
       const userMsg = body.messages?.filter((m: { role: string }) => m.role === 'user').pop()?.content || '';
-      const fallback = generateFallbackResponse(userMsg, body.currentStep || 1);
+      const fallback = generateFallbackResponse(userMsg, body.currentStep || 1, body.rfpData);
       return NextResponse.json(fallback);
     } catch {
       return NextResponse.json({
