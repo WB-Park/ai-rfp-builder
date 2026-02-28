@@ -608,6 +608,21 @@ interface ContextPattern {
 
 // ── NEW: 컨텍스트 패턴 데이터베이스 ──
 const CONTEXT_PATTERNS: ContextPattern[] = [
+  // 챗봇 / AI 서비스 (최우선 매칭)
+  {
+    triggers: ['챗봇', 'chatbot', 'ai 챗봇', '인공지능 챗봇', '대화형 ai', 'ai 상담', '자동 상담', 'ai 서비스', 'gpt', 'llm', '인공지능 서비스'],
+    features: [
+      { name: 'AI 챗봇 엔진', desc: '자연어 이해(NLU) 기반 대화 처리, 의도 분석, 시나리오 설계', priority: 1 },
+      { name: '대화 시나리오 관리', desc: '질문-응답 흐름 설계, 분기 처리, 폴백 응답', priority: 1 },
+      { name: 'AI 모델 연동(API)', desc: 'OpenAI/Claude 등 LLM API 연동, 프롬프트 관리', priority: 1 },
+      { name: '대화 이력 관리', desc: '사용자별 대화 기록 저장, 컨텍스트 유지', priority: 1 },
+      { name: '관리자 대시보드', desc: '대화 통계, 응답 정확도, 사용량 모니터링', priority: 2 },
+      { name: '사용자 인증', desc: '회원가입/로그인, 사용자별 대화 관리', priority: 2 },
+      { name: '피드백/학습 데이터', desc: '사용자 피드백 수집, AI 응답 품질 개선 데이터', priority: 2 },
+      { name: '멀티채널 연동', desc: '웹, 카카오톡, 슬랙 등 다양한 채널 연동', priority: 3 },
+    ],
+    suppressKeywords: ['상품', '판매', '쇼핑', '구매', '커머스', '장바구니', '배달', '배송', '주문'],
+  },
   // FAQ / 자주 묻는 질문 자동화
   {
     triggers: ['자주 물어보는', '자주 묻는', 'faq', '자동 응답', '자동 답변', '문의 자동', '반복 문의', '반복되는 질문', '자주 오는 질문'],
