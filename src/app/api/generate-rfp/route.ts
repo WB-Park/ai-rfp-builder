@@ -464,9 +464,19 @@ function analyzeFeature(feature: FeatureItem): FeatureAnalysis {
     }
   }
 
+  // description이 비어있거나 name과 동일하면 의미있는 설명 자동 생성
+  let description = feature.description;
+  if (!description || description === feature.name || description.trim() === '') {
+    if (matched?.subFeatures && matched.subFeatures.length > 0) {
+      description = `${matched.subFeatures.slice(0, 3).join(', ')} 등을 포함하는 핵심 기능`;
+    } else {
+      description = `${feature.name} 관련 기능 구현 및 사용자 인터페이스 설계`;
+    }
+  }
+
   return {
     name: feature.name,
-    description: feature.description || feature.name,
+    description,
     priority: feature.priority,
     complexity: matched?.complexity || 3,
     estimatedWeeks: matched?.estimatedWeeks || '2~3주',
