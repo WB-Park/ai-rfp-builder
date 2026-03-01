@@ -1808,9 +1808,16 @@ export async function POST(req: NextRequest) {
         const featureList = analyzedFeatures.map(f => f.name).join(', ');
 
         // FORGE v2.2: 병렬 Claude API 호출 — 2개 요청을 Promise.allSettled로 동시 실행
-        const systemPrompt = `위시켓 13년 70,000건 IT외주 프로젝트 분석 기반 수석 PM 컨설턴트입니다.
-존댓말 필수. 추상적 수식어("좋은","효율적인") 금지 — 구체적 수치/사례만 사용.
-한국 IT 외주 시장 맥락에 맞는 실전 조언. JSON만 출력하세요.`;
+        const systemPrompt = `위시켓 13년 116,000건 IT외주 프로젝트, 누적 거래규모 2,178억원 분석 기반 수석 PM 컨설턴트입니다.
+
+[절대 규칙]
+- 존댓말 필수
+- 추상적 수식어("좋은","효율적인","혁신적") → 금지. 대신 수치/사례/비교 사용
+- "약 N%" "N건 이상" 등 구체적 숫자 반드시 포함
+- 한국 IT 외주 시장 2024~2025년 트렌드 반영 (Flutter 급증, AI 기능 통합 표준화, MSA 선호 등)
+- 유사 프로젝트 사례 1~2개는 반드시 언급 (예: "위시켓에서 유사한 O2O 배달앱 프로젝트의 경우...")
+- before/after, 기존방식 vs 신규방식 비교를 최소 1회 포함
+- JSON만 출력. 마크다운이나 추가 텍스트 절대 금지`;
 
         const projectContext = `프로젝트: ${rfpData.overview || ''}
 타겟: ${rfpData.targetUsers || ''}
@@ -1818,44 +1825,44 @@ export async function POST(req: NextRequest) {
 유형: ${projectInfo.type} | 예산: ${projectInfo.avgBudget} | 기간: ${projectInfo.avgDuration}
 참고: ${rfpData.referenceServices || '없음'} | 기술: ${rfpData.techRequirements || '없음'}`;
 
-        // Call A: 프로젝트 개요 + 분석 (텍스트 중심)
+        // Call A: 프로젝트 개요 + 분석 (텍스트 중심) — FORGE v3
         const callA = anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
+          max_tokens: 2500,
           system: systemPrompt,
           messages: [{
             role: 'user',
             content: `${projectContext}
 
-JSON 응답:
+JSON 응답 (모든 필드는 한국어, 구체적 수치 필수):
 {
-  "projectName": "직관적 프로젝트명 15자 이내",
-  "executiveSummary": "200자. 서비스정의+시장기회+차별점+기대효과(수치)",
-  "projectOverview": "600자+. 시장규모/CAGR + 가치제안3개([기존]→[솔루션]→[효과]) + 수익모델 + KPI(3/6/12개월)",
-  "targetUsersAnalysis": "500자+. Primary/Secondary 인구통계+PainPoint3개+현재해결방식+사용자여정(인지→가입→첫사용→재사용→추천)+UI/UX원칙3개",
-  "problemStatement": "400자+. 핵심문제3개(빈도/비용/감정적고통) + 기존대안2~3개 한계 + before/after 비교",
-  "expertInsight": "800자+. ★가장 중요★ 💡성공요인TOP3(위시켓 유사프로젝트 공통점) + ⚠️실패원인TOP3(사례+금액영향) + 📋개발사선정체크리스트5개(질문형) + 💰예산최적화3개(절감비율+트레이드오프) + 📝계약필수조항3개(구체적문구)"
+  "projectName": "직관적 프로젝트명 15자 이내 (예: 반려동물 건강관리 플랫폼)",
+  "executiveSummary": "250자+. [한 줄 서비스 정의] + [국내 관련 시장 규모/성장률 구체 수치] + [핵심 차별점 1가지] + [출시 후 6개월 목표 KPI 1개]",
+  "projectOverview": "800자+. 다음 순서로 작성:\n1) 시장 분석: 국내 관련 시장 규모(조원), CAGR(%), 2024년 주요 트렌드 2개\n2) 가치 제안 3개: 각각 [기존 방식의 문제 → 우리 솔루션 → 정량적 효과(시간 절감 N%, 비용 절감 N만원 등)] 형태\n3) 수익 모델: 주 수익원 + 부 수익원 + 예상 ARPU/객단가\n4) 성장 KPI 로드맵: 3개월(MVP검증) / 6개월(PMF달성) / 12개월(성장) 각 단계별 구체 수치 목표",
+  "targetUsersAnalysis": "600자+. 다음 순서로 작성:\n1) Primary 사용자: 인구통계(나이대, 직업, 소득수준) + 핵심 Pain Point 3개(빈도/비용/감정 각 1개)\n2) Secondary 사용자: 같은 구조로 1그룹\n3) 사용자 여정 5단계: 인지 → 가입 → 온보딩 → 핵심가치경험 → 재방문/추천 (각 단계에서 이탈 방지 전략 1개씩)\n4) UI/UX 핵심 원칙 3개 (예: '3초 이내 핵심 기능 접근', '최소 3탭 이내 주요 작업 완료')",
+  "problemStatement": "500자+. 다음 순서로 작성:\n1) 핵심 문제 3개: 각각 [문제 설명 + 빈도(주N회/월N회) + 비용(시간/금전) + 감정적 불만]\n2) 기존 대안 3개: 각 대안의 이름 + 한계점 + 왜 불충분한지\n3) Before/After 비교표: [기존 방식 → 우리 솔루션] 3가지 항목, 각각 정량적 개선 수치 포함",
+  "expertInsight": "1000자+. ★PRD에서 가장 가치있는 섹션★ 다음을 반드시 포함:\n💡 성공 요인 TOP 3: 위시켓 유사 프로젝트에서 성공한 공통 패턴 (예: 'O2O 서비스 중 MVP를 4주 내 출시한 프로젝트의 성공률이 72% 더 높음')\n⚠️ 실패 원인 TOP 3: 각각 사례 + 금액 영향 (예: '스코프 크립 방치 시 평균 예산 초과 40~60%')\n📋 개발사 선정 체크리스트 5개: 질문 형태 (예: '유사 프로젝트 포트폴리오 3개 이상 제시 가능한가?')\n💰 예산 최적화 전략 3개: 각각 절감비율 + 트레이드오프 (예: '어드민 패널을 오픈소스 활용 시 20~30% 절감, 단 커스터마이징 제약')\n📝 계약 시 필수 조항 3개: 구체적 문구 포함 (예: '소스코드 소유권 100% 발주자 귀속')"
 }`
           }],
         });
 
-        // Call B: 구조화 데이터 (배열/객체 중심)
+        // Call B: 구조화 데이터 (배열/객체 중심) — FORGE v3
         const callB = anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
+          max_tokens: 2500,
           system: systemPrompt,
           messages: [{
             role: 'user',
             content: `${projectContext}
 
-JSON 응답:
+JSON 응답 (모든 필드는 한국어, 이 프로젝트에 특화된 내용만):
 {
-  "projectGoals": [{"goal":"구체적 목표","metric":"측정지표+기간(예: 출시3개월내 DAU500, NPS40+)"}] (4개),
-  "userPersonas": [{"name":"한국인이름","role":"직업+나이(예: 마케터,29세)","needs":"시나리오기반 니즈2~3개(예: 매주 월요일 보고서를 30분안에 만들어야하는데 데이터수집에 2시간 소요)","painPoints":"구체적 현재 문제(예: 엑셀수동취합, 실시간확인불가)"}] (3명),
-  "timeline": [{"phase":"Phase N — 단계명","duration":"N~N주","deliverables":["산출물1","산출물2"]}] (5단계: 기획설계/디자인/핵심개발/추가개발/QA출시),
-  "risks": [{"risk":"이 프로젝트 특화 위험(뻔한 리스크 금지)","impact":"높음/중간/낮음","mitigation":"실행가능한 구체적 대응(예: 매주 스프린트리뷰에서 체크)"}] (5개),
-  "assumptions": ["이 프로젝트 특화 전제조건(일반론 금지)"] (5개),
-  "constraints": ["이 프로젝트 특화 제약사항(일반론 금지)"] (5개)
+  "projectGoals": [{"goal":"구체적 비즈니스 목표 (예: '모바일 예약 전환율 기존 대비 3배 향상')","metric":"측정 지표 + 목표값 + 기간 (예: '출시 3개월 내 MAU 5,000명, 예약 전환율 15%, NPS 40+')"}] (정확히 4개. 각 goal은 SMART 원칙: Specific, Measurable, Achievable, Relevant, Time-bound),
+  "userPersonas": [{"name":"한국 이름 (예: 김서연)","role":"구체적 직업+나이+상황 (예: '스타트업 마케터, 29세, 3인 팀에서 혼자 마케팅 전담')","needs":"일상 시나리오 기반 니즈 2~3개. 시간/빈도/맥락 포함 (예: '매주 월요일 오전 보고서 작성에 2시간 소요 → 30분 이내로 단축 필요')","painPoints":"현재 겪는 구체적 문제 2~3개. 기존 툴/방법 이름 포함 (예: '엑셀 수동 취합으로 데이터 오류 월 평균 3건 발생, 실시간 대시보드 없어 의사결정 2~3일 지연')"}] (정확히 3명. 최소 1명은 서비스 관리자/운영자 관점),
+  "timeline": [{"phase":"Phase N — 단계명 (예: 'Phase 1 — 기획·설계')","duration":"N~N주 (합계가 전체 프로젝트 기간에 맞게)","deliverables":["구체적 산출물 3~4개 (예: 'IA 문서', 'API 명세서', '와이어프레임 20화면')"]}] (정확히 5단계: 기획설계/UI디자인/핵심MVP개발/추가기능개발/QA·출시. 각 단계 산출물은 실제 개발사가 납품하는 형태로),
+  "risks": [{"risk":"이 프로젝트만의 특화 위험 (뻔한 리스크 금지. 예: '실시간 위치 추적에서 배터리 소모 이슈로 사용자 이탈')","impact":"높음/중간/낮음","mitigation":"즉시 실행 가능한 구체적 대응 (예: '2주차부터 실기기 배터리 테스트 진행, 백그라운드 GPS 호출 주기 최적화')"}] (정확히 5개. 기술/비즈니스/운영 리스크 골고루),
+  "assumptions": ["이 프로젝트만의 전제 조건. 일반론 절대 금지 (예: '카카오 로그인 API가 정상 운영되며 일일 호출 제한 내 사용 가능', '초기 6개월 이용자 수 1만명 이하로 단일 서버 구성 충분')"] (정확히 5개),
+  "constraints": ["이 프로젝트만의 제약 사항. 일반론 절대 금지 (예: '개인정보보호법에 따라 위치정보 수집 시 명시적 동의 필수', '결제 연동 시 PG사 심사 2~3주 소요')"] (정확히 5개)
 }`
           }],
         });
