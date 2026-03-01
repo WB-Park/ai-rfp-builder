@@ -480,8 +480,22 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // F11: 단계별 진행 상태
+  const [loadingPhase, setLoadingPhase] = useState(0);
+  const loadingPhases = [
+    { icon: '📊', label: '프로젝트 데이터 분석 중...', sub: '수집된 정보를 구조화하고 있습니다' },
+    { icon: '🧠', label: 'AI 기획서 초안 작성 중...', sub: '기능 명세와 아키텍처를 설계합니다' },
+    { icon: '✨', label: '전문가 인사이트 생성 중...', sub: '10,000건+ 위시켓 데이터 기반 분석' },
+    { icon: '📋', label: '최종 PRD 문서 조합 중...', sub: '섹션별 검수 및 품질 보증 단계' },
+  ];
+
   useEffect(() => {
     const fetchPRD = async () => {
+      // 단계별 진행 애니메이션
+      const phaseTimer = setInterval(() => {
+        setLoadingPhase(prev => Math.min(prev + 1, loadingPhases.length - 1));
+      }, 5000);
+
       try {
         const res = await fetch('/api/generate-rfp', {
           method: 'POST',
@@ -489,6 +503,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           body: JSON.stringify({ rfpData, sessionId }),
         });
         const data = await res.json();
+        clearInterval(phaseTimer);
         if (data.rfpDocument) {
           try {
             const parsed = JSON.parse(data.rfpDocument);
@@ -501,11 +516,13 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         }
         setLoading(false);
       } catch (err) {
+        clearInterval(phaseTimer);
         console.error('PRD generation error:', err);
         setLoading(false);
       }
     };
     fetchPRD();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rfpData, sessionId]);
 
   const copyToClipboard = useCallback(async (text: string) => {
@@ -814,32 +831,76 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   }, []);
 
   if (loading) {
+    const currentPhase = loadingPhases[loadingPhase] || loadingPhases[0];
+    const progressPct = ((loadingPhase + 1) / loadingPhases.length) * 100;
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg }}>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', maxWidth: 480, padding: '0 24px' }}>
+          {/* 메인 아이콘 */}
           <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            border: `3px solid ${C.borderLight}`, borderTop: `3px solid ${C.blue}`,
-            animation: 'spin 1s linear infinite', margin: '0 auto 24px',
-          }} />
-          <div style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>
-            PRD 기획서를 생성하고 있습니다
+            fontSize: 48, marginBottom: 20,
+            animation: 'phaseIn 0.5s ease-out',
+          }} key={loadingPhase}>
+            {currentPhase.icon}
           </div>
-          <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
-            AI가 프로젝트를 분석하고 전문 기획서를 작성 중입니다.
-            <br />약 15~30초 소요됩니다.
+
+          {/* 현재 단계 텍스트 */}
+          <div style={{
+            fontSize: 18, fontWeight: 700, color: C.textPrimary, marginBottom: 6,
+            animation: 'phaseIn 0.5s ease-out',
+          }} key={`label-${loadingPhase}`}>
+            {currentPhase.label}
           </div>
           <div style={{
-            marginTop: 24, height: 4, background: C.borderLight, borderRadius: 2, overflow: 'hidden',
+            fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 32,
+            animation: 'phaseIn 0.5s ease-out',
+          }} key={`sub-${loadingPhase}`}>
+            {currentPhase.sub}
+          </div>
+
+          {/* 단계별 스텝 인디케이터 */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 28 }}>
+            {loadingPhases.map((phase, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                opacity: i <= loadingPhase ? 1 : 0.35,
+                transition: 'opacity 0.4s ease',
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14,
+                  background: i < loadingPhase ? C.blue : i === loadingPhase ? C.gradient : C.borderLight,
+                  color: i <= loadingPhase ? '#fff' : C.textTertiary,
+                  fontWeight: 700,
+                  transition: 'all 0.4s ease',
+                }}>
+                  {i < loadingPhase ? '✓' : i + 1}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 프로그레스 바 */}
+          <div style={{
+            height: 6, background: C.borderLight, borderRadius: 3, overflow: 'hidden',
           }}>
             <div style={{
-              height: '100%', background: C.gradient, borderRadius: 2,
-              animation: 'loading 2s ease-in-out infinite', width: '60%',
+              height: '100%', background: C.gradient, borderRadius: 3,
+              width: `${progressPct}%`,
+              transition: 'width 1s ease-in-out',
             }} />
           </div>
+
+          <div style={{ fontSize: 12, color: C.textTertiary, marginTop: 16 }}>
+            {loadingPhase + 1} / {loadingPhases.length} 단계 · 약 15~30초 소요
+          </div>
+
           <style>{`
-            @keyframes spin { to { transform: rotate(360deg); } }
-            @keyframes loading { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 10%; } }
+            @keyframes phaseIn {
+              from { opacity: 0; transform: translateY(8px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
           `}</style>
         </div>
       </div>
