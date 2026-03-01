@@ -529,6 +529,83 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </section>
 
+      {/* ━━ Social Proof — 사용 후기 ━━ */}
+      <section style={{ background: C.bg, ...sectionPad }}>
+        <h2 style={secTitle}>실제 사용자 후기</h2>
+        <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10, marginBottom: 44 }}>
+          AI RFP Builder로 기획서를 완성한 분들의 이야기
+        </p>
+
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 20,
+        }}>
+          {[
+            { name: '김태현', role: '스타트업 대표', text: '개발사에 보낼 기획서를 3일이나 쓰고 있었는데, 여기서 5분 만에 끝났어요. 개발사 대표님이 "이렇게 잘 정리된 RFP는 처음"이라고 하셨습니다.', rating: 5 },
+            { name: '이수진', role: '기획자', text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. ChatGPT한테 물어보면 뜬구름 잡는 소리만 하는데, 여기는 외주 맥락을 정확히 알고 있더라고요.', rating: 5 },
+            { name: '박민수', role: '1인 사업자', text: '개발을 아예 몰라서 뭘 어떻게 요청해야 할지 막막했는데, AI가 질문해주니까 답만 하면 됐어요. 견적 받을 때 이 기획서 그대로 보냈습니다.', rating: 5 },
+          ].map((review, i) => (
+            <div key={i} style={{
+              background: C.white, borderRadius: 16, padding: '24px',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                {Array.from({ length: review.rating }).map((_, j) => (
+                  <span key={j} style={{ color: '#FBBF24', fontSize: 16 }}>★</span>
+                ))}
+              </div>
+              <p style={{ fontSize: 14, color: C.gray700, lineHeight: 1.7, marginBottom: 16 }}>
+                &ldquo;{review.text}&rdquo;
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 700, color: C.white,
+                }}>{review.name[0]}</div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{review.name}</div>
+                  <div style={{ fontSize: 12, color: C.gray500 }}>{review.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ━━ FAQ ━━ */}
+      <section style={{ background: C.white, ...sectionPad }}>
+        <h2 style={secTitle}>자주 묻는 질문</h2>
+        <div style={{ maxWidth: 680, margin: '40px auto 0' }}>
+          {[
+            { q: '정말 무료인가요?', a: '네, 완전 무료입니다. 회원가입도 필요 없고, 이메일을 입력하면 완성된 기획서를 PDF로 받아보실 수 있습니다. 이메일 없이도 바로 시작할 수 있어요.' },
+            { q: '기획서 완성까지 얼마나 걸리나요?', a: '평균 5분이면 충분합니다. AI가 7가지 핵심 질문을 하고, 답변만 해주시면 전문가 수준의 RFP 기획서가 자동 생성됩니다.' },
+            { q: 'ChatGPT랑 뭐가 다른가요?', a: '위시켓의 13년 외주 매칭 경험(116,000건 프로젝트)이 반영되어 있습니다. 기능 우선순위(P1/P2/P3), 현실적 예산·일정 추정, 개발사에 바로 전달 가능한 포맷 등 외주에 특화된 결과물을 제공합니다.' },
+            { q: '생성된 기획서를 수정할 수 있나요?', a: '기획서 완성 후 각 섹션별로 AI 재생성이 가능합니다. 원하는 부분만 다시 생성하여 수정할 수 있어요.' },
+            { q: '개인정보는 안전한가요?', a: '입력하신 이메일은 기획서 발송에만 사용되며, 마케팅 목적으로 활용하지 않습니다. 프로젝트 정보는 기획서 생성에만 사용됩니다.' },
+          ].map((faq, i) => (
+            <details key={i} style={{
+              borderBottom: `1px solid ${C.gray200}`,
+              padding: '20px 0',
+            }}>
+              <summary style={{
+                fontSize: 16, fontWeight: 600, color: C.textDark,
+                cursor: 'pointer', listStyle: 'none',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                {faq.q}
+                <span style={{ fontSize: 20, color: C.gray400, transition: 'transform 0.2s' }}>+</span>
+              </summary>
+              <p style={{
+                fontSize: 14, color: C.textMuted, lineHeight: 1.7,
+                marginTop: 12, paddingRight: 24,
+              }}>{faq.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       {/* ━━ Final CTA ━━ */}
       <section style={{
         background: `linear-gradient(180deg, ${C.navyLight} 0%, ${C.navy} 100%)`,
