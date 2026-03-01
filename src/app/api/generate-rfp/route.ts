@@ -85,13 +85,78 @@ function sanitizeFeatures(features: FeatureItem[]): FeatureItem[] {
 // Full AI PRD Generation — Single comprehensive prompt
 // ═══════════════════════════════════════════
 
-async function generateFullAIPRD(rfpData: RFPData): Promise<PRDResult> {
+async function generateFullAIPRD(rfpData: RFPData, chatMessages?: { role: string; content: string }[]): Promise<PRDResult> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   let features = sanitizeFeatures(rfpData.coreFeatures || []);
+
+  // ★ 대화 히스토리 컨텍스트 생성 (최대 30턴, 토큰 절약을 위해 요약)
+  const conversationContext = (chatMessages && chatMessages.length > 0)
+    ? chatMessages
+        .slice(-30)
+        .map(m => `${m.role === 'user' ? '고객' : 'AI PM'}: ${m.content.slice(0, 500)}`)
+        .join('\n')
+    : '';
+  const hasConversation = conversationContext.length > 50;
+  console.log(`[generate-rfp] Conversation context: ${hasConversation ? `${chatMessages?.length || 0} messages` : 'none'}, Features: ${features.length}`);
+
+  // ★ 핵심: coreFeatures가 비어있으면 대화 컨텍스트에서 AI로 기능 추출
+  if (features.length === 0 && (hasConversation || (rfpData.overview && rfpData.overview.length >= 5))) {
+    console.log('[generate-rfp] coreFeatures empty — auto-extracting from conversation');
+    try {
+      const featureGenResponse = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: `${hasConversation ? `다음은 고객과 AI PM이 나눈 대화입니다. 이 대화 전체를 분석하여 이 프로젝트에 필요한 핵심 기능을 추출하세요.
+
+[대화 내용]
+${conversationContext}
+
+[프로젝트 정보 요약]` : '다음 프로젝트 정보에서 핵심 기능을 추출하세요.\n\n[프로젝트 정보]'}
+- 서비스: ${rfpData.overview || '(미입력)'}
+- 타겟: ${rfpData.targetUsers || '(미입력)'}
+- 기술: ${rfpData.techRequirements || '(미입력)'}
+- 추가 요구: ${rfpData.additionalRequirements || '(미입력)'}
+
+규칙:
+1. 대화에서 논의된 모든 기능을 빠짐없이 추출 (6~12개)
+2. 대화에서 고객이 중요하다고 언급한 기능은 반드시 P1
+3. P1: 서비스 핵심 기능 (3~5개), P2: 중요 기능 (2~4개), P3: 부가 기능 (1~3개)
+4. 기능명은 한국어, 간결하게 (15자 이내)
+5. 설명은 대화 맥락을 반영한 구체적 한 문장
+
+JSON 배열만 출력:
+[{"name": "기능명", "description": "대화에서 논의된 맥락 반영한 설명", "priority": "P1"}]`
+        }],
+      });
+      const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
+      const featureMatch = featureText.match(/\[[\s\S]*\]/);
+      if (featureMatch) {
+        const parsed = JSON.parse(featureMatch[0]);
+        if (Array.isArray(parsed) && parsed.length >= 3) {
+          features = parsed.map((f: { name: string; description?: string; priority?: string }) => ({
+            name: (f.name || '').slice(0, 30),
+            description: f.description || f.name,
+            priority: f.priority === 'P1' ? 'P1' : f.priority === 'P2' ? 'P2' : 'P3',
+          }));
+          console.log(`[generate-rfp] Auto-extracted ${features.length} features from ${hasConversation ? 'conversation' : 'overview'}`);
+        }
+      }
+    } catch (featureError) {
+      console.error('[generate-rfp] Feature auto-extraction failed:', featureError);
+    }
+  }
+
   const featureList = features.map((f, i) => `${i + 1}. ${f.name} (${f.priority}) — ${f.description || '설명 없음'}`).join('\n');
   const now = new Date().toISOString().split('T')[0];
+
+  // ★ 대화 컨텍스트 삽입 문자열 (각 API 호출에서 사용)
+  const conversationBlock = hasConversation
+    ? `\n\n[고객과의 대화 내용 — 이 맥락을 적극 반영하세요]\n${conversationContext.slice(0, 4000)}\n`
+    : '';
 
   // 개별 API 호출에 타임아웃 적용 (45초)
   function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -123,14 +188,16 @@ async function generateFullAIPRD(rfpData: RFPData): Promise<PRDResult> {
 - 참고 서비스: ${rfpData.referenceServices || '없음'}
 - 기술 요구사항: ${rfpData.techRequirements || '없음'}
 - 추가 요구사항: ${rfpData.additionalRequirements || '없음'}
-
+${conversationBlock}
 JSON 형식으로 응답하세요:
 {
   "projectName": "서비스 성격이 드러나는 프로젝트명 15자 이내 (예: '펫케어 매칭 플랫폼')",
   "projectScope": "프로젝트 정의 요약문 (200~300자). 아래 구조를 자연스러운 문장형으로 작성:\n\n1문단: 이 프로젝트가 무엇인지 한 문장으로 정의. (예: '소상공인을 위한 재고 관리 SaaS 웹 애플리케이션입니다.')\n2문단: 대상 사용자와 핵심 기능 범위를 명시. (예: '주요 사용자는 OO이며, 핵심 기능 N개(A, B, C 등)를 포함합니다.')\n3문단: 기술 방향 또는 플랫폼. (예: 'React 기반 웹앱으로, PostgreSQL + REST API 구조를 채택합니다.')\n\n⚠️ 규칙: 시장 규모, 경쟁 우위, 비전, 기대효과 등 추상적 비즈니스 분석 절대 금지. 사용자가 입력한 정보를 명확하게 정리하는 것이 목적. 마크다운 불릿 금지, 순수 문장형으로만 작성.",
   "targetUsersAnalysis": "400자 이상. (1) Primary 사용자: 인구통계 + 핵심 Pain Point 3개 (2) Secondary 사용자 1그룹 (3) 사용자 여정 핵심 5단계별 이탈 방지 포인트",
   "expertInsight": "800자 이상. ★PRD에서 가장 가치있는 섹션★ (1) 💡 이 유형 프로젝트 성공 요인 TOP 3 — 위시켓 실제 데이터 기반 수치 포함 (2) ⚠️ 실패 원인 TOP 3 — 사례+금액 영향 (3) 📋 개발사 선정 체크리스트 5개 (4) 💰 이 프로젝트의 예산 최적화 전략 3개 — 각 절감비율 (5) 📝 계약 시 필수 조항 3개"
-}`
+}
+
+${hasConversation ? '⚠️ 중요: 위 대화 내용에서 고객이 언급한 디테일(기술 스택, 사용자 특성, 비즈니스 모델 등)을 빠짐없이 PRD에 반영하세요.' : ''}`
     }],
   });
 
@@ -154,7 +221,7 @@ JSON 형식으로 응답하세요:
 - 핵심 기능:\n${featureList || '(미입력)'}
 - 참고 서비스: ${rfpData.referenceServices || '없음'}
 - 기술: ${rfpData.techRequirements || '없음'}
-
+${conversationBlock}
 JSON 형식으로 응답하세요:
 {
   "projectGoals": [
@@ -199,7 +266,9 @@ techStack: 4~6개. 프론트엔드, 백엔드, DB, 인프라 필수.
 competitorAnalysis: 3개. 실제 한국 서비스명 사용.
 approvalProcess: 정확히 4단계. 기획승인/디자인리뷰/개발완료/출시승인 단계 필수.
 qaStrategy: 정확히 5개. 단위테스트, 통합테스트, E2E, 성능, 보안 반드시 포함.
-glossary: 8~12개. PRD/MVP/SLA 같은 공통 용어 + 이 프로젝트 도메인 특화 용어 포함. 비개발자 독자 대상.`
+glossary: 8~12개. PRD/MVP/SLA 같은 공통 용어 + 이 프로젝트 도메인 특화 용어 포함. 비개발자 독자 대상.
+
+${hasConversation ? '⚠️ 중요: 위 대화 내용에서 고객이 언급한 기술 스택, 비즈니스 모델, 사용자 특성 등을 반드시 반영하세요. 대화에서 논의된 내용과 일치해야 합니다.' : ''}`
     }],
   });
 
@@ -221,7 +290,7 @@ glossary: 8~12개. PRD/MVP/SLA 같은 공통 용어 + 이 프로젝트 도메인
 
 [프로젝트]: ${rfpData.overview || ''}
 [타겟 사용자]: ${rfpData.targetUsers || ''}
-
+${conversationBlock}
 [기능 목록]
 ${featureList}
 
@@ -257,7 +326,9 @@ JSON 형식으로 응답:
 }
 
 중요: 각 기능이 이 프로젝트("${rfpData.overview}")에서 어떻게 동작하는지 맥락에 맞춰 작성하세요.
-예를 들어 "검색" 기능이라면, 단순히 일반적인 검색이 아니라 이 서비스에서 무엇을 검색하는지 구체적으로.`
+예를 들어 "검색" 기능이라면, 단순히 일반적인 검색이 아니라 이 서비스에서 무엇을 검색하는지 구체적으로.
+
+${hasConversation ? '⚠️ 중요: 위 대화 내용에서 고객이 언급한 기능별 세부 요구사항, 사용자 시나리오, 비즈니스 규칙 등을 각 기능 명세에 빠짐없이 반영하세요.' : ''}`
     }],
   });
 
@@ -637,16 +708,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     rfpData = body.rfpData;
     sessionId = body.sessionId;
+    const chatMessages: { role: string; content: string }[] = body.chatMessages || [];
 
     if (!rfpData || !rfpData.overview) {
       return NextResponse.json({ error: 'RFP 데이터가 필요합니다.' }, { status: 400 });
     }
 
+    console.log(`[generate-rfp POST] chatMessages: ${chatMessages.length}, features: ${rfpData.coreFeatures?.length || 0}`);
+
     let result: PRDResult;
 
     if (HAS_API_KEY) {
       try {
-        result = await generateFullAIPRD(rfpData);
+        result = await generateFullAIPRD(rfpData, chatMessages);
       } catch (aiError: any) {
         console.error('AI PRD generation failed, using fallback:', aiError?.message || aiError);
         result = generateMinimalFallback(rfpData);
