@@ -80,6 +80,12 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [canComplete, setCanComplete] = useState(false);
   // 🆕 복수선택 기능 UI
   const [featureSelection, setFeatureSelection] = useState<Record<string, boolean>>({});
+  // F1: 이전 답변 수정
+  const [editingMsgIndex, setEditingMsgIndex] = useState<number | null>(null);
+  const [editingMsgDraft, setEditingMsgDraft] = useState('');
+  // F7: 문서 업로드
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -112,6 +118,32 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // F2: 자동저장 (30초 간격)
+  const autosaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSavedRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!sessionId) return;
+    autosaveTimerRef.current = setInterval(() => {
+      const snapshot = JSON.stringify({ rfpData, currentStep, msgCount: messages.length });
+      if (snapshot !== lastSavedRef.current && messages.length > 1) {
+        lastSavedRef.current = snapshot;
+        fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            email,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            currentStep,
+            rfpData,
+          }),
+        }).catch(() => { /* silent */ });
+      }
+    }, 30000);
+    return () => { if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current); };
+  }, [sessionId, email, messages, currentStep, rfpData]);
 
   // textarea 자동 높이
   const adjustTextareaHeight = useCallback(() => {
@@ -297,6 +329,82 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     const currentTopicId = TOPICS.find(t => t.stepNumber === currentStep)?.id;
     if (currentTopicId === 'overview' || currentTopicId === 'coreFeatures') return;
     sendMessage('건너뛰기');
+  };
+
+  // F7: 문서 업로드 분석
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+
+    try {
+      let text = '';
+      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+        text = await file.text();
+      } else {
+        // 기타 파일은 텍스트로 읽기 시도
+        text = await file.text();
+      }
+
+      if (text.length < 20) {
+        setMessages(prev => [...prev, {
+          role: 'assistant', content: '업로드된 파일의 내용이 너무 짧습니다. 텍스트 기반 문서(.txt, .md)를 업로드해주세요.',
+          timestamp: Date.now(),
+        }]);
+        setUploading(false);
+        return;
+      }
+
+      // 업로드 사실을 메시지로 추가
+      setMessages(prev => [...prev, {
+        role: 'user', content: `📄 기존 기획서 업로드: ${file.name}`,
+        timestamp: Date.now(),
+      }]);
+
+      const res = await fetch('/api/analyze-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentText: text }),
+      });
+
+      const data = await res.json();
+      if (data.analysis) {
+        const a = data.analysis;
+        // rfpData에 분석 결과 채우기
+        const updated = { ...rfpData };
+        if (a.overview) updated.overview = a.overview;
+        if (a.targetUsers) updated.targetUsers = a.targetUsers;
+        if (a.coreFeatures && Array.isArray(a.coreFeatures)) {
+          updated.coreFeatures = a.coreFeatures.map((f: string) => ({
+            name: f, description: f, priority: 'P1' as const,
+          }));
+        }
+        if (a.techRequirements) updated.techRequirements = a.techRequirements;
+        if (a.referenceServices) updated.referenceServices = a.referenceServices;
+        if (a.additionalRequirements) updated.additionalRequirements = a.additionalRequirements;
+        setRfpData(updated);
+
+        // 토픽 커버리지 업데이트
+        const covered = getTopicsCovered(updated);
+        setTopicsCovered(covered);
+        setProgressPercent(Math.round((covered.length / TOPICS.length) * 100));
+        setCanComplete(isReadyToComplete(updated));
+
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `📋 **기존 문서 분석 완료!**\n\n${a.summary || '문서에서 핵심 정보를 추출했습니다.'}\n\n추출된 정보가 우측 미리보기에 자동으로 채워졌습니다. 부족한 부분은 대화를 통해 보완해 드리겠습니다.\n\n**확인해주세요:** 추출된 내용이 정확한가요? 수정이 필요하면 말씀해주세요.`,
+          timestamp: Date.now(),
+        }]);
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setMessages(prev => [...prev, {
+        role: 'assistant', content: '문서 분석 중 오류가 발생했습니다. 다시 시도해주세요.',
+        timestamp: Date.now(),
+      }]);
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -579,7 +687,97 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 </div>
               )}
               <div style={{ maxWidth: msg.role === 'user' ? '80%' : '85%' }}>
-                <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
+                {/* F1: 사용자 메시지 편집 모드 */}
+                {msg.role === 'user' && editingMsgIndex === i ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                    <textarea
+                      value={editingMsgDraft}
+                      onChange={(e) => setEditingMsgDraft(e.target.value)}
+                      autoFocus
+                      style={{
+                        width: '100%', minWidth: 260, minHeight: 60, padding: '10px 14px',
+                        borderRadius: 12, border: '2px solid var(--color-primary)',
+                        fontSize: 14, fontFamily: 'var(--font-kr)', resize: 'none',
+                        outline: 'none', background: 'rgba(37,99,235,0.04)',
+                        color: 'var(--text-primary)', lineHeight: 1.6,
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (editingMsgDraft.trim()) {
+                            // 해당 메시지까지 잘라내고 수정된 메시지로 다시 전송
+                            const truncated = messages.slice(0, i);
+                            setMessages(truncated);
+                            setEditingMsgIndex(null);
+                            setEditingMsgDraft('');
+                            setTimeout(() => sendMessage(editingMsgDraft.trim()), 100);
+                          }
+                        }
+                        if (e.key === 'Escape') { setEditingMsgIndex(null); setEditingMsgDraft(''); }
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { setEditingMsgIndex(null); setEditingMsgDraft(''); }} style={{
+                        padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
+                        background: 'var(--surface-0)', fontSize: 12, cursor: 'pointer', color: 'var(--text-secondary)',
+                        fontFamily: 'var(--font-kr)',
+                      }}>취소</button>
+                      <button onClick={() => {
+                        if (editingMsgDraft.trim()) {
+                          const truncated = messages.slice(0, i);
+                          setMessages(truncated);
+                          setEditingMsgIndex(null);
+                          setEditingMsgDraft('');
+                          setTimeout(() => sendMessage(editingMsgDraft.trim()), 100);
+                        }
+                      }} style={{
+                        padding: '6px 14px', borderRadius: 8, border: 'none',
+                        background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600,
+                        cursor: 'pointer', fontFamily: 'var(--font-kr)',
+                      }}>수정 후 다시 보내기</button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}
+                  style={{ position: 'relative' }}
+                  onMouseEnter={(e) => {
+                    if (msg.role === 'user' && !loading) {
+                      const btn = e.currentTarget.querySelector('.edit-msg-btn') as HTMLElement;
+                      if (btn) btn.style.opacity = '1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const btn = e.currentTarget.querySelector('.edit-msg-btn') as HTMLElement;
+                    if (btn) btn.style.opacity = '0';
+                  }}
+                >
+                  {/* F1: 수정 버튼 (user 메시지에만, 호버 시 표시) */}
+                  {msg.role === 'user' && !loading && i > 0 && (
+                    <button
+                      className="edit-msg-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingMsgIndex(i);
+                        setEditingMsgDraft(msg.content);
+                      }}
+                      style={{
+                        position: 'absolute', top: -8, right: -8,
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: 'var(--surface-0)', border: '1px solid var(--border-default)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', opacity: 0, transition: 'opacity 0.15s',
+                        zIndex: 2,
+                      }}
+                      title="답변 수정"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  )}
                   {msg.role === 'assistant' ? (
                     <div
                       style={{ margin: 0, lineHeight: 1.7 }}
@@ -847,6 +1045,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     </div>
                   </div>
                 )}
+                </>
+                )}
               </div>
             </div>
           ))}
@@ -984,6 +1184,41 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   }}
                 />
               </div>
+
+              {/* F7: 파일 업로드 */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md,.csv,.json"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || uploading}
+                title="기존 기획서 업로드"
+                style={{
+                  width: 48, height: 48,
+                  borderRadius: 'var(--radius-md)',
+                  border: '1.5px solid var(--border-strong)',
+                  background: 'var(--surface-0)',
+                  color: uploading ? 'var(--color-primary)' : 'var(--text-tertiary)',
+                  cursor: loading || uploading ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all var(--duration-fast)',
+                  flexShrink: 0,
+                }}
+              >
+                {uploading ? (
+                  <span style={{ fontSize: 14 }}>⏳</span>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                )}
+              </button>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <button

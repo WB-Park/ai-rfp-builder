@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RFPData } from '@/types/rfp';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
+import { saveAs } from 'file-saver';
 
 interface RFPCompleteProps {
   rfpData: RFPData;
@@ -74,6 +78,122 @@ const C = {
   purpleBg: 'rgba(139, 92, 246, 0.06)',
   gradient: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
 };
+
+// ━━━━━ F4+F8: Editable Text Section with AI Regeneration ━━━━━
+function EditableText({ value, onChange, style, sectionKey, sectionTitle, projectContext }: {
+  value: string;
+  onChange: (v: string) => void;
+  style?: React.CSSProperties;
+  sectionKey?: string;
+  sectionTitle?: string;
+  projectContext?: { projectName?: string; projectType?: string; coreFeatures?: string };
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [regenerating, setRegenerating] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [editing]);
+
+  // F8: AI 재생성
+  const handleRegenerate = async () => {
+    if (!sectionKey || regenerating) return;
+    setRegenerating(true);
+    try {
+      const res = await fetch('/api/regenerate-section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionKey,
+          sectionTitle: sectionTitle || sectionKey,
+          currentContent: value,
+          projectContext: projectContext || {},
+        }),
+      });
+      const data = await res.json();
+      if (data.regeneratedContent) {
+        onChange(data.regeneratedContent);
+      }
+    } catch (err) {
+      console.error('Regenerate error:', err);
+    }
+    setRegenerating(false);
+  };
+
+  if (editing) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+          }}
+          style={{
+            ...style,
+            width: '100%',
+            border: `2px solid ${C.blue}`,
+            borderRadius: 8,
+            padding: '12px',
+            fontSize: 14,
+            fontFamily: 'inherit',
+            lineHeight: 1.8,
+            resize: 'none',
+            outline: 'none',
+            background: 'rgba(37, 99, 235, 0.02)',
+            color: C.textSecondary,
+            margin: 0,
+          }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+          {sectionKey && (
+            <button onClick={handleRegenerate} disabled={regenerating} style={{
+              padding: '6px 14px', borderRadius: 6, border: `1px solid ${C.purple}`,
+              background: regenerating ? C.purpleBg : C.white, fontSize: 12, cursor: regenerating ? 'wait' : 'pointer',
+              color: C.purple, fontWeight: 500, marginRight: 'auto',
+            }}>
+              {regenerating ? '⏳ AI 재작성 중...' : '🤖 AI 재작성'}
+            </button>
+          )}
+          <button onClick={() => { setDraft(value); setEditing(false); }} style={{
+            padding: '6px 14px', borderRadius: 6, border: `1px solid ${C.border}`,
+            background: C.white, fontSize: 12, cursor: 'pointer', color: C.textSecondary,
+          }}>취소</button>
+          <button onClick={() => { onChange(draft); setEditing(false); }} style={{
+            padding: '6px 14px', borderRadius: 6, border: 'none',
+            background: C.blue, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}>저장</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      style={{ ...style, cursor: 'pointer', position: 'relative', borderRadius: 6, transition: 'background 0.15s' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.03)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      title="클릭하여 편집"
+    >
+      {value}
+      <span style={{
+        position: 'absolute', top: 4, right: 4,
+        fontSize: 11, color: C.textTertiary, opacity: 0.5,
+        background: 'rgba(255,255,255,0.9)', padding: '2px 6px', borderRadius: 4,
+      }}>✏️</span>
+    </div>
+  );
+}
 
 // ━━━━━ Section Number ━━━━━
 function SectionHeader({ number, title, subtitle }: { number: string; title: string; subtitle?: string }) {
@@ -354,6 +474,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   const [shareUrl, setShareUrl] = useState('');
   const [sharing, setSharing] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [ctaEmail, setCtaEmail] = useState('');
+  const [ctaPhone, setCtaPhone] = useState('');
+  const [ctaSubmitted, setCtaSubmitted] = useState(false);
+  const [ctaSubmitting, setCtaSubmitting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -434,6 +558,210 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   }, [shareUrl]);
 
   const handlePrint = useCallback(() => { window.print(); }, []);
+
+  // F3: PDF 내보내기
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const handlePDF = useCallback(async () => {
+    if (!contentRef.current || !prdData) return;
+    setPdfGenerating(true);
+    try {
+      // no-print 요소 숨기기
+      const noPrintEls = contentRef.current.querySelectorAll('.no-print');
+      noPrintEls.forEach(el => (el as HTMLElement).style.display = 'none');
+
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#F8FAFC',
+        windowWidth: 960,
+      });
+
+      // no-print 요소 복원
+      noPrintEls.forEach(el => (el as HTMLElement).style.display = '');
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = -(imgHeight - heightLeft);
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      const fileName = `${prdData.projectName.replace(/[^가-힣a-zA-Z0-9]/g, '_')}_PRD_${new Date().toISOString().slice(0, 10)}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('PDF 생성 중 오류가 발생했습니다. 브라우저 인쇄 기능을 이용해주세요.');
+    }
+    setPdfGenerating(false);
+  }, [prdData]);
+
+  // F12: DOCX 내보내기
+  const [docxGenerating, setDocxGenerating] = useState(false);
+  const handleDOCX = useCallback(async () => {
+    if (!prdData) return;
+    setDocxGenerating(true);
+    try {
+      const d = prdData;
+      const sections: Paragraph[] = [];
+
+      // 타이틀
+      sections.push(new Paragraph({ text: d.projectName, heading: HeadingLevel.TITLE, spacing: { after: 200 } }));
+      sections.push(new Paragraph({ children: [
+        new TextRun({ text: `버전 ${d.documentMeta?.version || '1.0'} | ${d.documentMeta?.createdAt || '-'} | ${d.documentMeta?.generatedBy || 'Wishket AI'}`, size: 20, color: '666666' }),
+      ], spacing: { after: 400 } }));
+
+      // Executive Summary
+      sections.push(new Paragraph({ text: '1. Executive Summary', heading: HeadingLevel.HEADING_1 }));
+      sections.push(new Paragraph({ text: d.executiveSummary, spacing: { after: 300 } }));
+
+      // 프로젝트 개요
+      sections.push(new Paragraph({ text: '2. 프로젝트 개요', heading: HeadingLevel.HEADING_1 }));
+      sections.push(new Paragraph({ text: d.projectOverview, spacing: { after: 300 } }));
+
+      // 문제 정의
+      if (d.problemStatement) {
+        sections.push(new Paragraph({ text: '3. 문제 정의 & 프로젝트 목표', heading: HeadingLevel.HEADING_1 }));
+        sections.push(new Paragraph({ text: d.problemStatement, spacing: { after: 200 } }));
+      }
+      if (d.projectGoals?.length > 0) {
+        d.projectGoals.forEach((g, i) => {
+          sections.push(new Paragraph({ children: [
+            new TextRun({ text: `목표 ${i + 1}: `, bold: true }),
+            new TextRun({ text: g.goal }),
+            new TextRun({ text: ` — 성공 지표: ${g.metric}`, color: '666666' }),
+          ], spacing: { after: 100 } }));
+        });
+        sections.push(new Paragraph({ spacing: { after: 200 } }));
+      }
+
+      // 타겟 사용자
+      sections.push(new Paragraph({ text: '4. 타겟 사용자 & 페르소나', heading: HeadingLevel.HEADING_1 }));
+      sections.push(new Paragraph({ text: d.targetUsers, spacing: { after: 200 } }));
+      if (d.userPersonas?.length > 0) {
+        d.userPersonas.forEach(p => {
+          sections.push(new Paragraph({ children: [
+            new TextRun({ text: `${p.name} (${p.role})`, bold: true }),
+            new TextRun({ text: ` — 니즈: ${p.needs} / 불편사항: ${p.painPoints}` }),
+          ], spacing: { after: 100 } }));
+        });
+        sections.push(new Paragraph({ spacing: { after: 200 } }));
+      }
+
+      // 스코프
+      sections.push(new Paragraph({ text: '5. 프로젝트 스코프', heading: HeadingLevel.HEADING_1 }));
+      sections.push(new Paragraph({ text: '포함 범위 (In-Scope)', heading: HeadingLevel.HEADING_2 }));
+      d.scopeInclusions?.forEach(s => {
+        sections.push(new Paragraph({ text: `✓ ${s}`, spacing: { after: 60 } }));
+      });
+      sections.push(new Paragraph({ text: '미포함 (Out-of-Scope)', heading: HeadingLevel.HEADING_2 }));
+      d.scopeExclusions?.forEach(s => {
+        sections.push(new Paragraph({ text: `— ${s}`, spacing: { after: 60 } }));
+      });
+      sections.push(new Paragraph({ spacing: { after: 200 } }));
+
+      // 기능 명세
+      sections.push(new Paragraph({ text: '6. 기능 명세', heading: HeadingLevel.HEADING_1 }));
+      d.featureModules?.forEach(m => {
+        sections.push(new Paragraph({ text: `${m.name} (${m.priority} · ${m.priorityLabel})`, heading: HeadingLevel.HEADING_2 }));
+        m.features?.forEach(f => {
+          sections.push(new Paragraph({ children: [
+            new TextRun({ text: `${f.id} ${f.name}`, bold: true }),
+          ], spacing: { after: 60 } }));
+          sections.push(new Paragraph({ text: f.description, spacing: { after: 60 } }));
+          if (f.subFeatures?.length) {
+            sections.push(new Paragraph({ text: `하위 기능: ${f.subFeatures.join(', ')}`, spacing: { after: 60 } }));
+          }
+          if (f.acceptanceCriteria?.length) {
+            sections.push(new Paragraph({ text: `수락 기준: ${f.acceptanceCriteria.join(' / ')}`, spacing: { after: 100 } }));
+          }
+        });
+      });
+
+      // 기술 스택
+      if (d.techStack?.length > 0) {
+        sections.push(new Paragraph({ text: '7. 기술 스택 권장안', heading: HeadingLevel.HEADING_1 }));
+        const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+        const techTable = new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: ['분류', '기술', '선정 근거'].map(h =>
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })], width: { size: 33, type: WidthType.PERCENTAGE } })
+              ),
+            }),
+            ...d.techStack.map(t => new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph({ text: typeof t === 'object' ? t.category : '-' })], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
+                new TableCell({ children: [new Paragraph({ text: typeof t === 'object' ? t.tech : String(t) })], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
+                new TableCell({ children: [new Paragraph({ text: typeof t === 'object' ? t.rationale : '' })], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
+              ],
+            })),
+          ],
+        });
+        sections.push(techTable as unknown as Paragraph);
+        sections.push(new Paragraph({ spacing: { after: 200 } }));
+      }
+
+      // 비기능 요구사항
+      if (d.nonFunctionalRequirements?.length > 0) {
+        sections.push(new Paragraph({ text: '8. 비기능 요구사항', heading: HeadingLevel.HEADING_1 }));
+        d.nonFunctionalRequirements.forEach(n => {
+          sections.push(new Paragraph({ text: n.category, heading: HeadingLevel.HEADING_2 }));
+          n.items?.forEach(item => {
+            sections.push(new Paragraph({ text: `• ${item}`, spacing: { after: 60 } }));
+          });
+        });
+      }
+
+      // 리스크
+      if (d.risks?.length > 0) {
+        sections.push(new Paragraph({ text: '11. 리스크 관리', heading: HeadingLevel.HEADING_1 }));
+        d.risks.forEach(r => {
+          sections.push(new Paragraph({ children: [
+            new TextRun({ text: r.risk, bold: true }),
+            new TextRun({ text: ` (영향: ${r.impact}) → 대응: ${r.mitigation}` }),
+          ], spacing: { after: 100 } }));
+        });
+      }
+
+      // Expert insight
+      if (d.expertInsight) {
+        sections.push(new Paragraph({ text: '전문가 인사이트', heading: HeadingLevel.HEADING_1 }));
+        sections.push(new Paragraph({ text: d.expertInsight, spacing: { after: 200 } }));
+      }
+
+      // 푸터
+      sections.push(new Paragraph({ spacing: { after: 400 } }));
+      sections.push(new Paragraph({ children: [
+        new TextRun({ text: 'Generated by Wishket AI PRD Builder', color: '999999', size: 18 }),
+      ], alignment: AlignmentType.CENTER }));
+
+      const doc = new Document({
+        sections: [{ children: sections }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const fileName = `${d.projectName.replace(/[^가-힣a-zA-Z0-9]/g, '_')}_PRD_${new Date().toISOString().slice(0, 10)}.docx`;
+      saveAs(blob, fileName);
+    } catch (err) {
+      console.error('DOCX generation error:', err);
+      alert('DOCX 생성 중 오류가 발생했습니다.');
+    }
+    setDocxGenerating(false);
+  }, [prdData]);
 
   // Generate markdown for copy
   const generateMarkdown = useCallback((d: PRDResult): string => {
@@ -555,6 +883,13 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
   const totalFeatures = prdData.featureModules?.reduce((sum, m) => sum + (m.features?.length || 0), 0) || 0;
 
+  // F8: 프로젝트 컨텍스트 (AI 재생성용)
+  const projectCtx = {
+    projectName: prdData.projectName,
+    projectType: rfpData?.overview?.slice(0, 200) || '',
+    coreFeatures: prdData.featureModules?.map(m => m.name).join(', ') || '',
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: C.bg }} ref={contentRef}>
       {/* Print styles */}
@@ -610,9 +945,12 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         <div id="sec-summary">
           <SectionHeader number="1" title="Executive Summary" subtitle="프로젝트 핵심 요약" />
           <Card style={{ borderLeft: `4px solid ${C.blue}` }}>
-            <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>
-              {prdData.executiveSummary}
-            </p>
+            <EditableText
+              value={prdData.executiveSummary}
+              onChange={(v) => setPrdData({ ...prdData, executiveSummary: v })}
+              style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+              sectionKey="executiveSummary" sectionTitle="Executive Summary" projectContext={projectCtx}
+            />
           </Card>
         </div>
 
@@ -620,9 +958,12 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         <div id="sec-overview">
           <SectionHeader number="2" title="프로젝트 개요" subtitle="배경, 목적, 기대효과" />
           <Card>
-            <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>
-              {prdData.projectOverview}
-            </p>
+            <EditableText
+              value={prdData.projectOverview}
+              onChange={(v) => setPrdData({ ...prdData, projectOverview: v })}
+              style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+              sectionKey="projectOverview" sectionTitle="프로젝트 개요" projectContext={projectCtx}
+            />
           </Card>
         </div>
 
@@ -632,7 +973,12 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           {prdData.problemStatement && (
             <Card style={{ borderLeft: `4px solid ${C.yellow}`, marginBottom: 14 }}>
               <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>🎯 문제 정의</h3>
-              <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{prdData.problemStatement}</p>
+              <EditableText
+                value={prdData.problemStatement}
+                onChange={(v) => setPrdData({ ...prdData, problemStatement: v })}
+                style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}
+                sectionKey="problemStatement" sectionTitle="문제 정의" projectContext={projectCtx}
+              />
             </Card>
           )}
           {prdData.projectGoals?.length > 0 && (
@@ -664,9 +1010,12 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         <div id="sec-users">
           <SectionHeader number="4" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" />
           <Card>
-            <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}>
-              {prdData.targetUsers}
-            </p>
+            <EditableText
+              value={prdData.targetUsers}
+              onChange={(v) => setPrdData({ ...prdData, targetUsers: v })}
+              style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}
+              sectionKey="targetUsers" sectionTitle="타겟 사용자" projectContext={projectCtx}
+            />
             {prdData.userPersonas?.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
                 {prdData.userPersonas.map((p, i) => (
@@ -735,6 +1084,77 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             <ModuleCard key={idx} module={module} />
           ))}
         </div>
+
+        {/* F10: 기능 의존성 시각화 */}
+        {prdData.featureModules?.length > 1 && (
+          <Card style={{ marginTop: 8 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>
+              🔗 기능 모듈 의존성 매트릭스
+            </h3>
+            <p style={{ fontSize: 11, color: C.textTertiary, margin: '0 0 14px 0' }}>
+              모듈 간 연관도를 나타냅니다. 진한 셀은 높은 의존성을 의미합니다.
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}`, minWidth: 100 }}></th>
+                    {prdData.featureModules.map((m, i) => (
+                      <th key={i} style={{
+                        padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: C.textSecondary,
+                        borderBottom: `2px solid ${C.border}`, fontSize: 10, maxWidth: 80,
+                        writingMode: prdData.featureModules.length > 4 ? 'vertical-lr' as React.CSSProperties['writingMode'] : undefined,
+                        transform: prdData.featureModules.length > 4 ? 'rotate(180deg)' : undefined,
+                      }}>{m.name.slice(0, 12)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {prdData.featureModules.map((rowMod, ri) => (
+                    <tr key={ri}>
+                      <td style={{ padding: '6px 10px', fontWeight: 600, color: C.textPrimary, borderRight: `1px solid ${C.borderLight}`, whiteSpace: 'nowrap' }}>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, marginRight: 4,
+                          background: rowMod.priority === 'P0' ? C.redBg : rowMod.priority === 'P1' ? C.blueBg : C.borderLight,
+                          color: rowMod.priority === 'P0' ? C.red : rowMod.priority === 'P1' ? C.blue : C.textTertiary,
+                        }}>{rowMod.priority}</span>
+                        {rowMod.name.slice(0, 14)}
+                      </td>
+                      {prdData.featureModules.map((colMod, ci) => {
+                        if (ri === ci) {
+                          return <td key={ci} style={{ padding: 4, textAlign: 'center', background: '#F1F5F9' }}>
+                            <span style={{ fontSize: 10, color: C.textTertiary }}>—</span>
+                          </td>;
+                        }
+                        // 간단한 의존성 스코어링: 같은 priority면 높음, 공유 키워드가 많으면 높음
+                        const sharedKeywords = rowMod.features.filter(rf =>
+                          colMod.features.some(cf =>
+                            rf.subFeatures?.some(sf => cf.name.includes(sf.split(' ')[0])) ||
+                            cf.subFeatures?.some(sf => rf.name.includes(sf.split(' ')[0]))
+                          )
+                        ).length;
+                        const samePriority = rowMod.priority === colMod.priority ? 1 : 0;
+                        const score = Math.min(sharedKeywords + samePriority, 3);
+                        const colors = ['transparent', 'rgba(37,99,235,0.08)', 'rgba(37,99,235,0.18)', 'rgba(37,99,235,0.35)'];
+                        return (
+                          <td key={ci} style={{
+                            padding: 4, textAlign: 'center',
+                            background: colors[score],
+                            border: `1px solid ${C.borderLight}`,
+                          }}>
+                            {score > 0 && <span style={{ fontSize: 10, color: score >= 2 ? C.blue : C.textTertiary }}>
+                              {'●'.repeat(score)}
+                            </span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         {/* 7. Tech Stack */}
         <div id="sec-tech">
@@ -905,9 +1325,12 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                   width: 36, height: 36, borderRadius: '50%', background: C.purple, color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0,
                 }}>💡</div>
-                <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>
-                  {prdData.expertInsight}
-                </p>
+                <EditableText
+                  value={prdData.expertInsight}
+                  onChange={(v) => setPrdData({ ...prdData, expertInsight: v })}
+                  style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+                  sectionKey="expertInsight" sectionTitle="AI 전문가 인사이트" projectContext={projectCtx}
+                />
               </div>
             </Card>
           </div>
@@ -999,6 +1422,34 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           >
             {copied ? '✅ 복사됨!' : '📋 마크다운 복사'}
           </button>
+          {/* F3: PDF 다운로드 */}
+          <button
+            onClick={handlePDF}
+            disabled={pdfGenerating}
+            style={{
+              padding: '14px 24px', borderRadius: 10,
+              border: `1.5px solid ${C.red}`, background: '#fff', color: C.red,
+              fontSize: 14, fontWeight: 600, cursor: pdfGenerating ? 'wait' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              opacity: pdfGenerating ? 0.7 : 1,
+            }}
+          >
+            {pdfGenerating ? '⏳ PDF 생성 중...' : '📄 PDF 다운로드'}
+          </button>
+          {/* F12: DOCX 다운로드 */}
+          <button
+            onClick={handleDOCX}
+            disabled={docxGenerating}
+            style={{
+              padding: '14px 24px', borderRadius: 10,
+              border: `1.5px solid ${C.blue}`, background: '#fff', color: C.blue,
+              fontSize: 14, fontWeight: 600, cursor: docxGenerating ? 'wait' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              opacity: docxGenerating ? 0.7 : 1,
+            }}
+          >
+            {docxGenerating ? '⏳ DOCX 생성 중...' : '📝 DOCX 다운로드'}
+          </button>
           {/* Print */}
           <button
             onClick={handlePrint}
@@ -1011,25 +1462,110 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           >
             🖨️ 인쇄
           </button>
-          {/* Wishket CTA */}
-          <a
-            href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=result&utm_campaign=prd-builder"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              padding: '14px 28px', borderRadius: 10,
-              border: `1.5px solid ${C.border}`, background: '#fff', color: C.textSecondary,
-              fontSize: 14, fontWeight: 600, cursor: 'pointer', textDecoration: 'none',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            위시켓에서 개발사 찾기
-          </a>
+        </div>
+
+        {/* ━━ Wishket CTA Section ━━ */}
+        <div className="no-print" style={{
+          background: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
+          borderRadius: 16,
+          padding: '36px 32px',
+          marginTop: 20,
+          marginBottom: 40,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+          <div style={{ position: 'absolute', bottom: -20, left: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+          {ctaSubmitted ? (
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
+                신청이 완료되었습니다!
+              </h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.6 }}>
+                위시켓 전문 매니저가 PRD를 검토한 뒤,<br />
+                프로젝트에 가장 적합한 개발 파트너를 추천해 드리겠습니다.
+              </p>
+            </div>
+          ) : (
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'rgba(255,255,255,0.15)', padding: '5px 12px', borderRadius: 20,
+                fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5, marginBottom: 16,
+              }}>
+                ⚡ 무료 · 평균 3일 이내 매칭
+              </div>
+              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
+                이 PRD에 딱 맞는 개발 파트너를 찾아보세요
+              </h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
+                위시켓에 등록된 10,000+ 검증된 개발사/프리랜서 중<br />
+                프로젝트 요구사항에 최적화된 파트너를 매칭해 드립니다.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                <input
+                  type="email"
+                  placeholder="이메일 주소"
+                  value={ctaEmail}
+                  onChange={(e) => setCtaEmail(e.target.value)}
+                  style={{
+                    flex: '1 1 200px', padding: '12px 16px', borderRadius: 10,
+                    border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                    color: '#fff', fontSize: 14, outline: 'none',
+                  }}
+                />
+                <input
+                  type="tel"
+                  placeholder="연락처 (선택)"
+                  value={ctaPhone}
+                  onChange={(e) => setCtaPhone(e.target.value)}
+                  style={{
+                    flex: '1 1 160px', padding: '12px 16px', borderRadius: 10,
+                    border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                    color: '#fff', fontSize: 14, outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={async () => {
+                    if (!ctaEmail.includes('@')) return;
+                    setCtaSubmitting(true);
+                    try {
+                      await fetch('/api/cta-lead', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          email: ctaEmail,
+                          phone: ctaPhone,
+                          projectName: prdData.projectName,
+                          projectType: rfpData?.overview ? 'detected' : 'unknown',
+                          featureCount: totalFeatures,
+                          sessionId,
+                        }),
+                      });
+                    } catch { /* fire and forget */ }
+                    setCtaSubmitted(true);
+                    setCtaSubmitting(false);
+                  }}
+                  disabled={ctaSubmitting || !ctaEmail.includes('@')}
+                  style={{
+                    padding: '12px 28px', borderRadius: 10, border: 'none',
+                    background: ctaSubmitting ? 'rgba(255,255,255,0.3)' : '#fff',
+                    color: ctaSubmitting ? '#fff' : '#2563EB',
+                    fontSize: 14, fontWeight: 700, cursor: ctaSubmitting ? 'wait' : 'pointer',
+                    flexShrink: 0, transition: 'all 0.2s',
+                  }}
+                >
+                  {ctaSubmitting ? '신청 중...' : '무료 매칭 신청'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+                <span>✓ PRD 자동 첨부</span>
+                <span>✓ 평균 3건 추천</span>
+                <span>✓ 수수료 0원</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ━━ Footer ━━ */}

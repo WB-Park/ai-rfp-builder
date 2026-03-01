@@ -749,35 +749,48 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
           </Card>
         )}
 
-        {/* ━━ CTA Section ━━ */}
-        <div className="no-print" style={{ marginTop: 40, textAlign: 'center' }}>
-          <div style={{
-            padding: '20px 24px', marginBottom: 20, borderRadius: 12,
-            background: C.blueBg, border: `1px solid rgba(37, 99, 235, 0.1)`,
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>
-              이 PRD로 정확한 견적 비교하기
-            </div>
-            <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
-              동일한 PRD를 개발사 3~5곳에 전달하면 정확한 견적 비교가 가능합니다.
-              <br />위시켓에서 검증된 개발사를 찾아보세요.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share&utm_campaign=shared-prd" target="_blank" rel="noopener noreferrer" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
-              background: C.gradient, color: 'white', textDecoration: 'none', fontWeight: 600, fontSize: 15,
-              boxShadow: '0 4px 16px rgba(37, 99, 235, 0.25)',
+        {/* ━━ CTA Section — Enhanced ━━ */}
+        <div className="no-print" style={{
+          marginTop: 40,
+          background: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
+          borderRadius: 16, padding: '36px 28px', position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'rgba(255,255,255,0.15)', padding: '5px 12px', borderRadius: 20,
+              fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5, marginBottom: 16,
             }}>
-              🚀 위시켓에서 개발사 찾기 →
-            </a>
-            <a href="/" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
-              border: `1.5px solid ${C.border}`, background: C.white, color: C.textSecondary,
-              textDecoration: 'none', fontWeight: 600, fontSize: 14,
-            }}>
-              나도 AI PRD 만들기 →
-            </a>
+              ⚡ 무료 · 평균 3일 이내 매칭
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
+              이 PRD에 딱 맞는 개발 파트너를 찾아보세요
+            </h3>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
+              위시켓에 등록된 10,000+ 검증된 개발사/프리랜서 중
+              프로젝트 요구사항에 최적화된 파트너를 매칭해 드립니다.
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <a href={`https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share&utm_campaign=shared-prd&ref=${shareId}`} target="_blank" rel="noopener noreferrer" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
+                background: '#fff', color: '#2563EB', textDecoration: 'none', fontWeight: 700, fontSize: 15,
+              }}>
+                무료 매칭 신청하기 →
+              </a>
+              <a href="/" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
+                border: '1.5px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff',
+                textDecoration: 'none', fontWeight: 600, fontSize: 14,
+              }}>
+                나도 AI PRD 만들기
+              </a>
+            </div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 16 }}>
+              <span>✓ PRD 자동 첨부</span>
+              <span>✓ 평균 3건 추천</span>
+              <span>✓ 수수료 0원</span>
+            </div>
           </div>
         </div>
 
