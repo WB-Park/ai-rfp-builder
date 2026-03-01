@@ -88,6 +88,77 @@ const C = {
   gradient: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
 };
 
+// ━━━━━ Text Formatting Utility ━━━━━
+function formatTextContent(text: string): React.ReactNode[] {
+  if (!text) return [];
+  // Split by existing newlines first, then split long blocks by sentences
+  const blocks = text.split(/\n{2,}|\r?\n/).filter(b => b.trim());
+  if (blocks.length <= 1 && text.length > 200) {
+    // AI-generated text with no line breaks — split by sentences
+    const sentences = text.match(/[^.!?。]+[.!?。]+\s*/g) || [text];
+    const paragraphs: string[] = [];
+    let current = '';
+    for (const sentence of sentences) {
+      current += sentence;
+      // Group ~2-3 sentences per paragraph
+      if (current.length > 120) {
+        paragraphs.push(current.trim());
+        current = '';
+      }
+    }
+    if (current.trim()) paragraphs.push(current.trim());
+    return paragraphs.map((p, i) => (
+      <p key={i} style={{ margin: i === 0 ? '0 0 12px 0' : '0 0 12px 0', lineHeight: 1.85 }}>{p}</p>
+    ));
+  }
+  return blocks.map((b, i) => (
+    <p key={i} style={{ margin: i === 0 ? '0 0 12px 0' : '0 0 12px 0', lineHeight: 1.85 }}>{b.trim()}</p>
+  ));
+}
+
+// ━━━━━ Formatted Editable Text ━━━━━
+function FormattedText({ value, onChange, style, sectionKey, sectionTitle, projectContext }: {
+  value: string;
+  onChange: (v: string) => void;
+  style?: React.CSSProperties;
+  sectionKey?: string;
+  sectionTitle?: string;
+  projectContext?: { projectName?: string; projectType?: string; coreFeatures?: string };
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+
+  useEffect(() => { setText(value); }, [value]);
+
+  if (editing) {
+    return (
+      <div style={{ ...style }}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => { setEditing(false); onChange(text); }}
+          autoFocus
+          style={{
+            width: '100%', minHeight: 120, padding: 12, border: `2px solid ${C.blue}`,
+            borderRadius: 8, fontSize: 14, lineHeight: 1.8, resize: 'vertical',
+            fontFamily: 'inherit', color: C.textSecondary, background: C.blueBg,
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      style={{ ...style, cursor: 'pointer', fontSize: 15, color: C.textSecondary }}
+      title="클릭하여 편집"
+    >
+      {formatTextContent(value)}
+    </div>
+  );
+}
+
 // ━━━━━ F4+F8: Editable Text Section with AI Regeneration ━━━━━
 function EditableText({ value, onChange, style, sectionKey, sectionTitle, projectContext }: {
   value: string;
@@ -280,40 +351,45 @@ function PriorityBadge({ priority, label }: { priority: string; label: string })
   );
 }
 
-// ━━━━━ Feature Detail ━━━━━
+// ━━━━━ Feature Detail (Redesigned — Full-width Pro Layout) ━━━━━
 function FeatureDetail({ feature, index }: { feature: any; index: string }) {
   const [expanded, setExpanded] = useState(false);
   const hasDetail = ((feature.subFeatures?.length ?? 0) > 0) || feature.userFlow || ((feature.screenSpecs?.length ?? 0) > 0) || ((feature.acceptanceCriteria?.length ?? 0) > 0);
 
   return (
     <div style={{
-      background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
-      marginBottom: 10, overflow: 'hidden',
+      background: C.white, border: `1px solid ${expanded ? C.blueLight : C.border}`,
+      borderRadius: 12, marginBottom: 12, overflow: 'hidden',
+      transition: 'border-color 0.2s, box-shadow 0.2s',
+      boxShadow: expanded ? '0 4px 20px rgba(37,99,235,0.08)' : '0 1px 3px rgba(0,0,0,0.03)',
     }}>
       <button
         onClick={() => hasDetail && setExpanded(!expanded)}
         style={{
-          width: '100%', padding: '14px 16px', background: 'none', border: 'none',
-          cursor: hasDetail ? 'pointer' : 'default',
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', textAlign: 'left',
+          width: '100%', padding: '16px 20px', background: expanded ? 'rgba(37,99,235,0.02)' : 'none',
+          border: 'none', cursor: hasDetail ? 'pointer' : 'default',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
         }}
       >
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.blue, fontFamily: 'monospace' }}>{index}</span>
-            <h5 style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 800, color: C.blue, fontFamily: 'monospace',
+            background: C.blueBg, padding: '4px 8px', borderRadius: 6, flexShrink: 0,
+          }}>{index}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h5 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 2px 0' }}>{feature.name}</h5>
+            <p style={{ fontSize: 13, color: C.textTertiary, margin: 0, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: expanded ? undefined : 1, WebkitBoxOrient: 'vertical' as any }}>
+              {feature.description}
+            </p>
           </div>
-          <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, lineHeight: 1.6, paddingLeft: 0 }}>
-            {feature.description}
-          </p>
         </div>
         {hasDetail && (
           <div style={{
-            width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s',
-            color: C.textTertiary, flexShrink: 0, marginLeft: 12, marginTop: 2,
+            width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: expanded ? C.blueBg : C.borderLight, flexShrink: 0, marginLeft: 12,
+            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'all 0.2s',
           }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={expanded ? C.blue : C.textTertiary} strokeWidth="2.5" strokeLinecap="round">
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
@@ -321,70 +397,147 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
       </button>
 
       {expanded && (
-        <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px', background: C.blueBg }}>
-          {(feature.subFeatures?.length ?? 0) > 0 && (
-            <DetailSection title="하위 기능" items={feature.subFeatures} />
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: '24px', background: '#FAFBFD' }}>
+          {/* Description full */}
+          {feature.description && (
+            <div style={{ marginBottom: 20, fontSize: 14, color: C.textSecondary, lineHeight: 1.8 }}>
+              {formatTextContent(feature.description)}
+            </div>
           )}
-          {(feature.acceptanceCriteria?.length ?? 0) > 0 && (
-            <DetailSection title="수락 기준 (AC)" items={feature.acceptanceCriteria} icon="✅" />
+
+          {/* Grid layout for sub-features and acceptance criteria */}
+          {((feature.subFeatures?.length ?? 0) > 0 || (feature.acceptanceCriteria?.length ?? 0) > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
+              {(feature.subFeatures?.length ?? 0) > 0 && (
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: C.blueBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🔧</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>하위 기능</span>
+                  </div>
+                  {feature.subFeatures.map((sf: string, i: number) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                      <span style={{ color: C.blue, flexShrink: 0, marginTop: 2, fontSize: 8 }}>●</span>
+                      {sf}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(feature.acceptanceCriteria?.length ?? 0) > 0 && (
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: C.greenBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>✅</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>수락 기준 (AC)</span>
+                  </div>
+                  {feature.acceptanceCriteria.map((ac: string, i: number) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                      <span style={{ color: C.green, flexShrink: 0, marginTop: 1 }}>✓</span>
+                      {ac}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
+
+          {/* User Flow — full width code block */}
           {feature.userFlow && feature.userFlow !== '(사용자 흐름 미정의)' && (
-            <div style={{ marginBottom: 14 }}>
-              <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                사용자 흐름
-              </h6>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 24, height: 24, borderRadius: 6, background: C.purpleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🔄</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>사용자 흐름</span>
+              </div>
               <pre style={{
-                background: '#F1F5F9', border: `1px solid ${C.border}`, borderRadius: 8,
-                padding: 12, fontSize: 11, color: C.textSecondary, fontFamily: '"SF Mono", Monaco, monospace',
-                overflow: 'auto', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
+                padding: '16px 20px', fontSize: 12, color: C.textSecondary,
+                fontFamily: '"SF Mono", Monaco, Consolas, monospace',
+                overflow: 'auto', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap',
               }}>
                 {feature.userFlow}
               </pre>
             </div>
           )}
+
+          {/* Screen Specs — card grid instead of table */}
           {(feature.screenSpecs?.length ?? 0) > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                화면 명세
-              </h6>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: '#F1F5F9' }}>
-                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>화면</th>
-                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>목적</th>
-                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>UI 요소</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {feature.screenSpecs.map((spec: any, i: number) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                        <td style={{ padding: '8px 12px', color: C.textSecondary, fontWeight: 600 }}>{spec.name}</td>
-                        <td style={{ padding: '8px 12px', color: C.textSecondary }}>{spec.purpose}</td>
-                        <td style={{ padding: '8px 12px', color: C.textSecondary }}>{spec.elements?.join(', ')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 24, height: 24, borderRadius: 6, background: C.yellowBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📱</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>화면 명세</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+                {feature.screenSpecs.map((spec: any, i: number) => (
+                  <div key={i} style={{
+                    background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
+                    padding: '16px 18px', borderTop: `3px solid ${C.yellow}`,
+                  }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{spec.name}</div>
+                    <div style={{ fontSize: 12, color: C.textTertiary, marginBottom: 10, lineHeight: 1.5 }}>{spec.purpose}</div>
+                    {spec.elements?.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {spec.elements.map((el: string, j: number) => (
+                          <span key={j} style={{
+                            fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                            background: C.borderLight, color: C.textSecondary,
+                          }}>{el}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
-          {(feature.businessRules?.length ?? 0) > 0 && (
-            <DetailSection title="비즈니스 규칙" items={feature.businessRules} icon="📋" />
+
+          {/* Business Rules + Error Cases — side by side */}
+          {((feature.businessRules?.length ?? 0) > 0 || (feature.errorCases?.length ?? 0) > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 20 }}>
+              {(feature.businessRules?.length ?? 0) > 0 && (
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: C.blueBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📋</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>비즈니스 규칙</span>
+                  </div>
+                  {feature.businessRules.map((rule: string, i: number) => (
+                    <div key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, lineHeight: 1.6, paddingLeft: 14, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>•</span>{rule}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(feature.errorCases?.length ?? 0) > 0 && (
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: C.redBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>⚠️</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>에러 케이스</span>
+                  </div>
+                  {feature.errorCases.map((ec: string, i: number) => (
+                    <div key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, lineHeight: 1.6, paddingLeft: 14, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: C.red }}>!</span>{ec}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
-          {(feature.errorCases?.length ?? 0) > 0 && (
-            <DetailSection title="에러 케이스" items={feature.errorCases} icon="⚠️" />
-          )}
+
+          {/* Data Entities */}
           {(feature.dataEntities?.length ?? 0) > 0 && (
             <div>
-              <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                데이터 엔티티
-              </h6>
-              {feature.dataEntities.map((entity: any, i: number) => (
-                <div key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 4 }}>
-                  <strong style={{ color: C.textPrimary }}>{entity.name}</strong>: {entity.fields}
-                </div>
-              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 24, height: 24, borderRadius: 6, background: C.purpleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🗄️</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>데이터 엔티티</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {feature.dataEntities.map((entity: any, i: number) => (
+                  <div key={i} style={{
+                    background: C.white, border: `1px solid ${C.border}`, borderRadius: 8,
+                    padding: '10px 14px', fontSize: 12, minWidth: 140,
+                  }}>
+                    <div style={{ fontWeight: 700, color: C.purple, marginBottom: 2, fontFamily: 'monospace' }}>{entity.name}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.5 }}>{entity.fields}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -517,8 +670,7 @@ function FloatingTOC({ sections, activeSection }: { sections: { num: string; tit
           boxShadow: '0 8px 32px rgba(0,0,0,0.1)', maxHeight: '70vh', overflowY: 'auto',
           width: 200,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 4px' }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 1 }}>목차</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 6, padding: '0 4px' }}>
             <button onClick={() => setCollapsed(true)} style={{
               width: 20, height: 20, borderRadius: 4, border: 'none', background: 'none',
               cursor: 'pointer', fontSize: 10, color: C.textTertiary, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -543,6 +695,68 @@ function FloatingTOC({ sections, activeSection }: { sections: { num: string; tit
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ━━━━━ Sticky Top Bar — Project Title + CTA ━━━━━
+function StickyTopBar({ projectName, onCTAClick }: { projectName: string; onCTAClick: () => void }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 300);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="no-print" style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
+      background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)',
+      borderBottom: `1px solid ${C.border}`, boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+      padding: '0 24px',
+      animation: 'slideDown 0.25s ease',
+    }}>
+      <style>{`@keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      <div style={{
+        maxWidth: 1100, margin: '0 auto',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        height: 56, gap: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+          </div>
+          <span style={{
+            fontSize: 15, fontWeight: 700, color: C.textPrimary,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{projectName}</span>
+        </div>
+        <button
+          onClick={onCTAClick}
+          style={{
+            padding: '8px 20px', borderRadius: 8, border: 'none',
+            background: C.gradient, color: '#fff',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+            boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+            transition: 'transform 0.15s, box-shadow 0.15s',
+          }}
+          onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-1px)'; }}
+          onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
+        >
+          <span>⚡</span>
+          개발 파트너 찾기
+        </button>
+      </div>
     </div>
   );
 }
@@ -1299,6 +1513,11 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           .floating-toc-wrap { display: none !important; }
         }
       `}</style>
+      {/* Sticky Top Bar — Project Title + CTA */}
+      <StickyTopBar projectName={prdData.projectName} onCTAClick={() => {
+        const ctaEl = document.querySelector('.wishket-cta-section');
+        if (ctaEl) ctaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }} />
       {/* A-1: Floating TOC */}
       <div className="floating-toc-wrap">
         <FloatingTOC sections={tocSections} activeSection={activeSection} />
@@ -1346,9 +1565,6 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
       {/* ━━ Body ━━ */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
-        {/* TOC */}
-        <TableOfContents sections={tocSections} />
-
         {/* B-1: KPI Summary Cards */}
         <KPISummary prdData={prdData} />
 
@@ -1356,10 +1572,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         <div id="sec-summary" style={{ marginTop: 8 }}>
           <SectionHeaderAnchored number="1" title="Executive Summary" subtitle="프로젝트 핵심 요약" id="sec-summary" />
           <Card style={{ borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '32px' }}>
-            <EditableText
+            <FormattedText
               value={prdData.executiveSummary}
               onChange={(v) => setPrdData({ ...prdData, executiveSummary: v })}
-              style={{ fontSize: 16, color: C.textSecondary, lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}
+              style={{ fontSize: 16, color: C.textSecondary, lineHeight: 1.9, margin: 0 }}
               sectionKey="executiveSummary" sectionTitle="Executive Summary" projectContext={projectCtx}
             />
           </Card>
@@ -1371,10 +1587,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         <div id="sec-overview">
           <SectionHeaderAnchored number="2" title="프로젝트 개요" subtitle="배경, 목적, 기대효과" id="sec-overview" />
           <Card>
-            <EditableText
+            <FormattedText
               value={prdData.projectOverview}
               onChange={(v) => setPrdData({ ...prdData, projectOverview: v })}
-              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: 0 }}
               sectionKey="projectOverview" sectionTitle="프로젝트 개요" projectContext={projectCtx}
             />
           </Card>
@@ -1388,10 +1604,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           {prdData.problemStatement && (
             <Card style={{ borderLeft: `4px solid ${C.yellow}`, marginBottom: 14 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 10px 0', letterSpacing: -0.1 }}>🎯 문제 정의</h3>
-              <EditableText
+              <FormattedText
                 value={prdData.problemStatement}
                 onChange={(v) => setPrdData({ ...prdData, problemStatement: v })}
-                style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}
+                style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}
                 sectionKey="problemStatement" sectionTitle="문제 정의" projectContext={projectCtx}
               />
             </Card>
@@ -1427,10 +1643,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         <div id="sec-users">
           <SectionHeaderAnchored number="4" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" id="sec-users" />
           <Card>
-            <EditableText
+            <FormattedText
               value={prdData.targetUsers}
               onChange={(v) => setPrdData({ ...prdData, targetUsers: v })}
-              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}
+              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0' }}
               sectionKey="targetUsers" sectionTitle="타겟 사용자" projectContext={projectCtx}
             />
             {(prdData.userPersonas?.length ?? 0) > 0 && (
@@ -1903,10 +2119,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                   width: 36, height: 36, borderRadius: '50%', background: C.purple, color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0,
                 }}>💡</div>
-                <EditableText
+                <FormattedText
                   value={prdData.expertInsight}
                   onChange={(v) => setPrdData({ ...prdData, expertInsight: v })}
-                  style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+                  style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0 }}
                   sectionKey="expertInsight" sectionTitle="AI 전문가 인사이트" projectContext={projectCtx}
                 />
               </div>
@@ -2184,7 +2400,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         </div>
 
         {/* ━━ Wishket CTA Section ━━ */}
-        <div className="no-print" style={{
+        <div className="no-print wishket-cta-section" style={{
           background: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
           borderRadius: 16,
           padding: '36px 32px',
