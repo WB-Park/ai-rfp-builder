@@ -501,8 +501,26 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const isComplete = aiResult.completionReady;
+      let isComplete = aiResult.completionReady;
       const covered = getTopicsCovered(rfpData);
+
+      // ★ 방어 로직: completionReady인데 coreFeatures가 비어있으면,
+      // 기능 선택을 먼저 강제 트리거 (완료 불가)
+      if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures) {
+        const featureSourceText = rfpData.overview || userText;
+        if (featureSourceText && featureSourceText.length >= 2) {
+          try {
+            const aiFeatures = await generateAIFeatures(featureSourceText);
+            if (aiFeatures && aiFeatures.length >= 3) {
+              selectableFeatures = aiFeatures;
+              isComplete = false;
+              finalQuestion = '기능 목록을 확인하고 선택해주세요. 선택하신 기능들을 기반으로 PRD를 생성합니다.';
+            }
+          } catch (e) {
+            console.error('Feature re-generation failed:', e);
+          }
+        }
+      }
 
       return NextResponse.json({
         analysisMessage: aiResult.analysis,

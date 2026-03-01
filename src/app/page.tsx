@@ -16,6 +16,7 @@ export default function Home() {
   const [email, setEmail] = useState('');
   const [sessionId, setSessionId] = useState('');
   const [rfpData, setRfpData] = useState<RFPData | null>(null);
+  const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
 
   const handleStart = (submittedEmail: string, sid?: string) => {
     setEmail(submittedEmail);
@@ -23,8 +24,9 @@ export default function Home() {
     setPhase('chat');
   };
 
-  const handleChatComplete = (data: RFPData) => {
+  const handleChatComplete = (data: RFPData, messages?: { role: string; content: string }[]) => {
     setRfpData(data);
+    if (messages) setChatMessages(messages);
     setPhase('complete');
   };
 
@@ -41,7 +43,7 @@ export default function Home() {
       );
     case 'complete':
       return rfpData ? (
-        <RFPComplete rfpData={rfpData} email={email} sessionId={sessionId} />
+        <RFPComplete rfpData={rfpData} email={email} sessionId={sessionId} chatMessages={chatMessages} />
       ) : null;
     default:
       return null;

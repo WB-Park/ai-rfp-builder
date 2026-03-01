@@ -29,7 +29,7 @@ interface ChatMessage {
 }
 
 interface ChatInterfaceProps {
-  onComplete: (rfpData: RFPData) => void;
+  onComplete: (rfpData: RFPData, messages?: { role: string; content: string }[]) => void;
   email: string;
   sessionId?: string;
 }
@@ -1164,7 +1164,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         }}>
           {isComplete ? (
             <button
-              onClick={() => onComplete(rfpData)}
+              onClick={() => onComplete(rfpData, messages.map(m => ({ role: m.role, content: m.content })))}
               className="animate-bounce-in"
               style={{
                 width: '100%', height: 'var(--btn-height)',
