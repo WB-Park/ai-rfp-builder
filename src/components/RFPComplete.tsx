@@ -412,8 +412,12 @@ function DetailSection({ title, items, icon }: { title: string; items: string[];
 }
 
 // ━━━━━ Module Card ━━━━━
-function ModuleCard({ module }: { module: any }) {
+function ModuleCard({ module, forceExpand }: { module: any; forceExpand?: boolean | null }) {
   const [expanded, setExpanded] = useState(module.priority === 'P0');
+  useEffect(() => {
+    if (forceExpand === true) setExpanded(true);
+    if (forceExpand === false) setExpanded(false);
+  }, [forceExpand]);
 
   return (
     <div style={{
@@ -491,6 +495,281 @@ function TableOfContents({ sections }: { sections: { num: string; title: string;
   );
 }
 
+// ━━━━━ A-1: Floating TOC (Side Navigation) ━━━━━
+function FloatingTOC({ sections, activeSection }: { sections: { num: string; title: string; id: string }[]; activeSection: string }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div className="no-print" style={{
+      position: 'fixed', left: 16, top: '50%', transform: 'translateY(-50%)',
+      zIndex: 100, transition: 'all 0.3s ease',
+    }}>
+      {collapsed ? (
+        <button onClick={() => setCollapsed(false)} style={{
+          width: 40, height: 40, borderRadius: 12, border: `1px solid ${C.border}`,
+          background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontSize: 16,
+        }}>📑</button>
+      ) : (
+        <div style={{
+          background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)',
+          border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)', maxHeight: '70vh', overflowY: 'auto',
+          width: 200,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 4px' }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 1 }}>목차</span>
+            <button onClick={() => setCollapsed(true)} style={{
+              width: 20, height: 20, borderRadius: 4, border: 'none', background: 'none',
+              cursor: 'pointer', fontSize: 10, color: C.textTertiary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>✕</button>
+          </div>
+          {sections.map((s) => {
+            const isActive = activeSection === s.id;
+            return (
+              <a key={s.id} href={`#${s.id}`} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+                borderRadius: 6, textDecoration: 'none', fontSize: 11, fontWeight: isActive ? 700 : 500,
+                color: isActive ? C.blue : C.textTertiary, background: isActive ? C.blueBg : 'transparent',
+                transition: 'all 0.15s', marginBottom: 1, borderLeft: isActive ? `2px solid ${C.blue}` : '2px solid transparent',
+              }}>
+                <span style={{ width: 18, height: 18, borderRadius: 4, fontSize: 9, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  background: isActive ? C.blue : 'transparent', color: isActive ? '#fff' : C.textTertiary,
+                }}>{s.num}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ━━━━━ B-1: Header KPI Summary Cards ━━━━━
+function KPISummary({ prdData }: { prdData: PRDResult }) {
+  const totalFeatures = prdData.featureModules?.reduce((s, m) => s + (m.features?.length || 0), 0) || 0;
+  const p0Count = prdData.featureModules?.filter(m => m.priority === 'P0').reduce((s, m) => s + (m.features?.length || 0), 0) || 0;
+  const p1Count = prdData.featureModules?.filter(m => m.priority === 'P1').reduce((s, m) => s + (m.features?.length || 0), 0) || 0;
+  const totalDuration = prdData.timeline?.reduce((s, t) => {
+    const m = t.duration.match(/(\d+)/);
+    return s + (m ? parseInt(m[1]) : 0);
+  }, 0) || 0;
+  const totalBudget = prdData.budgetBreakdown?.reduce((s, b) => {
+    const m = b.estimatedCost?.match(/([\d,]+)/);
+    return s + (m ? parseInt(m[1].replace(/,/g, '')) : 0);
+  }, 0) || 0;
+
+  const cards = [
+    { label: '총 기능', value: `${totalFeatures}개`, sub: `P0: ${p0Count} / P1: ${p1Count}`, icon: '⚙️', color: C.blue },
+    { label: '예상 기간', value: totalDuration > 0 ? `${totalDuration}~${Math.round(totalDuration * 1.4)}주` : '-', sub: `${prdData.timeline?.length || 0}개 페이즈`, icon: '📅', color: C.green },
+    { label: '예상 예산', value: totalBudget > 0 ? `${(totalBudget / 10000).toFixed(0)}만원~` : prdData.budgetBreakdown ? '산출 중' : '-', sub: '기능별 분해 기준', icon: '💰', color: C.yellow },
+    { label: 'NFR 항목', value: `${prdData.nonFunctionalRequirements?.reduce((s, n) => s + (n.items?.length || 0), 0) || 0}개`, sub: `${prdData.nonFunctionalRequirements?.length || 0}개 카테고리`, icon: '🛡️', color: C.purple },
+  ];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 32 }}>
+      {cards.map((c, i) => (
+        <div key={i} style={{
+          background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 16px',
+          borderTop: `3px solid ${c.color}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{c.label}</span>
+            <span style={{ fontSize: 16 }}>{c.icon}</span>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, marginBottom: 2, letterSpacing: -0.5 }}>{c.value}</div>
+          <div style={{ fontSize: 11, color: C.textTertiary }}>{c.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ━━━━━ B-3: Gantt Chart Timeline ━━━━━
+function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
+  if (!timeline || timeline.length === 0) return null;
+  const phaseColors = [C.blue, C.green, C.purple, C.yellow, C.red, C.blueSoft];
+  let cumulativeWeeks = 0;
+  const phases = timeline.map((t, i) => {
+    const match = t.duration.match(/(\d+)~?(\d+)?/);
+    const minW = match ? parseInt(match[1]) : 2;
+    const maxW = match ? parseInt(match[2] || match[1]) : minW;
+    const start = cumulativeWeeks;
+    cumulativeWeeks += maxW;
+    return { ...t, start, minW, maxW, color: phaseColors[i % phaseColors.length] };
+  });
+  const totalWeeks = cumulativeWeeks;
+
+  return (
+    <Card style={{ padding: '28px 28px 20px' }}>
+      {/* Week markers */}
+      <div style={{ display: 'flex', marginBottom: 6, paddingLeft: 140 }}>
+        {Array.from({ length: totalWeeks + 1 }, (_, i) => (
+          <div key={i} style={{ flex: 1, fontSize: 9, color: C.textTertiary, textAlign: 'left' }}>
+            {i % 2 === 0 ? `${i}주` : ''}
+          </div>
+        ))}
+      </div>
+      {/* Bars */}
+      {phases.map((p, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ width: 130, flexShrink: 0, paddingRight: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.phase}</div>
+            <div style={{ fontSize: 10, color: C.textTertiary }}>{p.duration}</div>
+          </div>
+          <div style={{ flex: 1, position: 'relative', height: 28, background: C.borderLight, borderRadius: 6 }}>
+            <div style={{
+              position: 'absolute', left: `${(p.start / totalWeeks) * 100}%`,
+              width: `${(p.maxW / totalWeeks) * 100}%`, height: '100%',
+              background: `linear-gradient(135deg, ${p.color}, ${p.color}CC)`,
+              borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: `0 2px 6px ${p.color}33`,
+            }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', padding: '0 6px' }}>
+                {p.minW !== p.maxW ? `${p.minW}~${p.maxW}주` : `${p.maxW}주`}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
+      {/* Deliverables legend */}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.borderLight}` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textTertiary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>산출물</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {phases.map((p, i) => p.deliverables?.map((d, j) => (
+            <span key={`${i}-${j}`} style={{
+              fontSize: 11, padding: '3px 10px', borderRadius: 20,
+              background: `${p.color}10`, color: p.color, border: `1px solid ${p.color}25`, fontWeight: 500,
+            }}>{d}</span>
+          )))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ━━━━━ B-4: Risk Matrix Visualization ━━━━━
+function RiskMatrix({ risks }: { risks: PRDResult['risks'] }) {
+  if (!risks || risks.length === 0) return null;
+  const impactMap: Record<string, number> = { '높음': 3, '중간': 2, '낮음': 1 };
+  return (
+    <Card style={{ padding: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        {/* Header */}
+        <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '80px 1fr 1fr 1fr', gap: 8, marginBottom: 4 }}>
+          <div />
+          {['높음', '중간', '낮음'].map(level => (
+            <div key={level} style={{ fontSize: 10, fontWeight: 700, color: C.textTertiary, textAlign: 'center', textTransform: 'uppercase' }}>
+              영향도: {level}
+            </div>
+          ))}
+        </div>
+        {/* Matrix cells */}
+        {risks.map((r, i) => {
+          const impact = impactMap[r.impact] || 2;
+          const bgColors = { 3: C.redBg, 2: C.yellowBg, 1: C.greenBg };
+          const dotColors = { 3: C.red, 2: C.yellow, 1: C.green };
+          return (
+            <div key={i} style={{
+              gridColumn: impact === 3 ? '1' : impact === 2 ? '2' : '3',
+              background: bgColors[impact as keyof typeof bgColors],
+              border: `1px solid ${dotColors[impact as keyof typeof dotColors]}20`,
+              borderRadius: 10, padding: '12px 14px',
+              borderLeft: `3px solid ${dotColors[impact as keyof typeof dotColors]}`,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{r.risk}</div>
+              <div style={{ fontSize: 11, color: C.textSecondary, lineHeight: 1.5 }}>💡 {r.mitigation}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// ━━━━━ B-8: Sticky Action Bar ━━━━━
+function StickyActionBar({ onShare, onCopy, onPDF, onDOCX, sharing, pdfGen, docxGen, copied }: {
+  onShare: () => void; onCopy: () => void; onPDF: () => void; onDOCX: () => void;
+  sharing: boolean; pdfGen: boolean; docxGen: boolean; copied: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => setVisible(window.scrollY > 600);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  if (!visible) return null;
+  return (
+    <div className="no-print" style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
+      background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)',
+      borderTop: `1px solid ${C.border}`, padding: '10px 24px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
+    }}>
+      <button onClick={onShare} disabled={sharing} style={{
+        padding: '8px 18px', borderRadius: 8, border: 'none', background: C.gradient,
+        color: '#fff', fontSize: 12, fontWeight: 700, cursor: sharing ? 'wait' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+      }}>🔗 {sharing ? '생성 중...' : '공유 링크'}</button>
+      <button onClick={onCopy} style={{
+        padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
+        background: '#fff', color: C.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+      }}>{copied ? '✅ 복사됨' : '📋 복사'}</button>
+      <button onClick={onPDF} disabled={pdfGen} style={{
+        padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
+        background: '#fff', color: C.textSecondary, fontSize: 12, fontWeight: 600, cursor: pdfGen ? 'wait' : 'pointer',
+      }}>{pdfGen ? '⏳...' : '📄 PDF'}</button>
+      <button onClick={onDOCX} disabled={docxGen} style={{
+        padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
+        background: '#fff', color: C.textSecondary, fontSize: 12, fontWeight: 600, cursor: docxGen ? 'wait' : 'pointer',
+      }}>{docxGen ? '⏳...' : '📝 DOCX'}</button>
+    </div>
+  );
+}
+
+// ━━━━━ A-3: Section Header with Anchor Link ━━━━━
+function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string; title: string; subtitle?: string; id?: string }) {
+  const [linkCopied, setLinkCopied] = useState(false);
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const url = `${window.location.origin}${window.location.pathname}#${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}
+        className="section-header-group">
+        <span style={{
+          background: C.gradient, color: '#fff', width: 40, height: 40, borderRadius: 12,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 16, fontWeight: 800, flexShrink: 0, boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
+        }}>{number}</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: -0.3 }}>{title}</h2>
+        {id && (
+          <button onClick={handleCopyLink} style={{
+            opacity: 0, transition: 'opacity 0.15s', border: 'none', background: 'none',
+            cursor: 'pointer', fontSize: 14, padding: '4px 8px', borderRadius: 4, color: C.textTertiary,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = C.blueBg; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; e.currentTarget.style.background = 'none'; }}
+          title="섹션 링크 복사"
+          >{linkCopied ? '✅' : '🔗'}</button>
+        )}
+      </div>
+      {subtitle && (
+        <p style={{ fontSize: 13, color: C.textTertiary, margin: '10px 0 0 54px', lineHeight: 1.6, letterSpacing: 0.1 }}>{subtitle}</p>
+      )}
+      <style>{`.section-header-group:hover button { opacity: 0.6 !important; }`}</style>
+    </div>
+  );
+}
+
 // ━━━━━ Main Component ━━━━━
 export default function RFPComplete({ rfpData, email, sessionId }: RFPCompleteProps) {
   const [prdData, setPrdData] = useState<PRDResult | null>(null);
@@ -504,6 +783,25 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   const [ctaSubmitted, setCtaSubmitted] = useState(false);
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  // A-1: Floating TOC active section tracking
+  const [activeSection, setActiveSection] = useState('');
+  // B-2: Feature priority filter
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'P0' | 'P1' | 'P2'>('all');
+  // A-2: Expand/collapse all
+  const [expandAll, setExpandAll] = useState<boolean | null>(null);
+
+  // A-1: Intersection Observer for Floating TOC
+  useEffect(() => {
+    if (loading || !prdData) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) setActiveSection(entry.target.id);
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    const sectionEls = document.querySelectorAll('[id^="sec-"]');
+    sectionEls.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [loading, prdData]);
 
   // F11: 단계별 진행 상태
   const [loadingPhase, setLoadingPhase] = useState(0);
@@ -996,7 +1294,21 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           .print-break { page-break-before: always; }
           * { box-shadow: none !important; }
         }
+        @media (max-width: 768px) {
+          .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .floating-toc-wrap { display: none !important; }
+        }
       `}</style>
+      {/* A-1: Floating TOC */}
+      <div className="floating-toc-wrap">
+        <FloatingTOC sections={tocSections} activeSection={activeSection} />
+      </div>
+      {/* B-8: Sticky Action Bar */}
+      <StickyActionBar
+        onShare={handleShare} onCopy={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
+        onPDF={handlePDF} onDOCX={handleDOCX}
+        sharing={sharing} pdfGen={pdfGenerating} docxGen={docxGenerating} copied={copied}
+      />
       {/* ━━ Header ━━ */}
       <div style={{
         background: C.gradient, color: '#fff', padding: '48px 20px 40px', position: 'relative', overflow: 'hidden',
@@ -1037,9 +1349,12 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* TOC */}
         <TableOfContents sections={tocSections} />
 
+        {/* B-1: KPI Summary Cards */}
+        <KPISummary prdData={prdData} />
+
         {/* 1. Executive Summary */}
         <div id="sec-summary" style={{ marginTop: 8 }}>
-          <SectionHeader number="1" title="Executive Summary" subtitle="프로젝트 핵심 요약" />
+          <SectionHeaderAnchored number="1" title="Executive Summary" subtitle="프로젝트 핵심 요약" id="sec-summary" />
           <Card style={{ borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '32px' }}>
             <EditableText
               value={prdData.executiveSummary}
@@ -1054,7 +1369,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 2. Project Overview */}
         <div id="sec-overview">
-          <SectionHeader number="2" title="프로젝트 개요" subtitle="배경, 목적, 기대효과" />
+          <SectionHeaderAnchored number="2" title="프로젝트 개요" subtitle="배경, 목적, 기대효과" id="sec-overview" />
           <Card>
             <EditableText
               value={prdData.projectOverview}
@@ -1069,7 +1384,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 3. Problem & Goals */}
         <div id="sec-goals">
-          <SectionHeader number="3" title="문제 정의 & 프로젝트 목표" subtitle="해결하려는 문제와 성공 지표" />
+          <SectionHeaderAnchored number="3" title="문제 정의 & 프로젝트 목표" subtitle="해결하려는 문제와 성공 지표" id="sec-goals" />
           {prdData.problemStatement && (
             <Card style={{ borderLeft: `4px solid ${C.yellow}`, marginBottom: 14 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 10px 0', letterSpacing: -0.1 }}>🎯 문제 정의</h3>
@@ -1110,7 +1425,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 4. Target Users & Personas */}
         <div id="sec-users">
-          <SectionHeader number="4" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" />
+          <SectionHeaderAnchored number="4" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" id="sec-users" />
           <Card>
             <EditableText
               value={prdData.targetUsers}
@@ -1163,7 +1478,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 5. Scope */}
         <div id="sec-scope">
-          <SectionHeader number="5" title="프로젝트 스코프" subtitle="포함/미포함 범위 정의" />
+          <SectionHeaderAnchored number="5" title="프로젝트 스코프" subtitle="포함/미포함 범위 정의" id="sec-scope" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card style={{ borderLeft: `4px solid ${C.green}` }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
@@ -1195,7 +1510,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* 6. Information Architecture */}
         {(prdData.informationArchitecture?.sitemap?.length ?? 0) > 0 && (
           <div id="sec-ia">
-            <SectionHeader number="6" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" />
+            <SectionHeaderAnchored number="6" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" id="sec-ia" />
             <Card>
               <div style={{ padding: '8px 0' }}>
                 {prdData.informationArchitecture.sitemap.map((node, i) => (
@@ -1244,9 +1559,33 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 7. Feature Specs */}
         <div id="sec-features">
-          <SectionHeader number="7" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} />
-          {prdData.featureModules?.map((module, idx) => (
-            <ModuleCard key={idx} module={module} />
+          <SectionHeaderAnchored number="7" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
+          {/* B-2: Priority Filter Tabs + A-2: Expand/Collapse All */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 4, background: C.borderLight, borderRadius: 8, padding: 3 }}>
+              {([['all', '전체'], ['P0', 'P0 핵심'], ['P1', 'P1 중요'], ['P2', 'P2 선택']] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setPriorityFilter(key as any)} style={{
+                  padding: '6px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600,
+                  background: priorityFilter === key ? C.white : 'transparent',
+                  color: priorityFilter === key ? C.blue : C.textTertiary,
+                  boxShadow: priorityFilter === key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}>{label}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setExpandAll(true)} style={{
+                padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white,
+                fontSize: 11, color: C.textTertiary, cursor: 'pointer', fontWeight: 500,
+              }}>📂 전체 펼치기</button>
+              <button onClick={() => setExpandAll(false)} style={{
+                padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white,
+                fontSize: 11, color: C.textTertiary, cursor: 'pointer', fontWeight: 500,
+              }}>📁 전체 접기</button>
+            </div>
+          </div>
+          {prdData.featureModules?.filter(m => priorityFilter === 'all' || m.priority === priorityFilter).map((module, idx) => (
+            <ModuleCard key={idx} module={module} forceExpand={expandAll} />
           ))}
         </div>
 
@@ -1325,7 +1664,59 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 7. Tech Stack */}
         <div id="sec-tech">
-          <SectionHeader number="8" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" />
+          <SectionHeaderAnchored number="8" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
+          {/* B-5: Tech Stack Architecture Visualization */}
+          {(prdData.techStack?.length ?? 0) > 0 && (
+            <Card style={{ marginBottom: 14, padding: '24px 28px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textTertiary, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>아키텍처 레이어</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(() => {
+                  const layerOrder = ['프론트엔드', '백엔드', '데이터베이스', '인프라', '인증/보안', '모니터링', '기타'];
+                  const layerColors: Record<string, string> = { '프론트엔드': C.blue, '백엔드': C.green, '데이터베이스': C.purple, '인프라': C.yellow, '인증/보안': C.red, '모니터링': C.blueSoft, '기타': C.textTertiary };
+                  const grouped: Record<string, typeof prdData.techStack> = {};
+                  prdData.techStack?.forEach(t => {
+                    const cat = typeof t === 'object' ? t.category : '기타';
+                    if (!grouped[cat]) grouped[cat] = [];
+                    grouped[cat]!.push(t);
+                  });
+                  const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                    const ai = layerOrder.findIndex(l => a.includes(l));
+                    const bi = layerOrder.findIndex(l => b.includes(l));
+                    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                  });
+                  return sortedKeys.map((cat, i) => {
+                    const color = Object.entries(layerColors).find(([k]) => cat.includes(k))?.[1] || C.textTertiary;
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                        <div style={{
+                          width: 110, flexShrink: 0, background: `${color}12`, borderRadius: '8px 0 0 8px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px',
+                          borderLeft: `3px solid ${color}`,
+                        }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color, textAlign: 'center' }}>{cat}</span>
+                        </div>
+                        <div style={{
+                          flex: 1, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
+                          padding: '8px 12px', background: C.borderLight, borderRadius: '0 8px 8px 0',
+                        }}>
+                          {grouped[cat]!.map((t, j) => (
+                            <span key={j} style={{
+                              padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                              background: C.white, border: `1px solid ${C.border}`, color: C.textPrimary,
+                            }}>{typeof t === 'object' ? t.tech : String(t)}</span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+              {/* Connection arrows hint */}
+              <div style={{ textAlign: 'center', marginTop: 10 }}>
+                <span style={{ fontSize: 10, color: C.textTertiary }}>▲ 사용자 접점 ─── ▼ 인프라 레이어</span>
+              </div>
+            </Card>
+          )}
           <Card>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -1358,7 +1749,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 8. NFR */}
         <div id="sec-nfr">
-          <SectionHeader number="9" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" />
+          <SectionHeaderAnchored number="9" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" id="sec-nfr" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {prdData.nonFunctionalRequirements?.map((nfr, idx) => {
               const nfrThemes: Record<string, { icon: string; color: string; bg: string }> = {
@@ -1392,7 +1783,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 9. Timeline */}
         <div id="sec-timeline">
-          <SectionHeader number="10" title="일정 계획" subtitle="단계별 일정 및 산출물" />
+          <SectionHeaderAnchored number="10" title="일정 계획" subtitle="단계별 일정 및 산출물" id="sec-timeline" />
+          {/* B-3: Gantt Chart */}
+          <GanttChart timeline={prdData.timeline} />
           <Card>
             <div style={{ position: 'relative' }}>
               {prdData.timeline?.map((t, i) => (
@@ -1436,7 +1829,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 10. Assumptions & Constraints */}
         <div id="sec-assumptions">
-          <SectionHeader number="11" title="전제 조건 & 제약사항" />
+          <SectionHeaderAnchored number="11" title="전제 조건 & 제약사항" id="sec-assumptions" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
@@ -1465,7 +1858,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 11. Risk Register */}
         <div id="sec-risks">
-          <SectionHeader number="12" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" />
+          <SectionHeaderAnchored number="12" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
+          {/* B-4: Risk Matrix Visualization */}
+          <RiskMatrix risks={prdData.risks} />
           <Card>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -1501,7 +1896,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* 12. Expert Insight (conditional) */}
         {prdData.expertInsight && (
           <div id="sec-expert">
-            <SectionHeader number="13" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" />
+            <SectionHeaderAnchored number="13" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" id="sec-expert" />
             <Card style={{ borderLeft: `4px solid ${C.purple}`, background: C.purpleBg }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{
@@ -1523,7 +1918,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 13. Glossary */}
         <div id="sec-glossary">
-          <SectionHeader number={String(tocSections.find(s => s.id === 'sec-glossary')?.num || '14')} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" />
+          <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-glossary')?.num || '14')} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" id="sec-glossary" />
           <Card style={{ padding: '28px 32px' }}>
             <div style={{ display: 'grid', gap: 4 }}>
               {prdData.glossary?.map((g, i) => (
@@ -1545,7 +1940,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* ━━ FORGE v2: Budget Breakdown ━━ */}
         {(prdData.budgetBreakdown?.length ?? 0) > 0 && (
           <div id="sec-budget">
-            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-budget')?.num || '15')} title="예산 상세 분해" subtitle="기능별 예산 배분 및 공수 추정" />
+            <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-budget')?.num || '15')} title="예산 상세 분해" subtitle="기능별 예산 배분 및 공수 추정" id="sec-budget" />
             <Card style={{ padding: '28px 32px' }}>
               <div style={{ display: 'grid', gap: 16 }}>
                 {prdData.budgetBreakdown!.map((b, i) => (
@@ -1573,7 +1968,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* ━━ FORGE v2: API Endpoints ━━ */}
         {(prdData.apiEndpoints?.length ?? 0) > 0 && (
           <div id="sec-api">
-            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-api')?.num || '16')} title="API 명세" subtitle="핵심 API 엔드포인트 목록" />
+            <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-api')?.num || '16')} title="API 명세" subtitle="핵심 API 엔드포인트 목록" id="sec-api" />
             <Card style={{ padding: '24px 28px' }}>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -1612,7 +2007,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* ━━ FORGE v2: Data Model / ERD ━━ */}
         {(prdData.dataModel?.length ?? 0) > 0 && (
           <div id="sec-datamodel">
-            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-datamodel')?.num || '17')} title="데이터 모델" subtitle="핵심 엔티티 및 관계도" />
+            <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-datamodel')?.num || '17')} title="데이터 모델" subtitle="핵심 엔티티 및 관계도" id="sec-datamodel" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {prdData.dataModel!.map((entity, i) => (
                 <Card key={i} style={{ overflow: 'hidden', padding: 0 }}>
@@ -1649,7 +2044,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* ━━ FORGE v2: Competitor Analysis ━━ */}
         {(prdData.competitorAnalysis?.length ?? 0) > 0 && (
           <div id="sec-competitor">
-            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-competitor')?.num || '18')} title="경쟁 서비스 분석" subtitle="주요 경쟁 서비스 비교 분석" />
+            <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-competitor')?.num || '18')} title="경쟁 서비스 분석" subtitle="주요 경쟁 서비스 비교 분석" id="sec-competitor" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
               {prdData.competitorAnalysis!.map((comp, i) => (
                 <Card key={i} style={{ overflow: 'hidden', padding: 0 }}>
