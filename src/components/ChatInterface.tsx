@@ -1,11 +1,13 @@
 'use client';
 
-// AI PRD Builder — Chat Interface v9 (Fully AI-Driven)
-// 고정형 질문 완전 제거. Claude가 대화 맥락 기반으로 다음 질문 생성.
-// 토픽 기반 프로그레스 → AI 평가 프로그레스
+// AI PRD Builder — Chat Interface v10 (Quick Start + Deep Mode)
+// Quick Start: 기존 가이드 질문형 (가벼운 사용자)
+// Deep Mode: 자유 브리핑 → AI 구조화 → 갭 분석 → 기능 선택 → 심화 보강 → 생성 후 대화
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { RFPData, emptyRFPData, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
+
+type ChatMode = 'quick' | 'deep' | null; // null = 미선택
 
 interface SelectableFeature {
   name: string;
@@ -50,28 +52,46 @@ function formatTime(ts: number): string {
   return `${ampm} ${hour}:${m}`;
 }
 
-// 동적 thinking 라벨
-const THINKING_LABELS = [
+const THINKING_LABELS_QUICK = [
   '프로젝트를 분석하고 있어요...',
   '맞춤 질문을 구성하고 있어요...',
   '위시켓 116,000건 데이터에서 인사이트를 찾고 있어요...',
   '최적의 다음 질문을 결정하고 있어요...',
   '답변을 분석하고 있어요...',
 ];
-function getThinkingLabel(): string {
-  return THINKING_LABELS[Math.floor(Math.random() * THINKING_LABELS.length)];
+const THINKING_LABELS_DEEP = [
+  '브리핑을 심층 분석하고 있어요...',
+  '프로젝트 구조를 파악하고 있어요...',
+  '위시켓 데이터 기반 인사이트를 준비 중이에요...',
+  '핵심 갭을 식별하고 있어요...',
+  '챌린지 포인트를 정리하고 있어요...',
+  '후속 질문을 설계하고 있어요...',
+];
+
+function getThinkingLabel(mode: ChatMode): string {
+  const labels = mode === 'deep' ? THINKING_LABELS_DEEP : THINKING_LABELS_QUICK;
+  return labels[Math.floor(Math.random() * labels.length)];
 }
 
+// ═══════════════════════════════════════
+//  가이드 칩 (Deep Mode 입력 힌트)
+// ═══════════════════════════════════════
+const GUIDE_CHIPS = [
+  { label: '타겟 유저', example: '주 타겟은 20~30대 직장인이고, ' },
+  { label: '핵심 기능', example: '핵심 기능은 ' },
+  { label: '경쟁사', example: '참고하는 서비스는 ' },
+  { label: '기술 제약', example: '기술적으로는 ' },
+  { label: '일정', example: 'MVP는 약 ' },
+  { label: '참고 서비스', example: '벤치마크 서비스로는 ' },
+];
+
+
 export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      content: email.startsWith('guest@')
-        ? `안녕하세요! 위시켓 **AI PRD 빌더**입니다.\n\n대화 몇 번이면 **전문 기획서(PRD)**가 완성됩니다. AI가 맥락에 맞는 질문을 이어갈게요.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`
-        : `안녕하세요! **${email.split('@')[0]}**님, 위시켓 **AI PRD 빌더**입니다.\n\n대화 몇 번이면 **전문 기획서(PRD)**가 완성됩니다. AI가 맥락에 맞는 질문을 이어갈게요.\n\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
-      timestamp: Date.now(),
-    },
-  ]);
+  // ── 모드 선택 ──
+  const [chatMode, setChatMode] = useState<ChatMode>(null);
+  const [deepPhase, setDeepPhase] = useState<string>('briefing');
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [rfpData, setRfpData] = useState<RFPData>(emptyRFPData);
   const [loading, setLoading] = useState(false);
@@ -82,9 +102,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [isMobile, setIsMobile] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
-  // 기능 선택 UI
   const [featureSelection, setFeatureSelection] = useState<Record<string, boolean>>({});
-  // F7: 문서 업로드
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -105,7 +123,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // 스크롤 위치 감지
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -145,9 +162,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     const textarea = inputRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      const maxH = chatMode === 'deep' && deepPhase === 'briefing' ? 240 : 120;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxH)}px`;
     }
-  }, []);
+  }, [chatMode, deepPhase]);
 
   const saveSession = useCallback(async (
     updatedRfpData: RFPData,
@@ -172,6 +190,30 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     }
   }, [sessionId]);
 
+  // ── 모드 선택 핸들러 ──
+  const selectMode = (mode: ChatMode) => {
+    setChatMode(mode);
+    const userName = email.startsWith('guest@') ? '' : `**${email.split('@')[0]}**님, `;
+
+    if (mode === 'quick') {
+      setMessages([{
+        role: 'assistant',
+        content: `안녕하세요! ${userName}위시켓 **AI PRD 빌더**입니다.\n\n대화 몇 번이면 **전문 기획서(PRD)**가 완성됩니다. AI가 맥락에 맞는 질문을 이어갈게요.\n\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
+        timestamp: Date.now(),
+      }]);
+    } else if (mode === 'deep') {
+      setDeepPhase('briefing');
+      setMessages([{
+        role: 'assistant',
+        content: `안녕하세요! ${userName}위시켓 **AI PRD 빌더 Deep Mode**입니다.\n\n저는 시니어 PM으로서 프로젝트를 깊이 이해하고, **챌린지하고, 빠진 부분을 짚어드리겠습니다.**\n\n---\n\n아래 내용을 자유롭게 작성해 주세요. **길게 쓰실수록 PRD 퀄리티가 올라갑니다.**\n\n💡 아래 태그를 눌러 힌트를 추가할 수 있어요.`,
+        timestamp: Date.now(),
+      }]);
+    }
+
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  // ── 메시지 전송 ──
   const sendMessage = async (userMessage: string) => {
     if (!userMessage.trim() || loading) return;
 
@@ -187,7 +229,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     const newMessages: ChatMessage[] = [...messages, userMsg];
     setMessages(newMessages);
     setLoading(true);
-    setThinkingLabel(getThinkingLabel());
+    setThinkingLabel(getThinkingLabel(chatMode));
 
     try {
       const res = await fetch('/api/chat', {
@@ -196,6 +238,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           rfpData,
+          chatMode: chatMode || 'quick',
+          deepPhase,
         }),
       });
 
@@ -224,7 +268,23 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             (updatedRfpData as unknown as Record<string, unknown>)[section] = value;
           }
         }
-        setRfpData(updatedRfpData);
+      }
+
+      // Deep Mode: multiUpdates 반영
+      if (data.multiUpdates && Array.isArray(data.multiUpdates)) {
+        updatedRfpData = { ...updatedRfpData };
+        for (const upd of data.multiUpdates) {
+          if (upd.section && upd.value && upd.section in updatedRfpData && upd.section !== 'budgetTimeline' && upd.section !== 'coreFeatures') {
+            (updatedRfpData as unknown as Record<string, unknown>)[upd.section] = upd.value;
+          }
+        }
+      }
+
+      setRfpData(updatedRfpData);
+
+      // Deep Phase 업데이트
+      if (data.deepPhase) {
+        setDeepPhase(data.deepPhase);
       }
 
       // 프로그레스 업데이트
@@ -244,8 +304,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 
       if (data.nextAction === 'complete') {
         completed = true;
-        // isComplete를 바로 true로 하면 입력창이 사라져서 마지막 질문에 답변 불가
-        // 대신 canComplete만 활성화하여 유저가 답변 후 완성하거나 바로 완성할 수 있게 함
         setCanComplete(true);
       }
 
@@ -419,9 +477,18 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+    // Deep Mode briefing에서는 Shift+Enter 대신 Enter로 줄바꿈 허용, Cmd/Ctrl+Enter로 전송
+    if (chatMode === 'deep' && deepPhase === 'briefing') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSend();
+      }
+      // 일반 Enter는 줄바꿈 허용
+    } else {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
     }
   };
 
@@ -433,7 +500,178 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     rfpData.additionalRequirements,
   ].filter(Boolean).length;
 
-  // 미리보기 패널
+  // ═══════════════════════════════════════
+  //  모드 선택 화면
+  // ═══════════════════════════════════════
+  if (chatMode === null) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: 'var(--surface-0)',
+        padding: isMobile ? 16 : 24,
+      }}>
+        <div style={{
+          maxWidth: 720, width: '100%',
+          animation: 'fadeInUp 0.5s ease-out',
+        }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(37,99,235,0.25)',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <h1 style={{
+              fontSize: 28, fontWeight: 800, color: 'var(--text-primary)',
+              letterSpacing: '-0.02em', marginBottom: 8,
+            }}>
+              AI PRD 빌더
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+              대화만으로 전문 기획서를 완성하세요
+            </p>
+          </div>
+
+          {/* Mode Cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: 16,
+          }}>
+            {/* Quick Start */}
+            <button
+              onClick={() => selectMode('quick')}
+              style={{
+                textAlign: 'left', cursor: 'pointer',
+                padding: 28, borderRadius: 16,
+                border: '2px solid var(--border-default)',
+                background: 'var(--surface-0)',
+                transition: 'all 0.2s ease',
+                position: 'relative', overflow: 'hidden',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(37,99,235,0.12)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border-default)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{
+                fontSize: 32, marginBottom: 12,
+              }}>⚡</div>
+              <div style={{
+                fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
+                marginBottom: 6,
+              }}>빠른 시작</div>
+              <div style={{
+                fontSize: 14, fontWeight: 500, color: 'var(--color-primary)',
+                marginBottom: 12,
+              }}>5분 · 가이드 질문형</div>
+              <p style={{
+                fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
+              }}>
+                AI가 핵심 질문을 하나씩 물어봅니다.<br/>
+                선택지 클릭만으로도 PRD 완성이 가능해요.
+              </p>
+              <div style={{
+                marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6,
+              }}>
+                {['아이디어만 있어도 OK', '선택지 제공', '5분 완성'].map(tag => (
+                  <span key={tag} style={{
+                    fontSize: 11, fontWeight: 500, color: 'var(--text-quaternary)',
+                    background: 'var(--surface-2)', padding: '4px 10px',
+                    borderRadius: 20,
+                  }}>{tag}</span>
+                ))}
+              </div>
+            </button>
+
+            {/* Deep Mode */}
+            <button
+              onClick={() => selectMode('deep')}
+              style={{
+                textAlign: 'left', cursor: 'pointer',
+                padding: 28, borderRadius: 16,
+                border: '2px solid transparent',
+                background: 'linear-gradient(135deg, rgba(37,99,235,0.04), rgba(37,99,235,0.08))',
+                transition: 'all 0.2s ease',
+                position: 'relative', overflow: 'hidden',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(37,99,235,0.18)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {/* Recommended badge */}
+              <div style={{
+                position: 'absolute', top: 12, right: 12,
+                fontSize: 11, fontWeight: 700, color: 'white',
+                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
+                padding: '3px 10px', borderRadius: 20,
+              }}>추천</div>
+
+              <div style={{
+                fontSize: 32, marginBottom: 12,
+              }}>🎯</div>
+              <div style={{
+                fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
+                marginBottom: 6,
+              }}>Deep Mode</div>
+              <div style={{
+                fontSize: 14, fontWeight: 500, color: 'var(--color-primary)',
+                marginBottom: 12,
+              }}>10~15분 · AI PM 킥오프 미팅</div>
+              <p style={{
+                fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
+              }}>
+                프로젝트를 자유롭게 설명하면<br/>
+                AI PM이 <strong style={{ color: 'var(--text-secondary)' }}>구조화, 챌린지, 갭 분석</strong>을 해드립니다.
+              </p>
+              <div style={{
+                marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6,
+              }}>
+                {['자유 브리핑', 'AI 챌린지', '2~3 depth 후속질문', '최고 퀄리티'].map(tag => (
+                  <span key={tag} style={{
+                    fontSize: 11, fontWeight: 500,
+                    color: 'var(--color-primary)',
+                    background: 'rgba(37,99,235,0.08)', padding: '4px 10px',
+                    borderRadius: 20,
+                  }}>{tag}</span>
+                ))}
+              </div>
+            </button>
+          </div>
+
+          {/* Sub text */}
+          <p style={{
+            textAlign: 'center', fontSize: 13, color: 'var(--text-quaternary)',
+            marginTop: 20,
+          }}>
+            어떤 모드든 결과물은 동일한 전문 PRD입니다. 입력의 깊이가 퀄리티를 결정합니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════
+  //  미리보기 패널
+  // ═══════════════════════════════════════
   const previewPanel = (
     <div style={{
       width: isMobile ? '100%' : '50%',
@@ -557,6 +795,50 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     </div>
   );
 
+  // ═══════════════════════════════════════
+  //  Deep Mode 페이즈 인디케이터
+  // ═══════════════════════════════════════
+  const phaseLabels: Record<string, { label: string; num: number }> = {
+    briefing: { label: '자유 브리핑', num: 1 },
+    gap_analysis: { label: '갭 분석', num: 2 },
+    feature_select: { label: '기능 선택', num: 3 },
+    refinement: { label: '심화 보강', num: 4 },
+  };
+
+  const deepPhaseIndicator = chatMode === 'deep' ? (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8,
+    }}>
+      {Object.entries(phaseLabels).map(([key, { label, num }]) => {
+        const current = key === deepPhase;
+        const passed = (phaseLabels[deepPhase]?.num || 1) > num;
+        return (
+          <div key={key} style={{
+            display: 'flex', alignItems: 'center', gap: 3,
+          }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: '50%',
+              fontSize: 10, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: current ? 'var(--color-primary)' : passed ? 'rgba(var(--color-primary-rgb), 0.15)' : 'var(--surface-2)',
+              color: current ? 'white' : passed ? 'var(--color-primary)' : 'var(--text-quaternary)',
+              transition: 'all 0.3s',
+            }}>{passed ? '✓' : num}</div>
+            {!isMobile && current && (
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-primary)' }}>{label}</span>
+            )}
+            {key !== 'refinement' && (
+              <div style={{
+                width: 12, height: 1,
+                background: passed ? 'var(--color-primary)' : 'var(--border-default)',
+              }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-0)' }}>
       {/* Left: Chat Panel */}
@@ -579,8 +861,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   : '0 0 8px rgba(var(--color-primary-rgb), 0.4)',
               }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                {isComplete ? 'PRD 완성 준비' : 'AI PRD 빌더'}
+                {isComplete ? 'PRD 완성 준비' : chatMode === 'deep' ? 'Deep Mode' : 'AI PRD 빌더'}
               </span>
+              {chatMode === 'deep' && deepPhaseIndicator}
               {canComplete && !isComplete && (
                 <span className="animate-fade-in" style={{
                   fontSize: 11, color: '#F59E0B',
@@ -593,6 +876,26 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* 모드 전환 버튼 */}
+              <button onClick={() => {
+                setChatMode(null);
+                setMessages([]);
+                setRfpData(emptyRFPData);
+                setProgressPercent(0);
+                setCanComplete(false);
+                setIsComplete(false);
+                setDeepPhase('briefing');
+              }} style={{
+                fontSize: 11, fontWeight: 500, color: 'var(--text-quaternary)',
+                background: 'none', border: '1px solid var(--border-default)',
+                padding: '3px 10px', borderRadius: 'var(--radius-full)',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+              >
+                모드 변경
+              </button>
               {isMobile && rfpData.overview && (
                 <button onClick={() => setShowPreview(true)} style={{
                   fontSize: 12, fontWeight: 600, color: 'var(--color-primary)',
@@ -703,7 +1006,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-primary)'; }}
                       >{option}</button>
                     ))}
-                    {/* 직접 입력 옵션 — 항상 표시 */}
                     <button onClick={() => {
                       const el = inputRef.current;
                       if (el) {
@@ -730,18 +1032,18 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       </svg>
                       직접 입력하기
                     </button>
-                    {/* 건너뛰기 옵션 */}
-                    <button onClick={() => sendMessage('건너뛰기')} style={{
-                      padding: '7px 14px', borderRadius: 20,
-                      border: '1.5px dashed var(--text-quaternary)',
-                      background: 'transparent', color: 'var(--text-quaternary)',
-                      fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
-                      cursor: 'pointer', transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
-                    >건너뛰기</button>
-                    {/* 완성하기 버튼 — canComplete일 때 인라인에도 표시 */}
+                    {chatMode !== 'deep' && (
+                      <button onClick={() => sendMessage('건너뛰기')} style={{
+                        padding: '7px 14px', borderRadius: 20,
+                        border: '1.5px dashed var(--text-quaternary)',
+                        background: 'transparent', color: 'var(--text-quaternary)',
+                        fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+                      >건너뛰기</button>
+                    )}
                     {canComplete && (
                       <button onClick={() => setIsComplete(true)} style={{
                         padding: '7px 16px', borderRadius: 20,
@@ -827,7 +1129,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                         </button>
                       </div>
                     </div>
-                    {/* 필수 기능 */}
                     {msg.selectableFeatures.filter(f => f.category === 'must').length > 0 && (
                       <div style={{ padding: '10px 14px 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
                         🔴 필수 기능 ({msg.selectableFeatures.filter(f => f.category === 'must').length}개)
@@ -933,6 +1234,30 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           borderTop: '1px solid var(--border-default)',
           background: 'var(--surface-0)',
         }}>
+          {/* Deep Mode briefing: 가이드 칩 */}
+          {chatMode === 'deep' && deepPhase === 'briefing' && messages.filter(m => m.role === 'user').length === 0 && (
+            <div style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {GUIDE_CHIPS.map(chip => (
+                <button key={chip.label} onClick={() => {
+                  setInput(prev => prev + chip.example);
+                  setTimeout(() => { inputRef.current?.focus(); adjustTextareaHeight(); }, 50);
+                }} style={{
+                  padding: '5px 12px', borderRadius: 16,
+                  border: '1px solid rgba(var(--color-primary-rgb), 0.2)',
+                  background: 'rgba(var(--color-primary-rgb), 0.04)',
+                  color: 'var(--color-primary)', fontSize: 12, fontWeight: 500,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  fontFamily: 'var(--font-kr)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.04)'; }}
+                >
+                  + {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {isComplete ? (
             <button
               onClick={() => onComplete(rfpData)}
@@ -965,11 +1290,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   value={input}
                   onChange={(e) => { setInput(e.target.value); adjustTextareaHeight(); }}
                   onKeyDown={handleKeyDown}
-                  placeholder="답변을 입력하세요..."
-                  rows={1}
+                  placeholder={
+                    chatMode === 'deep' && deepPhase === 'briefing'
+                      ? '프로젝트에 대해 자유롭게 설명해 주세요. 길게 쓸수록 좋습니다...\n(⌘+Enter로 전송)'
+                      : '답변을 입력하세요...'
+                  }
+                  rows={chatMode === 'deep' && deepPhase === 'briefing' ? 5 : 1}
                   disabled={loading}
                   style={{
-                    width: '100%', minHeight: 48, maxHeight: 120,
+                    width: '100%',
+                    minHeight: chatMode === 'deep' && deepPhase === 'briefing' ? 120 : 48,
+                    maxHeight: chatMode === 'deep' && deepPhase === 'briefing' ? 240 : 120,
                     padding: '12px 16px', borderRadius: 'var(--radius-md)',
                     border: '1.5px solid var(--border-strong)',
                     outline: 'none', resize: 'none', fontSize: 15,
