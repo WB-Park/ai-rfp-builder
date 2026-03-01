@@ -1,6 +1,6 @@
-// AI PRD Builder — Chat API v10 (Quick Start + Deep Mode)
+// AI PRD Builder — Chat API v11 (Quick Start + Deep Mode v2)
 // Quick Start: 기존 가이드 질문형 (가벼운 사용자)
-// Deep Mode: 자유 브리핑 → AI 구조화 → 갭 분석 챌린지 → 후속 질문 depth 2-3
+// Deep Mode v2: Quick과 동일한 대화형 시작 → AI가 각 토픽 2~3 depth로 파고듦 + 챌린지/인사이트
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { RFPData, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
@@ -190,7 +190,7 @@ ${missingInfo.length > 0 ? missingInfo.join(', ') : '(모든 필수 정보 수�
 }
 
 // ═══════════════════════════════════════════════
-//  Deep Mode: AI PM 킥오프 엔진
+//  Deep Mode v2: 대화형 시작 → 토픽별 2~3 depth 파고들기
 // ═══════════════════════════════════════════════
 async function generateDeepResponse(
   messages: ChatMessage[],
@@ -206,7 +206,6 @@ async function generateDeepResponse(
   progressPercent: number;
   thinkingLabel: string;
   deepPhase: string;
-  structuredBriefing?: object;
 } | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
@@ -223,6 +222,14 @@ async function generateDeepResponse(
   if (rfpData.techRequirements) collectedInfo.push(`기술 요구사항: ${rfpData.techRequirements}`);
   if (rfpData.additionalRequirements) collectedInfo.push(`추가 요구사항: ${rfpData.additionalRequirements}`);
 
+  const missingInfo = [];
+  if (!rfpData.overview) missingInfo.push('프로젝트 개요 (필수)');
+  if (!rfpData.targetUsers) missingInfo.push('타겟 사용자');
+  if (rfpData.coreFeatures.length === 0) missingInfo.push('핵심 기능 (필수)');
+  if (!rfpData.referenceServices) missingInfo.push('참고 서비스/벤치마크');
+  if (!rfpData.techRequirements) missingInfo.push('기술 요구사항 (웹/앱)');
+  if (!rfpData.additionalRequirements) missingInfo.push('추가 요구사항');
+
   const messageCount = messages.filter(m => m.role === 'user').length;
 
   try {
@@ -230,79 +237,79 @@ async function generateDeepResponse(
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       system: `당신은 위시켓에서 116,000건 이상의 IT 외주 프로젝트를 분석한 시니어 PM 디렉터입니다.
-Deep Mode에서는 프로젝트 킥오프 미팅을 이끄는 것처럼 깊이 있게 대화합니다.
+Deep Mode에서는 Quick Mode와 동일하게 대화형으로 시작하되, 각 주제에 대해 **2~3단계 깊이로 파고들고 챌린지**합니다.
 
-[Deep Mode 페이즈]
-현재 페이즈: ${deepPhase}
+[Deep Mode v2 핵심 원칙]
 
-Phase 1 (briefing): 자유 브리핑 수신 → 구조화 정리
-- 고객이 길게 작성한 브리핑을 받아서 구조화합니다
-- "제가 이해한 내용을 정리했습니다:" 형식으로 핵심 정보를 카테고리별 정리
-- 빠진 부분을 "⚠️ 아직 파악되지 않은 부분:" 으로 명시
-- rfpUpdate에 최대한 많은 정보를 분배 저장
-- structuredBriefing 객체로 정리 결과 반환
-- 정리 후 deepPhase를 "gap_analysis"로 전환
+1. **대화형 시작**: Quick Mode처럼 "어떤 서비스를 만들고 싶으세요?"로 시작
+2. **토픽별 깊이 파기**: 고객이 답변하면, 해당 토픽에 대해 2~3번 후속 질문으로 파고듦
+   - Depth 1: 고객의 답변 확인 + 핵심 포인트 짚기
+   - Depth 2: "왜?"를 물어보거나, 데이터 기반 챌린지 제시
+   - Depth 3: 놓친 엣지 케이스나 경쟁 서비스 대비 차별점 질문
+3. **자연스러운 전환**: 한 토픽이 충분히 깊어지면, 자연스럽게 다음 토픽으로 넘어감
+4. **챌린지 스타일**: 단순 수집이 아닌 건설적 챌린지
+   - ❌ "타겟 사용자가 누구인가요?"
+   - ✅ "20대 여성을 타겟으로 잡으셨는데, 위시켓 데이터 기준 이 분야에서 25~34세가 구매 전환율이 2.1배 높습니다. 연령대를 좀 더 넓히는 건 어떠세요?"
 
-Phase 2 (gap_analysis): 갭 분석 + AI 챌린지
-- 수집되지 않은 정보를 질문하되, **단순 질문이 아닌 챌린지 형태**로
-- 예: "수의사 상담을 핵심으로 잡으셨는데, 실제로 원격상담 서비스 중 텍스트 vs 화상 비율이 7:3입니다. 어떤 방식을 고려하고 계신가요?"
-- 한 주제에 대해 depth 2~3까지 파고들기
-- 고객의 가정에 대해 건설적으로 반박 가능
-- MVP 스코프 질문: "이 기능들을 모두 MVP에 넣으시려는 건가요? 위시켓 데이터 기준, MVP에서 기능 5개 이하가 성공률이 2.3배 높습니다."
-- 후속 질문은 번호를 매겨 2~4개 제시
-- 각 질문에 답하면 다음 갭으로 이동
-- 모든 핵심 갭이 채워지면 deepPhase를 "feature_select"로 전환
+[대화 흐름 — 자연스럽게 진행]
 
-Phase 3 (feature_select): 기능 선택
-- showFeatureSelector=true로 기능 선택 UI 표시
-- 기능 선택 후 deepPhase를 "refinement"로 전환
+턴 1~2: 프로젝트 개요 파악 (무엇을 만드는지)
+- 고객의 한 줄 설명에서 핵심 컨셉 추출
+- "이 서비스의 핵심 가치가 무엇인가요?" 같은 depth 질문
 
-Phase 4 (refinement): 심화 보강
-- 수집된 정보 기반으로 빠진 디테일을 짚어줌
-- 예: "결제 시스템에서 정산 주기가 언급 안 되었는데, B2B는 보통 월 1회 정산인데 어떻게 생각하세요?"
-- 모든 핵심 정보가 풍부하면 completionReady=true
+턴 3~4: 타겟 사용자 + 핵심 문제
+- 누구를 위한 서비스인지
+- 데이터 기반으로 타겟의 행동 패턴 제시 + 챌린지
 
-[핵심 원칙]
+턴 5~6: 핵심 기능 설계
+- 개요 파악 후 showFeatureSelector=true로 기능 선택 UI 제안
+- MVP 스코프 챌린지: "이 기능들을 모두 MVP에 넣으시려는 건가요? 위시켓 데이터 기준, MVP 기능 5개 이하가 성공률이 2.3배 높습니다."
+
+턴 7~8: 기술/플랫폼 + 참고 서비스
+- 웹/앱/하이브리드 선택
+- 경쟁 서비스 대비 차별점 질문
+
+턴 9+: 마무리 보강
+- 빠진 디테일 짚기
+- 충분히 수집되면 completionReady=true
+
+[응답 스타일]
 - 존댓말 필수
-- 챌린지는 건설적으로. "그건 안 됩니다" ❌ → "이 방향도 고려해보셨나요?" ✅
-- 위시켓 프로젝트 데이터 기반 인사이트 적극 활용
-- 예산/견적/비용 관련 질문 금지
-- analysis는 3~5문장으로 깊이 있게
-- question은 2~3문장, 구체적 선택지 제시
-- 후속 질문 시 번호 매기기 (1. 2. 3.)
+- analysis: 3~5문장. 고객 답변 분석 + 💡 위시켓 데이터 인사이트 1개 이상 + 건설적 챌린지
+- question: 후속 질문 1~2개. 구체적 선택지/예시 포함
+- 제네릭 반응 금지 ("좋은 생각이시네요" ❌ → 구체적으로 짚기)
+- 예산/견적/비용 질문 절대 금지
+- 한 번에 하나의 주제에 집중 (토픽 점프 금지)
+
+[중요 규칙]
+- 개요를 파악한 직후에는 반드시 showFeatureSelector=true
+- overview + coreFeatures + 2개 추가 정보가 수집되면 completionReady=true
+- 6개 이상 수집되면 자연스럽게 완료 제안
+- deepPhase는 항상 "conversation" 유지 (phase 전환 없음)
 
 [현재 수집 상태]
 ${collectedInfo.length > 0 ? collectedInfo.join('\n') : '(아직 수집된 정보 없음)'}
+
+[미수집 항목]
+${missingInfo.length > 0 ? missingInfo.join(', ') : '(모든 필수 정보 수집 완료)'}
 
 대화 턴 수: ${messageCount}
 
 [응답 형식 — 반드시 JSON만 출력]
 {
   "analysis": "고객 답변에 대한 깊이 있는 피드백 (3~5문장). 💡 인사이트 포함. 챌린지 포함.",
-  "question": "다음 질문/챌린지. 후속 질문은 번호 매기기.",
-  "rfpUpdate": { "section": "...", "value": "..." } 또는 null,
-  "quickReplies": ["선택지1", "선택지2"],
+  "question": "다음 질문 (1~2문장). 구체적 선택지/예시 포함.",
+  "rfpUpdate": { "section": "overview|targetUsers|coreFeatures|techRequirements|referenceServices|additionalRequirements", "value": "추출한 값" } 또는 null,
+  "quickReplies": ["선택지1", "선택지2", "선택지3"],
   "showFeatureSelector": false,
   "completionReady": false,
   "progressPercent": 0~100,
   "thinkingLabel": "분석 중 표시할 레이블",
-  "deepPhase": "${deepPhase}",
-  "structuredBriefing": null
-}
-
-structuredBriefing은 Phase 1에서만 사용:
-{
-  "overview": "프로젝트 개요 요약",
-  "targetUsers": "타겟 유저 요약",
-  "features": "언급된 기능들",
-  "tech": "기술 요구사항",
-  "reference": "참고 서비스",
-  "additional": "추가 정보",
-  "gaps": ["파악되지 않은 부분1", "파악되지 않은 부분2"]
+  "deepPhase": "conversation"
 }`,
       messages: [{
         role: 'user',
-        content: `대화 히스토리:\n${conversationContext}\n\n고객의 마지막 답변을 분석하고, Deep Mode 페이즈(${deepPhase})에 맞는 응답을 생성하세요. 반드시 JSON 형식으로만 응답하세요.`
+        content: `대화 히스토리:\n${conversationContext}\n\n고객의 마지막 답변을 분석하고, Deep Mode v2 방식으로 깊이 있는 응답을 생성하세요. 반드시 JSON 형식으로만 응답하세요.`
       }],
     });
 
@@ -322,8 +329,7 @@ structuredBriefing은 Phase 1에서만 사용:
       completionReady: parsed.completionReady || false,
       progressPercent: parsed.progressPercent || 0,
       thinkingLabel: parsed.thinkingLabel || '프로젝트를 심층 분석하고 있어요...',
-      deepPhase: parsed.deepPhase || deepPhase,
-      structuredBriefing: parsed.structuredBriefing || null,
+      deepPhase: parsed.deepPhase || 'conversation',
     };
   } catch (error) {
     console.error('Deep response error:', error);
@@ -391,7 +397,7 @@ export async function POST(req: NextRequest) {
     }
 
     const mode: ChatMode = chatMode === 'deep' ? 'deep' : 'quick';
-    const deepPhase: string = clientDeepPhase || 'briefing';
+    const deepPhase: string = clientDeepPhase || 'conversation';
 
     const lastUserMessage = messages.filter((m: { role: string }) => m.role === 'user').pop();
     const userText = lastUserMessage?.content || '';
@@ -462,44 +468,6 @@ export async function POST(req: NextRequest) {
         } catch { /* not JSON */ }
       }
 
-      // Deep Mode: structuredBriefing에서 다중 rfpUpdate 추출
-      if (mode === 'deep' && 'structuredBriefing' in aiResult && aiResult.structuredBriefing) {
-        const sb = aiResult.structuredBriefing as Record<string, string>;
-        // 가장 큰 단일 rfpUpdate를 기본으로 하되, 나머지도 multiUpdate로 전달
-        const multiUpdates: Array<{ section: string; value: string }> = [];
-        if (sb.overview && !rfpData.overview) multiUpdates.push({ section: 'overview', value: sb.overview });
-        if (sb.targetUsers && !rfpData.targetUsers) multiUpdates.push({ section: 'targetUsers', value: sb.targetUsers });
-        if (sb.tech && !rfpData.techRequirements) multiUpdates.push({ section: 'techRequirements', value: sb.tech });
-        if (sb.reference && !rfpData.referenceServices) multiUpdates.push({ section: 'referenceServices', value: sb.reference });
-        if (sb.additional && !rfpData.additionalRequirements) multiUpdates.push({ section: 'additionalRequirements', value: sb.additional });
-
-        if (multiUpdates.length > 0 && !rfpUpdate) {
-          rfpUpdate = multiUpdates[0];
-        }
-
-        // multiUpdates를 응답에 추가
-        if (multiUpdates.length > 1) {
-          const covered = getTopicsCovered(rfpData);
-          return NextResponse.json({
-            analysisMessage: aiResult.analysis,
-            questionMessage: aiResult.question,
-            message: aiResult.question || aiResult.analysis,
-            rfpUpdate,
-            multiUpdates,
-            nextAction: aiResult.completionReady ? 'complete' : 'continue',
-            quickReplies: aiResult.quickReplies,
-            inlineOptions: aiResult.quickReplies,
-            selectableFeatures: null,
-            thinkingLabel: aiResult.thinkingLabel,
-            topicsCovered: covered,
-            progress: aiResult.progressPercent,
-            canComplete: aiResult.completionReady,
-            deepPhase: 'deepPhase' in aiResult ? aiResult.deepPhase : deepPhase,
-            structuredBriefing: 'structuredBriefing' in aiResult ? aiResult.structuredBriefing : null,
-          });
-        }
-      }
-
       // 기능 선택 UI 표시 여부
       let selectableFeatures: SelectableFeature[] | null = null;
       const featureSourceText = rfpData.overview || userText;
@@ -543,7 +511,6 @@ export async function POST(req: NextRequest) {
         progress: aiResult.progressPercent,
         canComplete: isComplete || isReadyToComplete(rfpData),
         deepPhase: 'deepPhase' in aiResult ? aiResult.deepPhase : deepPhase,
-        structuredBriefing: 'structuredBriefing' in aiResult ? aiResult.structuredBriefing : null,
       });
     }
 
