@@ -131,9 +131,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <span style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, fontWeight: 500 }}>AI PRD 빌더</span>
           </div>
           <button onClick={handleGuestStart} style={{
-            padding: isMobile ? '7px 14px' : '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
+            padding: isMobile ? '10px 16px' : '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
             background: C.blue, color: C.white, fontSize: isMobile ? 13 : 14, fontWeight: 600,
-            transition: 'all 0.2s',
+            transition: 'all 0.2s', minHeight: isMobile ? 44 : undefined,
           }}>바로 시작</button>
         </div>
       </header>
@@ -141,7 +141,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       {/* ━━ Hero — CTA 바로 여기에! (스크롤 금지) ━━ */}
       <section style={{
         background: `linear-gradient(180deg, ${C.navy} 0%, ${C.navyLight} 80%, ${C.navyMid} 100%)`,
-        padding: isMobile ? '90px 20px 44px' : '130px 24px 80px', textAlign: 'center',
+        padding: isMobile ? '68px 16px 40px' : '130px 24px 80px', textAlign: 'center',
         position: 'relative', overflow: 'hidden',
       }}>
         {/* 배경 그로우 이펙트 */}
@@ -158,7 +158,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: isMobile ? '6px 14px' : '8px 18px', borderRadius: 100,
             background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
-            marginBottom: isMobile ? 20 : 28,
+            marginBottom: isMobile ? 12 : 28,
           }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 8px ${C.blueGlow}` }} />
             <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: C.blueText }}>
@@ -168,9 +168,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
           {/* Headline */}
           <h1 style={{
-            fontSize: isMobile ? 28 : 'clamp(30px, 5vw, 48px)', fontWeight: 800,
+            fontSize: isMobile ? 26 : 'clamp(30px, 5vw, 48px)', fontWeight: 800,
             color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em',
-            marginBottom: isMobile ? 12 : 16,
+            marginBottom: isMobile ? 8 : 16,
           }}>
             {isMobile ? (
               <>소프트웨어 기획서,<br /><span style={{ color: C.blueSoft }}>AI가 5분 만에 완성</span></>
@@ -181,8 +181,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
           {/* Sub */}
           <p style={{
-            fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
-            lineHeight: 1.7, maxWidth: isMobile ? '100%' : 560, margin: isMobile ? '0 auto 24px' : '0 auto 36px',
+            fontSize: isMobile ? 14 : 'clamp(15px, 2vw, 18px)', color: C.textLight,
+            lineHeight: 1.65, maxWidth: isMobile ? '100%' : 560, margin: isMobile ? '0 auto 16px' : '0 auto 36px',
           }}>
             {isMobile ? (
               <>아이디어만 말하면, AI가 <strong style={{ color: C.blueSoft }}>개발사에 바로 보낼 수 있는 기획서</strong>를 무료로 작성합니다.</>
@@ -260,7 +260,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             display: isMobile ? 'grid' : 'flex',
             gridTemplateColumns: isMobile ? '1fr 1fr' : undefined,
             flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'center',
-            gap: isMobile ? '8px 4px' : 16, marginTop: 24,
+            gap: isMobile ? '10px 12px' : 16, marginTop: isMobile ? 16 : 24,
           }}>
             {['회원가입 불필요', '완전 무료', '5분이면 완료', 'PDF 다운로드'].map(t => (
               <span key={t} style={{
@@ -356,7 +356,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 { v: '12주', l: 'MVP 일정', c: '#34D399' },
               ].map((s, i) => (
                 <div key={i} style={{
-                  flex: isMobile ? '1 1 70px' : '1 1 100px', padding: isMobile ? '10px 8px' : '14px 12px', borderRadius: 10,
+                  flex: isMobile ? '1 1 calc(50% - 4px)' : '1 1 100px', padding: isMobile ? '10px 8px' : '14px 12px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
                   textAlign: 'center',
                 }}>
@@ -634,6 +634,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: isMobile ? 15 : 16, fontWeight: 600, color: C.textDark,
                 cursor: 'pointer', listStyle: 'none',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                minHeight: 44, padding: isMobile ? '4px 0' : undefined,
               }}>
                 {faq.q}
                 <span style={{ fontSize: 20, color: C.gray400, transition: 'transform 0.2s' }}>+</span>
@@ -672,7 +673,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              placeholder="기획서 받을 이메일"
+              placeholder="기획서 받을 이메일 입력"
               style={{
                 width: isMobile ? '100%' : 'auto', flex: isMobile ? undefined : 1, height: 52, padding: '0 18px', borderRadius: 12,
                 border: '1.5px solid rgba(255,255,255,0.12)',
@@ -733,8 +734,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <div>
               <div style={{ fontSize: 12, color: C.gray400, marginBottom: 4 }}>고객 문의</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: C.textDark }}>02-6925-4849</div>
-              <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>10:00-18:00 주말·공휴일 제외</div>
-              <div style={{ fontSize: 12, color: C.gray400 }}>help@wishket.com</div>
+              <div style={{ fontSize: isMobile ? 13 : 12, color: C.gray500, marginTop: 2 }}>10:00-18:00 주말·공휴일 제외</div>
+              <div style={{ fontSize: isMobile ? 13 : 12, color: C.gray500 }}>help@wishket.com</div>
             </div>
             {[
               { title: '위시켓', links: ['위시켓 소개', '신뢰와 안전'] },
@@ -758,7 +759,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               style={{ fontSize: 12, color: C.gray500, textDecoration: 'none' }}>이용약관</a>
             <a href="https://www.wishket.com/privacy/" target="_blank" rel="noopener noreferrer"
               style={{ fontSize: 12, fontWeight: 700, color: C.gray700, textDecoration: 'none' }}>개인정보 처리방침</a>
-            <span style={{ fontSize: 12, color: C.gray400 }}>
+            <span style={{ fontSize: isMobile ? 11 : 12, color: C.gray500 }}>
               (주)위시켓 | 대표이사 : 박우범 | 서울특별시 강남구 테헤란로 211 한국고등교육재단빌딩 3층
             </span>
           </div>
@@ -794,7 +795,7 @@ function StickyBar({ onStart }: { onStart: () => void }) {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 101,
       background: 'rgba(11, 17, 32, 0.95)', backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderTop: '1px solid rgba(255,255,255,0.06)',
