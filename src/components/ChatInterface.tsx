@@ -575,7 +575,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               <div style={{
                 fontSize: 14, fontWeight: 500, color: 'var(--color-primary)',
                 marginBottom: 12,
-              }}>5분 · 가이드 질문형</div>
+              }}>2분 · 가이드 질문형</div>
               <p style={{
                 fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
               }}>
@@ -585,7 +585,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               <div style={{
                 marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6,
               }}>
-                {['아이디어만 있어도 OK', '선택지 제공', '5분 완성'].map(tag => (
+                {['아이디어만 있어도 OK', '선택지 제공', '2분 완성'].map(tag => (
                   <span key={tag} style={{
                     fontSize: 11, fontWeight: 500, color: 'var(--text-quaternary)',
                     background: 'var(--surface-2)', padding: '4px 10px',
