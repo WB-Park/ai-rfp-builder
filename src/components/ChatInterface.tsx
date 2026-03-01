@@ -19,6 +19,7 @@ interface ChatMessage {
   timestamp?: number;
   selectableFeatures?: SelectableFeature[];
   inlineOptions?: string[];
+  isAnalysis?: boolean; // 분석 메시지 여부 (시각적 구분)
 }
 
 interface ChatInterfaceProps {
@@ -273,28 +274,47 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setThinkingLabel(data.thinkingLabel);
       }
 
-      // 분석 메시지와 질문 메시지 분리 렌더링
+      // 분석 메시지와 질문 메시지 분리 렌더링 (시간차 효과)
       const hasAnalysis = data.analysisMessage && data.analysisMessage.trim();
       const hasQuestion = data.questionMessage && data.questionMessage.trim();
 
-      let finalMessages: ChatMessage[];
-
       if (hasAnalysis && hasQuestion) {
-        // 분석 메시지 먼저
+        // ① 분석 메시지 먼저 표시
         const analysisMsg: ChatMessage = {
           role: 'assistant' as const,
           content: data.analysisMessage,
           timestamp: Date.now(),
+          isAnalysis: true,
         };
-        // 질문 메시지 (selectableFeatures, inlineOptions는 질문 메시지에 붙임)
+        const withAnalysis = [...newMessages, analysisMsg];
+        setMessages(withAnalysis);
+        setLoading(false); // 로딩 해제하여 분석 메시지 보이게
+
+        // ② 500ms 후 질문 메시지 추가 (타이핑 느낌)
+        await new Promise(r => setTimeout(r, 500));
         const questionMsg: ChatMessage = {
           role: 'assistant' as const,
           content: data.questionMessage,
-          timestamp: Date.now() + 1,
+          timestamp: Date.now(),
           selectableFeatures: data.selectableFeatures || undefined,
           inlineOptions: data.inlineOptions || undefined,
         };
-        finalMessages = [...newMessages, analysisMsg, questionMsg];
+        const finalMessages = [...withAnalysis, questionMsg];
+        setMessages(finalMessages);
+
+        // selectableFeatures / quickReplies
+        if (data.selectableFeatures && data.selectableFeatures.length > 0) {
+          const initialSelection: Record<string, boolean> = {};
+          for (const f of data.selectableFeatures) {
+            initialSelection[f.name] = f.category === 'must';
+          }
+          setFeatureSelection(initialSelection);
+          setQuickReplies([]);
+        } else if (data.quickReplies && data.quickReplies.length > 0) {
+          setQuickReplies(data.quickReplies);
+        }
+
+        saveSession(updatedRfpData, finalMessages, updatedStep, completed);
       } else {
         // 분리 실패 시 기존처럼 단일 메시지
         const assistantMsg: ChatMessage = {
@@ -304,23 +324,22 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           selectableFeatures: data.selectableFeatures || undefined,
           inlineOptions: data.inlineOptions || undefined,
         };
-        finalMessages = [...newMessages, assistantMsg];
-      }
-      setMessages(finalMessages);
+        const finalMessages = [...newMessages, assistantMsg];
+        setMessages(finalMessages);
 
-      // 🆕 selectableFeatures가 있으면 초기 선택 상태 설정 (must=선택, recommended=미선택)
-      if (data.selectableFeatures && data.selectableFeatures.length > 0) {
-        const initialSelection: Record<string, boolean> = {};
-        for (const f of data.selectableFeatures) {
-          initialSelection[f.name] = f.category === 'must';
+        if (data.selectableFeatures && data.selectableFeatures.length > 0) {
+          const initialSelection: Record<string, boolean> = {};
+          for (const f of data.selectableFeatures) {
+            initialSelection[f.name] = f.category === 'must';
+          }
+          setFeatureSelection(initialSelection);
+          setQuickReplies([]);
+        } else if (data.quickReplies && data.quickReplies.length > 0) {
+          setQuickReplies(data.quickReplies);
         }
-        setFeatureSelection(initialSelection);
-        setQuickReplies([]); // selectableFeatures가 있으면 quickReplies 숨김
-      } else if (data.quickReplies && data.quickReplies.length > 0) {
-        setQuickReplies(data.quickReplies);
-      }
 
-      saveSession(updatedRfpData, finalMessages, updatedStep, completed);
+        saveSession(updatedRfpData, finalMessages, updatedStep, completed);
+      }
 
     } catch {
       setMessages(prev => [...prev, {
@@ -764,8 +783,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   </div>
                 ) : (
                 <>
-                <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}
-                  style={{ position: 'relative' }}
+                <div className={`${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'} animate-fade-in-up`}
+                  style={{
+                    position: 'relative',
+                    ...(msg.isAnalysis ? {
+                      borderLeft: '3px solid var(--color-primary)',
+                      background: 'var(--surface-1)',
+                      paddingLeft: 16,
+                      opacity: 0.92,
+                      fontSize: '14px',
+                    } : {}),
+                  }}
                   onMouseEnter={(e) => {
                     if (msg.role === 'user' && !loading) {
                       const btn = e.currentTarget.querySelector('.edit-msg-btn') as HTMLElement;
