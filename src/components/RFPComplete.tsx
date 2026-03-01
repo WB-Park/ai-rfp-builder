@@ -69,29 +69,55 @@ interface PRDResult {
   qaStrategy?: { type: string; scope: string; tools: string; criteria: string }[];
 }
 
-// ━━━━━ Design Tokens ━━━━━
+// ━━━━━ Design Tokens (Design System v2 — Slate + Blue Brand) ━━━━━
 const C = {
+  // Brand blues
   blue: '#2563EB',
   blueLight: '#3B82F6',
   blueSoft: '#60A5FA',
   blueBg: 'rgba(37, 99, 235, 0.05)',
+  // Dark
   darkHeader: '#0F172A',
-  bg: '#F8FAFC',
+  darkSurface: '#1E293B',
+  // Backgrounds
+  bg: '#f5f5f7',
   white: '#FFFFFF',
-  textPrimary: '#0F172A',
+  surface: '#f8fafc',
+  // Text — Slate scale
+  textPrimary: '#1e293b',
   textSecondary: '#475569',
-  textTertiary: '#94A3B8',
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  green: '#22C55E',
-  greenBg: 'rgba(34, 197, 94, 0.06)',
-  yellow: '#F59E0B',
-  yellowBg: 'rgba(245, 158, 11, 0.06)',
-  red: '#EF4444',
-  redBg: 'rgba(239, 68, 68, 0.06)',
-  purple: '#8B5CF6',
-  purpleBg: 'rgba(139, 92, 246, 0.06)',
-  gradient: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
+  textTertiary: '#94a3b8',
+  textOnDark: 'rgba(255,255,255,0.85)',
+  textOnDarkSub: 'rgba(255,255,255,0.6)',
+  // Borders
+  border: '#e2e8f0',
+  borderLight: '#f1f5f9',
+  // Accents
+  green: '#22c55e',
+  greenBg: '#dcfce7',
+  greenBorder: '#bbf7d0',
+  yellow: '#eab308',
+  yellowBg: '#fef3c7',
+  yellowBorder: '#fde68a',
+  red: '#ef4444',
+  redBg: '#fee2e2',
+  redBorder: '#fecaca',
+  purple: '#7c3aed',
+  purpleBg: '#f5f3ff',
+  purpleBorder: '#ddd6fe',
+  // Gradients
+  gradient: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+  gradientAccent: 'linear-gradient(90deg, #2563eb, #7c3aed)',
+  gradientDark: 'linear-gradient(180deg, #0f172a, #1e293b)',
+  gradientCTA: 'linear-gradient(135deg, #1e40af 0%, #2563eb 40%, #7c3aed 100%)',
+  // Shadows (2-layer system)
+  shadowCard: '0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
+  shadowCardHover: '0 4px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(37,99,235,0.08)',
+  shadowFloat: '0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.05)',
+  shadowCTA: '0 4px 24px rgba(37,99,235,0.4)',
+  shadowHeader: '0 4px 30px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.08)',
+  // Transition
+  ease: 'all 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
 };
 
 // ━━━━━ ReadOnly Context ━━━━━
@@ -267,9 +293,9 @@ function EditableText(props: Parameters<typeof FormattedText>[0]) {
 // ━━━━━ Section Divider ━━━━━
 function SectionDivider() {
   return (
-    <div style={{ margin: '48px 0 40px', display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div style={{ margin: '32px 0 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.border}, transparent)` }} />
-      <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.blueSoft, opacity: 0.4 }} />
+      <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.gradientAccent, opacity: 0.5 }} />
       <div style={{ flex: 1, height: 1, background: `linear-gradient(270deg, ${C.border}, transparent)` }} />
     </div>
   );
@@ -278,7 +304,7 @@ function SectionDivider() {
 // ━━━━━ Section Number ━━━━━
 function SectionHeader({ number, title, subtitle }: { number: string; title: string; subtitle?: string }) {
   return (
-    <div style={{ marginBottom: 28 }}>
+    <div style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <span style={{
           background: C.gradient,
@@ -288,17 +314,17 @@ function SectionHeader({ number, title, subtitle }: { number: string; title: str
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: 800,
           flexShrink: 0,
-          boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
+          boxShadow: '0 2px 12px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1)',
         }}>{number}</span>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: -0.3 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: '-0.5px' }}>
           {title}
         </h2>
       </div>
       {subtitle && (
-        <p style={{ fontSize: 13, color: C.textTertiary, margin: '10px 0 0 54px', lineHeight: 1.6, letterSpacing: 0.1 }}>{subtitle}</p>
+        <p style={{ fontSize: 13, color: C.textTertiary, margin: '8px 0 0 54px', lineHeight: 1.6, fontWeight: 500 }}>{subtitle}</p>
       )}
     </div>
   );
@@ -310,11 +336,11 @@ function Card({ children, style, className }: { children: React.ReactNode; style
     <div className={`prd-card ${className || ''}`} style={{
       background: C.white,
       border: `1px solid ${C.border}`,
-      borderRadius: 14,
-      padding: '28px',
+      borderRadius: 16,
+      padding: '24px 28px',
       marginBottom: 20,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
-      transition: 'box-shadow 0.2s ease',
+      boxShadow: C.shadowCard,
+      transition: C.ease,
       ...style,
     }}>
       {children}
@@ -322,18 +348,19 @@ function Card({ children, style, className }: { children: React.ReactNode; style
   );
 }
 
-// ━━━━━ Priority Badge ━━━━━
+// ━━━━━ Priority Badge (pill) ━━━━━
 function PriorityBadge({ priority, label }: { priority: string; label: string }) {
   const styles: Record<string, { bg: string; color: string; border: string }> = {
-    P0: { bg: C.redBg, color: C.red, border: 'rgba(239,68,68,0.15)' },
-    P1: { bg: C.blueBg, color: C.blue, border: 'rgba(37,99,235,0.15)' },
-    P2: { bg: 'rgba(148,163,184,0.06)', color: C.textTertiary, border: 'rgba(148,163,184,0.15)' },
+    P0: { bg: C.redBg, color: '#dc2626', border: C.redBorder },
+    P1: { bg: '#eff6ff', color: C.blue, border: '#bfdbfe' },
+    P2: { bg: C.borderLight, color: '#64748b', border: C.border },
   };
   const s = styles[priority] || styles.P1;
   return (
     <span style={{
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+      padding: '3px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+      letterSpacing: '0.2px',
     }}>
       {priority} · {label}
     </span>
@@ -348,16 +375,17 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
   return (
     <div style={{
       background: C.white, border: `1px solid ${expanded ? C.blueLight : C.border}`,
-      borderRadius: 12, marginBottom: 12, overflow: 'hidden',
-      transition: 'border-color 0.2s, box-shadow 0.2s',
-      boxShadow: expanded ? '0 4px 20px rgba(37,99,235,0.08)' : '0 1px 3px rgba(0,0,0,0.03)',
+      borderRadius: 14, marginBottom: 12, overflow: 'hidden',
+      transition: C.ease,
+      boxShadow: expanded ? C.shadowCardHover : '0 1px 4px rgba(0,0,0,0.03)',
     }}>
       <button
         onClick={() => hasDetail && setExpanded(!expanded)}
         style={{
-          width: '100%', padding: '16px 20px', background: expanded ? 'rgba(37,99,235,0.02)' : 'none',
+          width: '100%', padding: '16px 20px', background: expanded ? C.surface : 'none',
           border: 'none', cursor: hasDetail ? 'pointer' : 'default',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
+          transition: C.ease,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
@@ -572,14 +600,16 @@ const ModuleCard = memo(function ModuleCard({ module, forceExpand }: { module: a
 
   return (
     <div className="prd-module-card" style={{
-      background: C.white, border: `1px solid ${C.border}`, borderRadius: 12,
-      overflow: 'hidden', marginBottom: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+      background: C.white, border: `1px solid ${expanded ? C.blueLight : C.border}`, borderRadius: 16,
+      overflow: 'hidden', marginBottom: 14, boxShadow: expanded ? C.shadowCardHover : C.shadowCard,
+      transition: C.ease,
     }}>
       <button
         onClick={() => setExpanded(!expanded)}
         style={{
-          width: '100%', padding: '18px 20px', background: 'none', border: 'none',
+          width: '100%', padding: '18px 20px', background: expanded ? C.surface : 'none', border: 'none',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
+          transition: C.ease,
         }}
       >
         <div style={{ flex: 1 }}>
@@ -616,7 +646,7 @@ const ModuleCard = memo(function ModuleCard({ module, forceExpand }: { module: a
 // ━━━━━ TOC (Table of Contents) ━━━━━
 function TableOfContents({ sections }: { sections: { num: string; title: string; id: string }[] }) {
   return (
-    <Card style={{ background: '#FAFBFD', padding: '32px 32px 28px', border: `1px solid ${C.border}`, borderTop: `3px solid ${C.blue}` }}>
+    <Card style={{ background: '#FAFBFD', padding: '32px 32px 28px', border: `1px solid ${C.border}`, borderTop: `3px solid ${C.blue}`, borderRadius: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <span style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary, textTransform: 'uppercase', letterSpacing: 0.8 }}>
           목차
@@ -660,15 +690,15 @@ function FloatingTOC({ sections, activeSection }: { sections: { num: string; tit
       {collapsed ? (
         <button onClick={() => setCollapsed(false)} style={{
           width: 40, height: 40, borderRadius: 12, border: `1px solid ${C.border}`,
-          background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
+          background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontSize: 16,
+          boxShadow: C.shadowFloat, fontSize: 16,
         }}>📑</button>
       ) : (
         <div style={{
-          background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)',
-          border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 12px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)', maxHeight: '70vh', overflowY: 'auto',
+          background: 'rgba(255,255,255,0.98)', backdropFilter: 'blur(20px) saturate(1.4)',
+          border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 12px',
+          boxShadow: C.shadowFloat, maxHeight: '70vh', overflowY: 'auto',
           width: 200,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 6, padding: '0 4px' }}>
@@ -727,10 +757,11 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: stri
   return (
     <div className="no-print" style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
-      background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)',
-      borderBottom: `1px solid ${C.border}`, boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+      background: 'rgba(15,23,42,0.82)', backdropFilter: 'blur(24px) saturate(1.6)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      boxShadow: C.shadowHeader,
       padding: '0 24px',
-      animation: 'slideDown 0.25s ease',
+      animation: 'slideDown 0.25s cubic-bezier(0.22,1,0.36,1)',
     }}>
       <style>{`@keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
       <div style={{
@@ -741,48 +772,46 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: stri
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8,
-            background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2.5" strokeLinecap="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
           </div>
           <span style={{
-            fontSize: 15, fontWeight: 700, color: C.textPrimary,
+            fontSize: 15, fontWeight: 700, color: C.textOnDark,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{projectName}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {/* URL 복사 버튼 */}
           <button
             onClick={handleCopyLink}
             style={{
-              padding: '8px 14px', borderRadius: 8,
-              border: `1px solid ${linkCopied ? C.green : C.border}`,
-              background: linkCopied ? C.greenBg : C.white,
-              color: linkCopied ? C.green : C.textSecondary,
+              padding: '7px 14px', borderRadius: 8,
+              border: `1px solid ${linkCopied ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.15)'}`,
+              background: linkCopied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
+              color: linkCopied ? '#86efac' : C.textOnDarkSub,
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 5,
-              transition: 'all 0.15s',
+              transition: C.ease,
             }}
           >
             {linkCopied ? '✅ 복사됨' : '🔗 URL 복사'}
           </button>
-          {/* CTA 버튼 */}
           <button
             onClick={onCTAClick}
             style={{
-              padding: '8px 20px', borderRadius: 8, border: 'none',
-              background: C.gradient, color: '#fff',
+              padding: '7px 20px', borderRadius: 8, border: 'none',
+              background: '#fff', color: C.blue,
               fontSize: 13, fontWeight: 700, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 6,
-              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-              transition: 'transform 0.15s, box-shadow 0.15s',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+              transition: C.ease,
             }}
-            onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
+            onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-1px)'; (e.target as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }}
+            onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; (e.target as HTMLElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)'; }}
           >
             <span>⚡</span>
             개발 파트너 찾기
@@ -809,18 +838,22 @@ function KPISummary({ prdData }: { prdData: PRDResult }) {
   ];
 
   return (
-    <div className="prd-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
+    <div className="prd-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 32 }}>
       {cards.map((c, i) => (
         <div key={i} style={{
-          background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 16px',
-          borderTop: `3px solid ${c.color}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{c.label}</span>
-            <span style={{ fontSize: 16 }}>{c.icon}</span>
+          background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px 18px',
+          borderTop: `3px solid ${c.color}`, boxShadow: C.shadowCard,
+          transition: C.ease,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = C.shadowCardHover; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = C.shadowCard; e.currentTarget.style.transform = 'translateY(0)'; }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8 }}>{c.label}</span>
+            <span style={{ fontSize: 18, opacity: 0.85 }}>{c.icon}</span>
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, marginBottom: 2, letterSpacing: -0.5 }}>{c.value}</div>
-          <div style={{ fontSize: 11, color: C.textTertiary }}>{c.sub}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: C.textPrimary, marginBottom: 3, letterSpacing: '-0.5px' }}>{c.value}</div>
+          <div style={{ fontSize: 12, color: C.textTertiary, fontWeight: 500 }}>{c.sub}</div>
         </div>
       ))}
     </div>
@@ -907,27 +940,28 @@ function StickyActionBar({ onShare, onCopy, onPDF, onDOCX, sharing, pdfGen, docx
   return (
     <div className="no-print" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
-      background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)',
-      borderTop: `1px solid ${C.border}`, padding: '10px 24px',
+      background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(20px) saturate(1.5)',
+      borderTop: '1px solid rgba(255,255,255,0.06)',
+      padding: '10px 24px',
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
+      boxShadow: '0 -4px 24px rgba(0,0,0,0.2)',
     }}>
       <button onClick={onShare} disabled={sharing} style={{
-        padding: '8px 18px', borderRadius: 8, border: 'none', background: C.gradient,
-        color: '#fff', fontSize: 12, fontWeight: 700, cursor: sharing ? 'wait' : 'pointer',
-        display: 'inline-flex', alignItems: 'center', gap: 5,
+        padding: '8px 18px', borderRadius: 8, border: 'none', background: '#fff',
+        color: C.blue, fontSize: 12, fontWeight: 700, cursor: sharing ? 'wait' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       }}>🔗 {sharing ? '생성 중...' : '공유 링크'}</button>
       <button onClick={onCopy} style={{
-        padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
-        background: '#fff', color: C.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+        padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+        background: 'rgba(255,255,255,0.08)', color: C.textOnDarkSub, fontSize: 12, fontWeight: 600, cursor: 'pointer',
       }}>{copied ? '✅ 복사됨' : '📋 복사'}</button>
       <button onClick={onPDF} disabled={pdfGen} style={{
-        padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
-        background: '#fff', color: C.textSecondary, fontSize: 12, fontWeight: 600, cursor: pdfGen ? 'wait' : 'pointer',
+        padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+        background: 'rgba(255,255,255,0.08)', color: C.textOnDarkSub, fontSize: 12, fontWeight: 600, cursor: pdfGen ? 'wait' : 'pointer',
       }}>{pdfGen ? '⏳...' : '📄 PDF'}</button>
       <button onClick={onDOCX} disabled={docxGen} style={{
-        padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
-        background: '#fff', color: C.textSecondary, fontSize: 12, fontWeight: 600, cursor: docxGen ? 'wait' : 'pointer',
+        padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+        background: 'rgba(255,255,255,0.08)', color: C.textOnDarkSub, fontSize: 12, fontWeight: 600, cursor: docxGen ? 'wait' : 'pointer',
       }}>{docxGen ? '⏳...' : '📝 DOCX'}</button>
     </div>
   );
@@ -945,19 +979,20 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
     });
   };
   return (
-    <div style={{ marginBottom: 28 }}>
+    <div style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}
         className="section-header-group">
         <span style={{
           background: C.gradient, color: '#fff', width: 40, height: 40, borderRadius: 12,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 16, fontWeight: 800, flexShrink: 0, boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
+          fontSize: 15, fontWeight: 800, flexShrink: 0,
+          boxShadow: '0 2px 12px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1)',
         }}>{number}</span>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: -0.3 }}>{title}</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: '-0.5px' }}>{title}</h2>
         {id && (
           <button onClick={handleCopyLink} style={{
-            opacity: 0, transition: 'opacity 0.15s', border: 'none', background: 'none',
-            cursor: 'pointer', fontSize: 14, padding: '4px 8px', borderRadius: 4, color: C.textTertiary,
+            opacity: 0, transition: C.ease, border: 'none', background: 'none',
+            cursor: 'pointer', fontSize: 14, padding: '4px 8px', borderRadius: 6, color: C.textTertiary,
           }}
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = C.blueBg; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; e.currentTarget.style.background = 'none'; }}
@@ -966,7 +1001,7 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
         )}
       </div>
       {subtitle && (
-        <p style={{ fontSize: 13, color: C.textTertiary, margin: '10px 0 0 54px', lineHeight: 1.6, letterSpacing: 0.1 }}>{subtitle}</p>
+        <p style={{ fontSize: 13, color: C.textTertiary, margin: '8px 0 0 54px', lineHeight: 1.6, fontWeight: 500 }}>{subtitle}</p>
       )}
       <style>{`.section-header-group:hover button { opacity: 0.6 !important; }`}</style>
     </div>
@@ -1716,11 +1751,19 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <a href="#sec-summary" className="prd-skip-nav">본문으로 건너뛰기</a>
       {/* #9: Print styles — 최적화 + #15: Mobile responsive */}
       <style>{`
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shimmer { from { background-position: -200% center; } to { background-position: 200% center; } }
+        .prd-card { transition: all 0.25s cubic-bezier(0.22,1,0.36,1); }
+        .prd-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(37,99,235,0.08); }
+        .prd-section-fade { animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+        .prd-section-fade:nth-child(2) { animation-delay: 0.08s; }
+        .prd-section-fade:nth-child(3) { animation-delay: 0.16s; }
+        .prd-section-fade:nth-child(4) { animation-delay: 0.24s; }
         @media print {
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print, .prd-skip-nav, .floating-toc-wrap { display: none !important; }
           .print-break { page-break-before: always; }
-          * { box-shadow: none !important; text-shadow: none !important; }
+          * { box-shadow: none !important; text-shadow: none !important; animation: none !important; }
           .prd-card { border: 1px solid #ddd !important; background: white !important; }
           .prd-container { max-width: 100% !important; padding: 0 !important; }
           .prd-module-card { break-inside: avoid; }
@@ -1735,14 +1778,15 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           table, pre { page-break-inside: avoid; }
         }
         @media (max-width: 768px) {
-          .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .prd-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .floating-toc-wrap { display: none !important; }
-          .prd-container { padding: 20px 12px 40px !important; }
+          .prd-container { padding: 20px 14px 40px !important; }
           .prd-two-col { grid-template-columns: 1fr !important; }
           .prd-persona-grid { grid-template-columns: 1fr !important; }
+          h1 { font-size: 28px !important; }
         }
         @media (max-width: 480px) {
-          .kpi-grid { grid-template-columns: 1fr !important; }
+          .prd-kpi-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
@@ -1762,20 +1806,28 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           sharing={sharing} pdfGen={pdfGenerating} docxGen={docxGenerating} copied={copied}
         />
       )}
-      {/* ━━ Header ━━ */}
+      {/* ━━ Header — Dark Hero with glassmorphism ━━ */}
       <div style={{
-        background: C.gradient, color: '#fff', padding: '48px 20px 40px', position: 'relative', overflow: 'hidden',
+        background: C.gradientDark, color: '#fff', padding: '56px 20px 48px', position: 'relative', overflow: 'hidden',
       }}>
+        {/* Decorative radial circles */}
         <div style={{
-          position: 'absolute', top: -60, right: -60, width: 200, height: 200,
-          borderRadius: '50%', background: 'rgba(255,255,255,0.05)',
+          position: 'absolute', top: -120, right: -80, width: 500, height: 500,
+          borderRadius: '50%', background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%)',
+          pointerEvents: 'none',
         }} />
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{
+          position: 'absolute', bottom: -100, left: -60, width: 400, height: 400,
+          borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: 'rgba(255,255,255,0.15)', padding: '6px 14px', borderRadius: 20,
-            fontSize: 11, fontWeight: 700, letterSpacing: 0.5, marginBottom: 20,
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(255,255,255,0.08)', padding: '6px 16px', borderRadius: 24,
+            fontSize: 11, fontWeight: 600, letterSpacing: 0.5, marginBottom: 24,
+            backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)',
+            color: C.textOnDarkSub,
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1785,10 +1837,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             </svg>
             PRD · 제품 요구사항 정의서
           </div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, margin: '0 0 12px 0', lineHeight: 1.2, letterSpacing: -0.5 }}>
+          <h1 style={{ fontSize: 40, fontWeight: 900, margin: '0 0 14px 0', lineHeight: 1.15, letterSpacing: '-1px' }}>
             {prdData.projectName}
           </h1>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, opacity: 0.85, marginTop: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 13, color: C.textOnDarkSub, marginTop: 18, fontWeight: 500 }}>
             <span>📅 {prdData.documentMeta?.createdAt || '-'}</span>
             <span>📋 v{prdData.documentMeta?.version || '1.0'}</span>
             <span>⚙️ 기능 {totalFeatures}개</span>
@@ -1812,9 +1864,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                  {['버전', '일자', '작성자', '변경 사항'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: C.textSecondary, whiteSpace: 'nowrap' }}>{h}</th>
+                <tr style={{ background: '#1e40af' }}>
+                  {['버전', '일자', '작성자', '변경 사항'].map((h, idx) => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', fontSize: 11, borderRadius: idx === 0 ? '6px 0 0 0' : idx === 3 ? '0 6px 0 0' : undefined }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1893,15 +1945,19 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   const pc = personaColors[i % personaColors.length];
                   return (
                   <div key={i} style={{
-                    border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px',
-                    background: pc.bg, borderTop: `3px solid ${pc.color}`,
-                  }}>
+                    border: `1px solid ${C.border}`, borderRadius: 16, padding: '22px',
+                    background: C.white, borderTop: `3px solid ${pc.color}`,
+                    boxShadow: C.shadowCard, transition: C.ease,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = C.shadowCardHover; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = C.shadowCard; e.currentTarget.style.transform = 'translateY(0)'; }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <div style={{
-                        width: 40, height: 40, borderRadius: '50%',
-                        background: pc.color, color: '#fff',
+                        width: 44, height: 44, borderRadius: '50%',
+                        background: `linear-gradient(135deg, ${pc.color}, ${pc.color}CC)`, color: '#fff',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 16, fontWeight: 700, boxShadow: `0 2px 8px ${pc.color}33`,
+                        fontSize: 16, fontWeight: 700, boxShadow: `0 4px 12px ${pc.color}33`,
                       }}>{p.name[0]}</div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{p.name}</div>
@@ -1928,8 +1984,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         <div id="sec-scope">
           <SectionHeaderAnchored number="3" title="프로젝트 범위" subtitle="구현 범위 및 제외 항목 정의" id="sec-scope" />
           <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
-            <Card style={{ borderLeft: `4px solid ${C.green}` }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
+            <Card style={{ borderLeft: `4px solid ${C.green}`, borderRadius: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.greenBg, fontSize: 13 }}>✅</span>
+                포함 범위 (In-Scope)
+              </h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.scopeInclusions?.map((s, i) => (
                   <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
@@ -1939,8 +1998,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 ))}
               </ul>
             </Card>
-            <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textTertiary, margin: '0 0 14px 0' }}>🚫 미포함 범위 (Out-of-Scope)</h3>
+            <Card style={{ borderLeft: `4px solid ${C.textTertiary}`, borderRadius: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textTertiary, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.borderLight, fontSize: 13 }}>🚫</span>
+                미포함 범위 (Out-of-Scope)
+              </h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {(prdData.scopeExclusions?.length ?? 0) > 0 ? prdData.scopeExclusions!.map((s, i) => (
                   <li key={i} style={{ fontSize: 13, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
@@ -2109,11 +2171,12 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}`, minWidth: 100 }}></th>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#fff', background: '#1e40af', minWidth: 100, borderRadius: '8px 0 0 0' }}></th>
                     {prdData.featureModules.map((m, i) => (
                       <th key={i} style={{
-                        padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: C.textSecondary,
-                        borderBottom: `2px solid ${C.border}`, fontSize: 10, maxWidth: 80,
+                        padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#fff',
+                        background: '#1e40af', fontSize: 10, maxWidth: 80,
+                        borderRadius: i === prdData.featureModules.length - 1 ? '0 8px 0 0' : undefined,
                         writingMode: prdData.featureModules.length > 4 ? 'vertical-lr' as React.CSSProperties['writingMode'] : undefined,
                         transform: prdData.featureModules.length > 4 ? 'rotate(180deg)' : undefined,
                       }}>{m.name.slice(0, 12)}</th>
@@ -2240,15 +2303,15 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             <div className="prd-table-responsive" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
-                  <tr style={{ background: '#F1F5F9' }}>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>분류</th>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>기술</th>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>선정 근거</th>
+                  <tr style={{ background: '#1e40af' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderBottom: 'none', borderRadius: '8px 0 0 0' }}>분류</th>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderBottom: 'none' }}>기술</th>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderBottom: 'none', borderRadius: '0 8px 0 0' }}>선정 근거</th>
                   </tr>
                 </thead>
                 <tbody>
                   {prdData.techStack?.map((t, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}`, background: i % 2 === 0 ? C.white : C.surface }}>
                       <td style={{ padding: '10px 14px', color: C.textTertiary, fontSize: 13 }}>{typeof t === 'object' ? t.category : '-'}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: C.textPrimary }}>
                         <span style={{ background: C.blueBg, padding: '3px 10px', borderRadius: 6 }}>
@@ -2333,7 +2396,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                       {t.deliverables?.map((d, j) => (
                         <span key={j} style={{
                           fontSize: 11, color: C.textSecondary, background: C.borderLight,
-                          padding: '3px 8px', borderRadius: 4,
+                          padding: '3px 10px', borderRadius: 20, border: `1px solid ${C.border}`,
                         }}>{d}</span>
                       ))}
                     </div>
@@ -2383,21 +2446,22 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             <div className="prd-table-responsive" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
-                  <tr style={{ background: '#F1F5F9' }}>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>리스크</th>
-                    <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}`, width: 70 }}>영향도</th>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>대응 전략</th>
+                  <tr style={{ background: '#1e40af' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderBottom: 'none', borderRadius: '8px 0 0 0' }}>리스크</th>
+                    <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderBottom: 'none', width: 70 }}>영향도</th>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderBottom: 'none', borderRadius: '0 8px 0 0' }}>대응 전략</th>
                   </tr>
                 </thead>
                 <tbody>
                   {prdData.risks?.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}`, background: i % 2 === 0 ? C.white : C.surface }}>
                       <td style={{ padding: '10px 14px', color: C.textSecondary }}>{r.risk}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <span style={{
-                          padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
                           background: r.impact === '높음' ? C.redBg : C.yellowBg,
-                          color: r.impact === '높음' ? C.red : C.yellow,
+                          color: r.impact === '높음' ? '#dc2626' : '#d97706',
+                          border: `1px solid ${r.impact === '높음' ? C.redBorder : C.yellowBorder}`,
                         }}>{r.impact}</span>
                       </td>
                       <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 13 }}>{r.mitigation}</td>
@@ -2415,16 +2479,30 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {prdData.expertInsight && (
           <div id="sec-expert">
             <SectionHeaderAnchored number="11" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" id="sec-expert" />
-            <Card style={{ borderLeft: `4px solid ${C.purple}`, background: C.purpleBg }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <Card style={{
+              background: 'linear-gradient(135deg, #eff6ff, #f0fdf4)',
+              border: `1px solid #bfdbfe`, borderRadius: 20,
+              position: 'relative', overflow: 'hidden', padding: '28px 28px 28px 36px',
+            }}>
+              {/* Left gradient sidebar */}
+              <div style={{
+                position: 'absolute', left: 0, top: 0, bottom: 0, width: 5,
+                background: 'linear-gradient(180deg, #2563eb, #22c55e)',
+                borderRadius: '20px 0 0 20px',
+              }} />
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: '50%', background: C.purple, color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0,
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, flexShrink: 0,
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
                 }}>💡</div>
                 <FormattedText
                   value={prdData.expertInsight}
                   onChange={(v) => setPrdData({ ...prdData, expertInsight: v })}
-                  style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0 }}
+                  style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.85, margin: 0 }}
                   sectionKey="expertInsight" sectionTitle="AI 전문가 인사이트" projectContext={projectCtx}
                 />
               </div>
@@ -2541,11 +2619,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: '#F1F5F9', borderBottom: `2px solid ${C.border}` }}>
-                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, fontSize: 12 }}>메소드</th>
-                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, fontSize: 12 }}>엔드포인트</th>
-                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, fontSize: 12 }}>설명</th>
-                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, fontSize: 12 }}>기능</th>
+                    <tr style={{ background: '#1e40af' }}>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderRadius: '8px 0 0 0' }}>메소드</th>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12 }}>엔드포인트</th>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12 }}>설명</th>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#fff', fontSize: 12, borderRadius: '0 8px 0 0' }}>기능</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2578,7 +2656,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-datamodel')?.num || '17')} title="데이터 모델" subtitle="핵심 엔티티 및 관계도" id="sec-datamodel" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {prdData.dataModel!.map((entity, i) => (
-                <Card key={i} style={{ overflow: 'hidden', padding: 0 }}>
+                <Card key={i} style={{ overflow: 'hidden', padding: 0, borderRadius: 16 }}>
                   <div style={{ background: `linear-gradient(135deg, ${C.purple}12, ${C.blue}08)`, padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 34, height: 34, borderRadius: 8, background: `linear-gradient(135deg, ${C.purple}, ${C.blue})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 6px rgba(139,92,246,0.3)' }}>
                       {entity.entity.charAt(0)}
@@ -2615,7 +2693,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-competitor')?.num || '18')} title="경쟁 서비스 분석" subtitle="주요 경쟁 서비스 비교 분석" id="sec-competitor" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
               {prdData.competitorAnalysis!.map((comp, i) => (
-                <Card key={i} style={{ overflow: 'hidden', padding: 0 }}>
+                <Card key={i} style={{ overflow: 'hidden', padding: 0, borderRadius: 16 }}>
                   <div style={{ background: C.gradient, padding: '16px 24px' }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{comp.name}</div>
                   </div>
@@ -2753,16 +2831,18 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* ━━ Wishket CTA Section ━━ */}
         <div className="no-print wishket-cta-section" style={{
-          background: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
-          borderRadius: 16,
-          padding: '36px 32px',
-          marginTop: 20,
+          background: C.gradientCTA,
+          borderRadius: 20,
+          padding: '40px 36px',
+          marginTop: 24,
           marginBottom: 40,
           position: 'relative',
           overflow: 'hidden',
         }}>
-          <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-          <div style={{ position: 'absolute', bottom: -20, left: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+          <style>{`@keyframes ctaPulse { 0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.15); } 50% { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 20px rgba(255,255,255,0.1); } }`}</style>
+          <div style={{ position: 'absolute', top: -80, right: -60, width: 280, height: 280, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -60, left: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
           {ctaSubmitted ? (
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
@@ -2836,12 +2916,16 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   }}
                   disabled={ctaSubmitting || !ctaEmail.includes('@')}
                   style={{
-                    padding: '12px 28px', borderRadius: 10, border: 'none',
+                    padding: '13px 28px', borderRadius: 12, border: 'none',
                     background: ctaSubmitting ? 'rgba(255,255,255,0.3)' : '#fff',
-                    color: ctaSubmitting ? '#fff' : '#2563EB',
+                    color: ctaSubmitting ? '#fff' : C.blue,
                     fontSize: 14, fontWeight: 700, cursor: ctaSubmitting ? 'wait' : 'pointer',
-                    flexShrink: 0, transition: 'all 0.2s',
+                    flexShrink: 0, transition: C.ease,
+                    boxShadow: ctaSubmitting ? 'none' : '0 4px 16px rgba(0,0,0,0.15)',
+                    animation: ctaSubmitting ? 'none' : 'ctaPulse 2.5s infinite',
                   }}
+                  onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
                 >
                   {ctaSubmitting ? '신청 중...' : '무료 매칭 신청'}
                 </button>
@@ -2857,13 +2941,14 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* ━━ Footer ━━ */}
         <div style={{
-          textAlign: 'center', paddingTop: 24, borderTop: `1px solid ${C.border}`,
-          fontSize: 11, color: C.textTertiary,
+          textAlign: 'center', paddingTop: 28, paddingBottom: 8, borderTop: `1px solid ${C.border}`,
+          fontSize: 11, color: C.textTertiary, marginTop: 8,
         }}>
-          <p style={{ margin: '0 0 4px 0' }}>
+          <div style={{ width: 40, height: 2, background: C.gradientAccent, margin: '0 auto 16px', borderRadius: 1, opacity: 0.4 }} />
+          <p style={{ margin: '0 0 4px 0', lineHeight: 1.6 }}>
             본 문서는 AI 기반으로 자동 생성되었으며, 실제 개발 착수 전 상세 검토가 필요합니다.
           </p>
-          <p style={{ margin: 0 }}>
+          <p style={{ margin: 0, fontWeight: 500 }}>
             Wishket AI PRD Builder · © {new Date().getFullYear()} Wishket
           </p>
         </div>
