@@ -244,7 +244,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 
       if (data.nextAction === 'complete') {
         completed = true;
-        setIsComplete(true);
+        // isComplete를 바로 true로 하면 입력창이 사라져서 마지막 질문에 답변 불가
+        // 대신 canComplete만 활성화하여 유저가 답변 후 완성하거나 바로 완성할 수 있게 함
+        setCanComplete(true);
       }
 
       if (data.thinkingLabel) {
@@ -739,6 +741,27 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
                     >건너뛰기</button>
+                    {/* 완성하기 버튼 — canComplete일 때 인라인에도 표시 */}
+                    {canComplete && (
+                      <button onClick={() => setIsComplete(true)} style={{
+                        padding: '7px 16px', borderRadius: 20,
+                        border: 'none',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
+                        color: 'white',
+                        fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-kr)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                        boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.35)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(37,99,235,0.25)'; }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        PRD 완성하기
+                      </button>
+                    )}
                   </div>
                 )}
 
