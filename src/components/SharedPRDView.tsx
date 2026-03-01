@@ -357,7 +357,7 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
   // ━━━ Structured PRD Rendering ━━━
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
-      {/* Print styles */}
+      {/* Print + Mobile styles */}
       <style>{`
         @media print {
           body { background: white !important; }
@@ -365,6 +365,13 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
           .print-break { page-break-before: always; }
           div[style*="position: sticky"] { position: static !important; }
           * { box-shadow: none !important; }
+        }
+        @media (max-width: 640px) {
+          .topbar-actions { gap: 4px !important; }
+          .topbar-actions button { padding: 6px 8px !important; font-size: 12px !important; }
+          .topbar-actions button .btn-label { display: none; }
+          .hero-title { font-size: 24px !important; }
+          .hero-stats { font-size: 11px !important; gap: 10px !important; }
         }
       `}</style>
 
@@ -384,41 +391,43 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
               조회 {viewCount}회
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="topbar-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button onClick={handleCopyUrl} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8,
               border: `1.5px solid ${urlCopied ? C.green : C.border}`, background: urlCopied ? C.greenBg : C.white,
               color: urlCopied ? C.green : C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer',
             }}>
-              {urlCopied ? '✓ 링크 복사됨' : '🔗 링크 복사'}
+              {urlCopied ? '✓' : '🔗'}<span className="btn-label">{urlCopied ? ' 링크 복사됨' : ' 링크 복사'}</span>
             </button>
             <button onClick={handleCopyAll} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8,
               border: `1.5px solid ${copied ? C.green : C.border}`, background: copied ? C.greenBg : C.white,
               color: copied ? C.green : C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer',
             }}>
-              {copied ? '✓ 복사됨' : '📋 마크다운'}
+              {copied ? '✓' : '📋'}<span className="btn-label">{copied ? ' 복사됨' : ' 마크다운'}</span>
             </button>
             <button onClick={handlePrint} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8,
               border: `1.5px solid ${C.border}`, background: C.white,
               color: C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}>🖨️ 인쇄</button>
+            }}>🖨️<span className="btn-label"> 인쇄</span></button>
           </div>
         </div>
       </div>
 
-      {/* ━━ Floating TOC ━━ */}
+      {/* ━━ Floating TOC (desktop only via CSS) ━━ */}
       {showToc && (
-        <div className="no-print" style={{
-          position: 'fixed', right: 20, top: 80, zIndex: 50,
-          background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
-          border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px',
-          maxWidth: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          display: 'none',  // hidden on mobile by default
-        }}>
-          <style>{`@media (min-width: 1200px) { .floating-toc { display: block !important; } }`}</style>
-          <div className="floating-toc" style={{ display: 'block' }}>
+        <>
+          <style>{`
+            .floating-toc-wrapper { display: none; }
+            @media (min-width: 1200px) { .floating-toc-wrapper { display: block !important; } }
+          `}</style>
+          <div className="no-print floating-toc-wrapper" style={{
+            position: 'fixed', right: 20, top: 80, zIndex: 50,
+            background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
+            border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px',
+            maxWidth: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.textTertiary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>목차</div>
             {tocSections.map(s => (
               <a key={s.num} href={`#sec-${s.num}`} style={{
@@ -430,7 +439,7 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
               </a>
             ))}
           </div>
-        </div>
+        </>
       )}
 
       {/* ━━ Hero Header ━━ */}
@@ -447,8 +456,8 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
             </svg>
             PRD · 제품 요구사항 정의서
           </div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, margin: '0 0 12px 0', lineHeight: 1.2, letterSpacing: -0.5 }}>{prdData.projectName}</h1>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, opacity: 0.85, marginTop: 16 }}>
+          <h1 className="hero-title" style={{ fontSize: 36, fontWeight: 800, margin: '0 0 12px 0', lineHeight: 1.2, letterSpacing: -0.5 }}>{prdData.projectName}</h1>
+          <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, opacity: 0.85, marginTop: 16 }}>
             <span>📅 {prdData.documentMeta?.createdAt || '-'}</span>
             <span>📋 v{prdData.documentMeta?.version || '1.0'}</span>
             <span>⚙️ 기능 {totalFeatures}개</span>
