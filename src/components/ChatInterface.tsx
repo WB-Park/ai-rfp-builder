@@ -34,8 +34,17 @@ interface ChatInterfaceProps {
   sessionId?: string;
 }
 
-// 마크다운 → HTML
+// 마크다운 → HTML (인사이트+질문 통합 버블 지원)
 function renderMarkdown(text: string) {
+  // --- 구분자가 있으면 인사이트/질문 영역 분리
+  if (text.includes('\n---\n')) {
+    const [insight, question] = text.split('\n---\n');
+    const renderPart = (t: string) => t
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/💡/g, '<span style="display:inline-block;margin-right:4px">💡</span>')
+      .replace(/\n/g, '<br/>');
+    return `<div style="font-size:13px;color:var(--text-tertiary);line-height:1.65;padding:10px 14px;background:var(--surface-1);border-radius:10px;margin-bottom:12px">${renderPart(insight)}</div><div style="line-height:1.7">${renderPart(question)}</div>`;
+  }
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border-default);margin:16px 0;"/>')
@@ -302,62 +311,37 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setThinkingLabel(data.thinkingLabel);
       }
 
-      // 분석 메시지와 질문 메시지 분리 렌더링
+      // 분석 + 질문을 하나의 메시지로 통합 (시각적으로만 구분)
       const hasAnalysis = data.analysisMessage && data.analysisMessage.trim();
       const hasQuestion = data.questionMessage && data.questionMessage.trim();
 
+      let combinedContent = '';
       if (hasAnalysis && hasQuestion) {
-        const analysisMsg: ChatMessage = {
-          role: 'assistant' as const,
-          content: data.analysisMessage,
-          timestamp: Date.now(),
-          isAnalysis: true,
-        };
-        const withAnalysis = [...newMessages, analysisMsg];
-        setMessages(withAnalysis);
-        setLoading(false);
-
-        await new Promise(r => setTimeout(r, 500));
-        const questionMsg: ChatMessage = {
-          role: 'assistant' as const,
-          content: data.questionMessage,
-          timestamp: Date.now(),
-          selectableFeatures: data.selectableFeatures || undefined,
-          inlineOptions: data.inlineOptions || undefined,
-        };
-        const finalMessages = [...withAnalysis, questionMsg];
-        setMessages(finalMessages);
-
-        if (data.selectableFeatures && data.selectableFeatures.length > 0) {
-          const initialSelection: Record<string, boolean> = {};
-          for (const f of data.selectableFeatures) {
-            initialSelection[f.name] = f.category === 'must';
-          }
-          setFeatureSelection(initialSelection);
-        }
-
-        saveSession(updatedRfpData, finalMessages, completed);
+        combinedContent = `${data.analysisMessage}\n---\n${data.questionMessage}`;
       } else {
-        const assistantMsg: ChatMessage = {
-          role: 'assistant' as const,
-          content: data.message || data.questionMessage || data.analysisMessage || '계속 진행해볼까요?',
-          timestamp: Date.now(),
-          selectableFeatures: data.selectableFeatures || undefined,
-          inlineOptions: data.inlineOptions || undefined,
-        };
-        const finalMessages = [...newMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        if (data.selectableFeatures && data.selectableFeatures.length > 0) {
-          const initialSelection: Record<string, boolean> = {};
-          for (const f of data.selectableFeatures) {
-            initialSelection[f.name] = f.category === 'must';
-          }
-          setFeatureSelection(initialSelection);
-        }
-
-        saveSession(updatedRfpData, finalMessages, completed);
+        combinedContent = data.message || data.questionMessage || data.analysisMessage || '계속 진행해볼까요?';
       }
+
+      const assistantMsg: ChatMessage = {
+        role: 'assistant' as const,
+        content: combinedContent,
+        timestamp: Date.now(),
+        selectableFeatures: data.selectableFeatures || undefined,
+        inlineOptions: data.inlineOptions || undefined,
+        isAnalysis: false,
+      };
+      const finalMessages = [...newMessages, assistantMsg];
+      setMessages(finalMessages);
+
+      if (data.selectableFeatures && data.selectableFeatures.length > 0) {
+        const initialSelection: Record<string, boolean> = {};
+        for (const f of data.selectableFeatures) {
+          initialSelection[f.name] = f.category === 'must';
+        }
+        setFeatureSelection(initialSelection);
+      }
+
+      saveSession(updatedRfpData, finalMessages, completed);
 
     } catch {
       setMessages(prev => [...prev, {
@@ -898,14 +882,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               )}
               <div style={{ maxWidth: msg.role === 'user' ? '80%' : '85%' }}>
                 <div className={`${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'} animate-fade-in-up`}
-                  style={{
-                    position: 'relative',
-                    ...(msg.isAnalysis ? {
-                      borderLeft: '3px solid var(--color-primary)',
-                      background: 'var(--surface-1)',
-                      paddingLeft: 16, opacity: 0.92, fontSize: '14px',
-                    } : {}),
-                  }}
+                  style={{ position: 'relative' }}
                 >
                   {msg.role === 'assistant' ? (
                     <div style={{ margin: 0, lineHeight: 1.7 }}
