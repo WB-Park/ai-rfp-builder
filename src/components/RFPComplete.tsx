@@ -699,14 +699,27 @@ function FloatingTOC({ sections, activeSection }: { sections: { num: string; tit
   );
 }
 
-// ━━━━━ Sticky Top Bar — Project Title + CTA ━━━━━
-function StickyTopBar({ projectName, onCTAClick }: { projectName: string; onCTAClick: () => void }) {
+// ━━━━━ Sticky Top Bar — Project Title + URL Copy + CTA ━━━━━
+function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: string; onCTAClick: () => void; shareUrl?: string }) {
   const [visible, setVisible] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 300);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const handleCopyLink = async () => {
+    const url = shareUrl || window.location.href;
+    try { await navigator.clipboard.writeText(url); } catch {
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
 
   if (!visible) return null;
 
@@ -722,7 +735,7 @@ function StickyTopBar({ projectName, onCTAClick }: { projectName: string; onCTAC
       <div style={{
         maxWidth: 1100, margin: '0 auto',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        height: 56, gap: 16,
+        height: 56, gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
           <div style={{
@@ -740,22 +753,40 @@ function StickyTopBar({ projectName, onCTAClick }: { projectName: string; onCTAC
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{projectName}</span>
         </div>
-        <button
-          onClick={onCTAClick}
-          style={{
-            padding: '8px 20px', borderRadius: 8, border: 'none',
-            background: C.gradient, color: '#fff',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-            boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-            transition: 'transform 0.15s, box-shadow 0.15s',
-          }}
-          onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-1px)'; }}
-          onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
-        >
-          <span>⚡</span>
-          개발 파트너 찾기
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* URL 복사 버튼 */}
+          <button
+            onClick={handleCopyLink}
+            style={{
+              padding: '8px 14px', borderRadius: 8,
+              border: `1px solid ${linkCopied ? C.green : C.border}`,
+              background: linkCopied ? C.greenBg : C.white,
+              color: linkCopied ? C.green : C.textSecondary,
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+              transition: 'all 0.15s',
+            }}
+          >
+            {linkCopied ? '✅ 복사됨' : '🔗 URL 복사'}
+          </button>
+          {/* CTA 버튼 */}
+          <button
+            onClick={onCTAClick}
+            style={{
+              padding: '8px 20px', borderRadius: 8, border: 'none',
+              background: C.gradient, color: '#fff',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+              transition: 'transform 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
+          >
+            <span>⚡</span>
+            개발 파트너 찾기
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1047,6 +1078,24 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             if (parsed?.projectName && parsed?.featureModules) {
               setPrdData(parsed);
               setLoading(false);
+              // Auto-share: 생성 즉시 공유 URL 생성 → 브라우저 주소창 업데이트
+              try {
+                const shareRes = await fetch('/api/share-prd', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    rfpDocument: data.rfpDocument,
+                    rfpData,
+                    projectName: parsed.projectName,
+                  }),
+                });
+                const shareData = await shareRes.json();
+                if (shareData.shareId) {
+                  const url = `${window.location.origin}/share/${shareData.shareId}`;
+                  setShareUrl(url);
+                  window.history.replaceState({}, '', `/share/${shareData.shareId}`);
+                }
+              } catch { /* auto-share 실패해도 PRD는 정상 표시 */ }
               return;
             }
           } catch { /* JSON parse failed */ }
@@ -1514,7 +1563,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
-      <StickyTopBar projectName={prdData.projectName} onCTAClick={() => {
+      <StickyTopBar projectName={prdData.projectName} shareUrl={shareUrl} onCTAClick={() => {
         const ctaEl = document.querySelector('.wishket-cta-section');
         if (ctaEl) ctaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }} />
@@ -1692,33 +1741,20 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         <SectionDivider />
 
-        {/* 5. Scope */}
+        {/* 5. Scope — 포함 범위만 표시 */}
         <div id="sec-scope">
-          <SectionHeaderAnchored number="5" title="프로젝트 스코프" subtitle="포함/미포함 범위 정의" id="sec-scope" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
-            <Card style={{ borderLeft: `4px solid ${C.green}` }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {prdData.scopeInclusions?.map((s, i) => (
-                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textTertiary, margin: '0 0 14px 0' }}>❌ 미포함 (Out-of-Scope)</h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {prdData.scopeExclusions?.map((s, i) => (
-                  <li key={i} style={{ fontSize: 13, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 0 }}>—</span>
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </div>
+          <SectionHeaderAnchored number="5" title="프로젝트 스코프" subtitle="구현 범위 정의" id="sec-scope" />
+          <Card style={{ borderLeft: `4px solid ${C.green}` }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {prdData.scopeInclusions?.map((s, i) => (
+                <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+                  <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </Card>
         </div>
 
         <SectionDivider />
