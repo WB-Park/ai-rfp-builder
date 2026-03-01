@@ -20,6 +20,13 @@ interface ChatMessage {
   selectableFeatures?: SelectableFeature[];
   inlineOptions?: string[];
   isAnalysis?: boolean; // 분석 메시지 여부 (시각적 구분)
+  // 롤백용 상태 스냅샷 (user 메시지 전송 직전 상태)
+  snapshot?: {
+    rfpData: RFPData;
+    currentStep: number;
+    topicsCovered: TopicId[];
+    progressPercent: number;
+  };
 }
 
 interface ChatInterfaceProps {
@@ -190,7 +197,19 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const sendMessage = async (userMessage: string) => {
     if (!userMessage.trim() || loading) return;
 
-    const newMessages: ChatMessage[] = [...messages, { role: 'user' as const, content: userMessage, timestamp: Date.now() }];
+    // 롤백용 스냅샷: 메시지 전송 직전 상태 저장
+    const userMsg: ChatMessage = {
+      role: 'user' as const,
+      content: userMessage,
+      timestamp: Date.now(),
+      snapshot: {
+        rfpData: JSON.parse(JSON.stringify(rfpData)),
+        currentStep,
+        topicsCovered: [...topicsCovered],
+        progressPercent,
+      },
+    };
+    const newMessages: ChatMessage[] = [...messages, userMsg];
     setMessages(newMessages);
     setLoading(true);
     setQuickReplies([]);
@@ -367,6 +386,32 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     setInput('');
     if (inputRef.current) inputRef.current.style.height = 'auto';
     await sendMessage(msg);
+  };
+
+  // ── 대화 롤백: 특정 사용자 메시지 시점으로 되돌리기 ──
+  const handleRollback = (msgIndex: number) => {
+    if (loading) return;
+    const targetMsg = messages[msgIndex];
+    if (!targetMsg || targetMsg.role !== 'user') return;
+
+    // 해당 메시지 이전까지 잘라내기 (해당 user 메시지 자체도 제거)
+    const truncated = messages.slice(0, msgIndex);
+    setMessages(truncated);
+
+    // 스냅샷이 있으면 상태 복원
+    if (targetMsg.snapshot) {
+      setRfpData(targetMsg.snapshot.rfpData);
+      setCurrentStep(targetMsg.snapshot.currentStep);
+      setTopicsCovered(targetMsg.snapshot.topicsCovered);
+      setProgressPercent(targetMsg.snapshot.progressPercent);
+    }
+
+    // 롤백된 메시지 내용을 입력창에 넣어서 수정 후 다시 보낼 수 있게
+    setInput(targetMsg.content);
+    setQuickReplies([]);
+    setCanComplete(false);
+    setIsComplete(false);
+    inputRef.current?.focus();
   };
 
   const handleQuickReply = async (text: string) => {
@@ -756,9 +801,16 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           if (editingMsgDraft.trim()) {
-                            // 해당 메시지까지 잘라내고 수정된 메시지로 다시 전송
+                            // 롤백 후 수정된 메시지로 다시 전송
+                            const targetMsg = messages[i];
                             const truncated = messages.slice(0, i);
                             setMessages(truncated);
+                            if (targetMsg?.snapshot) {
+                              setRfpData(targetMsg.snapshot.rfpData);
+                              setCurrentStep(targetMsg.snapshot.currentStep);
+                              setTopicsCovered(targetMsg.snapshot.topicsCovered);
+                              setProgressPercent(targetMsg.snapshot.progressPercent);
+                            }
                             setEditingMsgIndex(null);
                             setEditingMsgDraft('');
                             setTimeout(() => sendMessage(editingMsgDraft.trim()), 100);
@@ -775,8 +827,15 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       }}>취소</button>
                       <button onClick={() => {
                         if (editingMsgDraft.trim()) {
+                          const targetMsg = messages[i];
                           const truncated = messages.slice(0, i);
                           setMessages(truncated);
+                          if (targetMsg?.snapshot) {
+                            setRfpData(targetMsg.snapshot.rfpData);
+                            setCurrentStep(targetMsg.snapshot.currentStep);
+                            setTopicsCovered(targetMsg.snapshot.topicsCovered);
+                            setProgressPercent(targetMsg.snapshot.progressPercent);
+                          }
                           setEditingMsgIndex(null);
                           setEditingMsgDraft('');
                           setTimeout(() => sendMessage(editingMsgDraft.trim()), 100);
@@ -909,19 +968,53 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     ))}
                   </div>
                 )}
-                {/* 타임스탬프 */}
-                {msg.timestamp && (
-                  <div style={{
-                    fontSize: 11,
-                    color: 'var(--text-quaternary)',
-                    marginTop: 4,
-                    textAlign: msg.role === 'user' ? 'right' : 'left',
-                    paddingLeft: msg.role === 'assistant' ? 4 : 0,
-                    paddingRight: msg.role === 'user' ? 4 : 0,
-                  }}>
-                    {formatTime(msg.timestamp)}
-                  </div>
-                )}
+                {/* 타임스탬프 + 롤백 버튼 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  gap: 8,
+                  marginTop: 4,
+                }}>
+                  {msg.timestamp && (
+                    <span style={{
+                      fontSize: 11,
+                      color: 'var(--text-quaternary)',
+                      paddingLeft: msg.role === 'assistant' ? 4 : 0,
+                      paddingRight: msg.role === 'user' ? 4 : 0,
+                    }}>
+                      {formatTime(msg.timestamp)}
+                    </span>
+                  )}
+                  {/* 롤백 버튼: user 메시지 + 과거 메시지(마지막 아닌 것) + 로딩 아닐 때 */}
+                  {msg.role === 'user' && i > 0 && i < messages.length - 1 && !loading && (
+                    <button
+                      onClick={() => handleRollback(i)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 11, color: 'var(--text-quaternary)',
+                        padding: '2px 6px', borderRadius: 4,
+                        transition: 'all 0.15s',
+                        display: 'flex', alignItems: 'center', gap: 3,
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.color = 'var(--color-primary)';
+                        e.currentTarget.style.background = 'rgba(37,99,235,0.06)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.color = 'var(--text-quaternary)';
+                        e.currentTarget.style.background = 'none';
+                      }}
+                      title="이 답변을 수정하고 다시 진행합니다"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                      여기서 다시하기
+                    </button>
+                  )}
+                </div>
                 {/* 🆕 복수선택 기능 UI — 마지막 assistant 메시지에만 */}
                 {msg.role === 'assistant' && msg.selectableFeatures && msg.selectableFeatures.length > 0 && i === messages.length - 1 && !loading && (
                   <div style={{
