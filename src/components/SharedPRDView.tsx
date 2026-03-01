@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 interface SharedPRDViewProps {
   rfpDocument: string;
@@ -9,68 +9,250 @@ interface SharedPRDViewProps {
   viewCount: number;
 }
 
+interface PRDResult {
+  projectName: string;
+  documentMeta: { version: string; createdAt: string; generatedBy: string };
+  executiveSummary: string;
+  projectOverview: string;
+  problemStatement: string;
+  projectGoals: { goal: string; metric: string }[];
+  targetUsers: string;
+  userPersonas: { name: string; role: string; needs: string; painPoints: string }[];
+  scopeInclusions: string[];
+  scopeExclusions: string[];
+  techStack: { category: string; tech: string; rationale: string }[];
+  referenceServices: string;
+  additionalRequirements: string;
+  featureModules: {
+    id: number;
+    name: string;
+    priority: 'P0' | 'P1' | 'P2';
+    priorityLabel: string;
+    features: {
+      id: string;
+      name: string;
+      description: string;
+      subFeatures: string[];
+      acceptanceCriteria: string[];
+      userFlow: string;
+      screenSpecs: { id: string; name: string; purpose: string; elements: string[]; scenarios: string[][] }[];
+      businessRules: string[];
+      dataEntities: { name: string; fields: string }[];
+      errorCases: string[];
+    }[];
+  }[];
+  nonFunctionalRequirements: { category: string; items: string[] }[];
+  timeline: { phase: string; duration: string; deliverables: string[] }[];
+  assumptions: string[];
+  constraints: string[];
+  risks: { risk: string; impact: string; mitigation: string }[];
+  glossary: { term: string; definition: string }[];
+  expertInsight: string;
+}
+
+// ━━━━━ Design Tokens ━━━━━
 const C = {
-  blue: '#2563EB', blueLight: '#3B82F6', blueSoft: '#60A5FA', bluePale: '#DBEAFE',
-  blueBg: 'rgba(37, 99, 235, 0.06)',
-  bg: '#F0F2F5', white: '#FFFFFF', paper: '#FFFFFF',
+  blue: '#2563EB', blueLight: '#3B82F6', blueSoft: '#60A5FA',
+  blueBg: 'rgba(37, 99, 235, 0.05)', bluePale: '#DBEAFE',
+  bg: '#F8FAFC', white: '#FFFFFF',
   textPrimary: '#0F172A', textSecondary: '#475569', textTertiary: '#94A3B8',
   border: '#E2E8F0', borderLight: '#F1F5F9',
-  green: '#22C55E', greenBg: 'rgba(34, 197, 94, 0.08)',
-  gradient: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+  green: '#22C55E', greenBg: 'rgba(34, 197, 94, 0.06)',
+  yellow: '#F59E0B', yellowBg: 'rgba(245, 158, 11, 0.06)',
+  red: '#EF4444', redBg: 'rgba(239, 68, 68, 0.06)',
+  purple: '#8B5CF6', purpleBg: 'rgba(139, 92, 246, 0.06)',
+  gradient: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
 };
 
-interface PRDSection {
-  id: string;
-  title: string;
-  content: string;
+// ━━━━━ Sub Components ━━━━━
+function SectionHeader({ number, title, subtitle }: { number: string; title: string; subtitle?: string }) {
+  return (
+    <div style={{ marginBottom: 20, marginTop: 36 }} id={`sec-${number}`}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{
+          background: C.gradient, color: '#fff', width: 32, height: 32, borderRadius: 8,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, fontWeight: 800, flexShrink: 0,
+        }}>{number}</span>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: -0.3 }}>{title}</h2>
+      </div>
+      {subtitle && <p style={{ fontSize: 12, color: C.textTertiary, margin: '8px 0 0 44px', lineHeight: 1.5 }}>{subtitle}</p>}
+    </div>
+  );
 }
 
-function parseRFPSections(text: string): PRDSection[] {
-  if (!text) return [];
-  const parts = text.split(/\n*─{3,}\s*/);
-  const sections: PRDSection[] = [];
-  let headerContent = '';
-  for (const part of parts) {
-    const trimmed = part.replace(/─{3,}/g, '').trim();
-    if (!trimmed) continue;
-    const titleMatch = trimmed.match(/^(\d+\.\s*)?(.+?)(?:\s*─*\s*$|\n)/);
-    if (titleMatch) {
-      const title = (titleMatch[2] || '').trim().replace(/─+$/, '').trim();
-      const restContent = trimmed.slice(titleMatch[0].length).trim();
-      if (title.length > 1 && title.length < 80 && restContent.length > 10) {
-        sections.push({ id: `s-${sections.length}`, title, content: restContent });
-      } else if (restContent.length > 10 || trimmed.length > 30) {
-        headerContent += trimmed + '\n\n';
-      }
-    } else if (trimmed.length > 10) {
-      if (trimmed.includes('═')) {
-        const cleanTitle = trimmed.replace(/═+/g, '').trim().split('\n')[0].trim();
-        const cleanContent = trimmed.replace(/═+/g, '').trim().split('\n').slice(1).join('\n').trim();
-        if (cleanTitle && cleanContent) {
-          sections.push({ id: `s-${sections.length}`, title: cleanTitle, content: cleanContent });
-        } else { headerContent += trimmed + '\n\n'; }
-      } else { headerContent += trimmed + '\n\n'; }
-    }
-  }
-  if (sections.length === 0 && text.trim().length > 0) {
-    return [{ id: 's-0', title: 'PRD 기획서', content: text }];
-  }
-  if (headerContent.trim() && sections.length > 0) {
-    sections.unshift({ id: 's-header', title: '소프트웨어 개발 PRD', content: headerContent.trim() });
-  }
-  return sections;
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: C.white, border: `1px solid ${C.border}`, borderRadius: 12,
+      padding: '24px', marginBottom: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.03)', ...style,
+    }}>{children}</div>
+  );
 }
 
+function PriorityBadge({ priority, label }: { priority: string; label: string }) {
+  const styles: Record<string, { bg: string; color: string; border: string }> = {
+    P0: { bg: C.redBg, color: C.red, border: 'rgba(239,68,68,0.15)' },
+    P1: { bg: C.blueBg, color: C.blue, border: 'rgba(37,99,235,0.15)' },
+    P2: { bg: 'rgba(148,163,184,0.06)', color: C.textTertiary, border: 'rgba(148,163,184,0.15)' },
+  };
+  const s = styles[priority] || styles.P1;
+  return (
+    <span style={{
+      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+      padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+    }}>{priority} · {label}</span>
+  );
+}
+
+function DetailList({ title, items, icon }: { title: string; items: string[]; icon?: string }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</h6>
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 5, paddingLeft: 16, position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 0 }}>{icon || '•'}</span>{item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FeatureCard({ feature, index }: { feature: PRDResult['featureModules'][0]['features'][0]; index: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasDetail = (feature.subFeatures?.length > 0) || feature.userFlow || (feature.screenSpecs?.length > 0) || (feature.acceptanceCriteria?.length > 0);
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
+      <button onClick={() => hasDetail && setExpanded(!expanded)} style={{
+        width: '100%', padding: '14px 16px', background: 'none', border: 'none',
+        cursor: hasDetail ? 'pointer' : 'default', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', textAlign: 'left',
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.blue, fontFamily: 'monospace' }}>{index}</span>
+            <h5 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
+          </div>
+          <p style={{ fontSize: 12, color: C.textSecondary, margin: 0, lineHeight: 1.5 }}>{feature.description}</p>
+        </div>
+        {hasDetail && (
+          <div style={{
+            width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s',
+            color: C.textTertiary, flexShrink: 0, marginLeft: 12, marginTop: 2,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9" /></svg>
+          </div>
+        )}
+      </button>
+      {expanded && (
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px', background: C.blueBg }}>
+          {feature.subFeatures?.length > 0 && <DetailList title="하위 기능" items={feature.subFeatures} />}
+          {feature.acceptanceCriteria?.length > 0 && <DetailList title="수락 기준 (AC)" items={feature.acceptanceCriteria} icon="✅" />}
+          {feature.userFlow && feature.userFlow !== '(사용자 흐름 미정의)' && (
+            <div style={{ marginBottom: 14 }}>
+              <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>사용자 흐름</h6>
+              <pre style={{
+                background: '#F1F5F9', border: `1px solid ${C.border}`, borderRadius: 8,
+                padding: 12, fontSize: 11, color: C.textSecondary, fontFamily: '"SF Mono", Monaco, monospace',
+                overflow: 'auto', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap',
+              }}>{feature.userFlow}</pre>
+            </div>
+          )}
+          {feature.screenSpecs?.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>화면 명세</h6>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ background: '#F1F5F9' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>화면</th>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>목적</th>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>UI 요소</th>
+                  </tr></thead>
+                  <tbody>{feature.screenSpecs.map((spec, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                      <td style={{ padding: '8px 12px', color: C.textSecondary, fontWeight: 600 }}>{spec.name}</td>
+                      <td style={{ padding: '8px 12px', color: C.textSecondary }}>{spec.purpose}</td>
+                      <td style={{ padding: '8px 12px', color: C.textSecondary }}>{spec.elements?.join(', ')}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {feature.businessRules?.length > 0 && <DetailList title="비즈니스 규칙" items={feature.businessRules} icon="📋" />}
+          {feature.errorCases?.length > 0 && <DetailList title="에러 케이스" items={feature.errorCases} icon="⚠️" />}
+          {feature.dataEntities?.length > 0 && (
+            <div>
+              <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>데이터 엔티티</h6>
+              {feature.dataEntities.map((entity, i) => (
+                <div key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 4 }}>
+                  <strong style={{ color: C.textPrimary }}>{entity.name}</strong>: {entity.fields}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModuleSection({ module }: { module: PRDResult['featureModules'][0] }) {
+  const [expanded, setExpanded] = useState(module.priority === 'P0');
+  return (
+    <div style={{
+      background: C.white, border: `1px solid ${C.border}`, borderRadius: 12,
+      overflow: 'hidden', marginBottom: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+    }}>
+      <button onClick={() => setExpanded(!expanded)} style={{
+        width: '100%', padding: '18px 20px', background: 'none', border: 'none',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            <h4 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{module.name}</h4>
+            <PriorityBadge priority={module.priority} label={module.priorityLabel} />
+          </div>
+          <span style={{ fontSize: 12, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.textTertiary} strokeWidth="2" strokeLinecap="round"
+          style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {expanded && (
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: '18px 20px', background: 'rgba(248,250,252,0.5)' }}>
+          {module.features?.map((feature, idx) => (
+            <FeatureCard key={idx} feature={feature} index={feature.id || `${module.priority}-${idx + 1}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ━━━━━ Main Component ━━━━━
 export default function SharedPRDView({ rfpDocument, projectName, shareId, viewCount }: SharedPRDViewProps) {
   const [copied, setCopied] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    // First 4 sections expanded by default
-    parseRFPSections(rfpDocument).forEach((s, i) => { initial[s.id] = i < 4; });
-    return initial;
-  });
+  const [urlCopied, setUrlCopied] = useState(false);
+  const [prdData, setPrdData] = useState<PRDResult | null>(null);
+  const [showToc, setShowToc] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
 
-  const sections = parseRFPSections(rfpDocument);
+  // Parse JSON PRDResult
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(rfpDocument);
+      if (parsed?.projectName && parsed?.featureModules) {
+        setPrdData(parsed);
+      }
+    } catch {
+      // fallback: not JSON — will show raw text below
+    }
+  }, [rfpDocument]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try { await navigator.clipboard.writeText(text); } catch {
@@ -78,142 +260,522 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
       ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
       document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
   }, []);
 
-  const toggleSection = (id: string) => {
-    setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  const handleCopyAll = useCallback(() => {
+    if (!prdData) {
+      copyToClipboard(rfpDocument);
+    } else {
+      // Generate markdown
+      let md = `# ${prdData.projectName} — PRD 기획서\n`;
+      md += `> v${prdData.documentMeta?.version || '1.0'} | ${prdData.documentMeta?.createdAt || '-'}\n\n`;
+      md += `## 1. Executive Summary\n${prdData.executiveSummary}\n\n`;
+      md += `## 2. 프로젝트 개요\n${prdData.projectOverview}\n\n`;
+      md += `## 3. 문제 정의\n${prdData.problemStatement}\n\n`;
+      md += `## 4. 프로젝트 목표\n`;
+      prdData.projectGoals?.forEach((g, i) => { md += `${i+1}. **${g.goal}** — ${g.metric}\n`; });
+      md += `\n## 5. 타겟 사용자\n${prdData.targetUsers}\n\n`;
+      md += `## 6. 기능 명세\n`;
+      prdData.featureModules?.forEach(m => {
+        md += `### ${m.name} (${m.priority})\n`;
+        m.features?.forEach(f => { md += `#### ${f.id} ${f.name}\n${f.description}\n\n`; });
+      });
+      md += `## 7. 기술 스택\n`;
+      prdData.techStack?.forEach(t => { md += `- **${t.tech}** (${t.category}): ${t.rationale}\n`; });
+      md += `\n## 8. 일정\n`;
+      prdData.timeline?.forEach(t => { md += `- **${t.phase}** (${t.duration}): ${t.deliverables.join(', ')}\n`; });
+      if (prdData.expertInsight) { md += `\n## 전문가 인사이트\n${prdData.expertInsight}\n`; }
+      md += `\n---\nGenerated by Wishket AI PRD Builder\n`;
+      copyToClipboard(md);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }, [prdData, rfpDocument, copyToClipboard]);
 
-  const expandAll = () => {
-    const all: Record<string, boolean> = {};
-    sections.forEach(s => { all[s.id] = true; });
-    setExpandedSections(all);
-  };
+  const handleCopyUrl = useCallback(() => {
+    copyToClipboard(window.location.href);
+    setUrlCopied(true);
+    setTimeout(() => setUrlCopied(false), 2500);
+  }, [copyToClipboard]);
 
-  const collapseAll = () => {
-    const all: Record<string, boolean> = {};
-    sections.forEach(s => { all[s.id] = false; });
-    setExpandedSections(all);
-  };
+  const handlePrint = useCallback(() => { window.print(); }, []);
 
-  return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
-      {/* Sticky Top Bar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
-        borderBottom: `1px solid ${C.border}`, padding: '10px 16px',
-      }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  // Scroll spy for TOC visibility
+  useEffect(() => {
+    const handleScroll = () => { setShowToc(window.scrollY > 400); };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const totalFeatures = prdData?.featureModules?.reduce((sum, m) => sum + (m.features?.length || 0), 0) || 0;
+
+  const tocSections = prdData ? [
+    { num: '1', title: 'Executive Summary' },
+    { num: '2', title: '프로젝트 개요' },
+    { num: '3', title: '문제 정의 & 목표' },
+    { num: '4', title: '타겟 사용자' },
+    { num: '5', title: '프로젝트 스코프' },
+    { num: '6', title: '기능 명세' },
+    { num: '7', title: '기술 스택' },
+    { num: '8', title: '비기능 요구사항' },
+    { num: '9', title: '일정 계획' },
+    { num: '10', title: '전제 조건 & 제약사항' },
+    { num: '11', title: '리스크 관리' },
+    ...(prdData.expertInsight ? [{ num: '12', title: '전문가 인사이트' }] : []),
+  ] : [];
+
+  // ━━━ Fallback: raw text rendering (backward compat) ━━━
+  if (!prdData) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.border}`, padding: '10px 16px' }}>
+          <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{projectName}</span>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{projectName}</span>
-            <span style={{ fontSize: 11, color: C.textTertiary, background: C.borderLight, padding: '2px 8px', borderRadius: 4 }}>
-              공유 문서 · 조회 {viewCount}회
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => copyToClipboard(rfpDocument)} style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '7px 14px', borderRadius: 8,
-              border: `1.5px solid ${copied ? C.green : C.border}`,
-              background: copied ? C.greenBg : C.white,
-              color: copied ? C.green : C.textSecondary,
-              fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}>
+            <button onClick={handleCopyAll} style={{ padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.white, color: C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
               {copied ? '✓ 복사됨' : '📋 전체 복사'}
             </button>
           </div>
         </div>
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 40px' }}>
+          <Card><pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: C.textSecondary, lineHeight: 1.8, margin: 0 }}>{rfpDocument}</pre></Card>
+          <div style={{ marginTop: 32, textAlign: 'center' }}>
+            <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share" target="_blank" rel="noopener noreferrer" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
+              background: C.gradient, color: 'white', textDecoration: 'none', fontWeight: 600, fontSize: 15,
+            }}>위시켓에서 개발사 찾기 →</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ━━━ Structured PRD Rendering ━━━
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg }}>
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          .print-break { page-break-before: always; }
+          div[style*="position: sticky"] { position: static !important; }
+          * { box-shadow: none !important; }
+        }
+      `}</style>
+
+      {/* ━━ Sticky Top Bar ━━ */}
+      <div className="no-print" ref={headerRef} style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
+        borderBottom: `1px solid ${C.border}`, padding: '10px 16px',
+      }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 7, background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{prdData.projectName}</span>
+            <span style={{ fontSize: 11, color: C.textTertiary, background: C.borderLight, padding: '2px 8px', borderRadius: 4 }}>
+              조회 {viewCount}회
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={handleCopyUrl} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8,
+              border: `1.5px solid ${urlCopied ? C.green : C.border}`, background: urlCopied ? C.greenBg : C.white,
+              color: urlCopied ? C.green : C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>
+              {urlCopied ? '✓ 링크 복사됨' : '🔗 링크 복사'}
+            </button>
+            <button onClick={handleCopyAll} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8,
+              border: `1.5px solid ${copied ? C.green : C.border}`, background: copied ? C.greenBg : C.white,
+              color: copied ? C.green : C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>
+              {copied ? '✓ 복사됨' : '📋 마크다운'}
+            </button>
+            <button onClick={handlePrint} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8,
+              border: `1.5px solid ${C.border}`, background: C.white,
+              color: C.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>🖨️ 인쇄</button>
+          </div>
+        </div>
       </div>
 
-      {/* Document */}
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 40px' }}>
-        {/* Hero Header */}
-        <div style={{
-          background: C.paper, borderRadius: 16, marginBottom: 2,
-          border: `1px solid ${C.border}`, overflow: 'hidden',
+      {/* ━━ Floating TOC ━━ */}
+      {showToc && (
+        <div className="no-print" style={{
+          position: 'fixed', right: 20, top: 80, zIndex: 50,
+          background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
+          border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px',
+          maxWidth: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          display: 'none',  // hidden on mobile by default
         }}>
-          <div style={{ height: 4, background: C.gradient }} />
-          <div style={{ padding: '32px 36px 28px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, letterSpacing: 1.5, marginBottom: 12 }}>WISHKET AI PRD BUILDER</div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: C.textPrimary, lineHeight: 1.35, marginBottom: 12, wordBreak: 'keep-all' }}>
-              {projectName}
-            </h1>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: C.textTertiary }}>
-              <span>위시켓 13년 · 7만+ 프로젝트 데이터 기반</span>
-            </div>
+          <style>{`@media (min-width: 1200px) { .floating-toc { display: block !important; } }`}</style>
+          <div className="floating-toc" style={{ display: 'block' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.textTertiary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>목차</div>
+            {tocSections.map(s => (
+              <a key={s.num} href={`#sec-${s.num}`} style={{
+                display: 'block', fontSize: 11, color: C.textSecondary, textDecoration: 'none',
+                padding: '4px 0', lineHeight: 1.4, transition: 'color 0.15s',
+              }} onMouseEnter={(e) => { e.currentTarget.style.color = C.blue; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = C.textSecondary; }}>
+                {s.num}. {s.title}
+              </a>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Expand/Collapse controls */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: '8px 0' }}>
-          <button onClick={expandAll} style={{ fontSize: 12, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>전체 펼치기</button>
-          <span style={{ color: C.border }}>|</span>
-          <button onClick={collapseAll} style={{ fontSize: 12, color: C.textTertiary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>전체 접기</button>
-        </div>
-
-        {/* Sections */}
-        <div style={{
-          background: C.paper, border: `1px solid ${C.border}`,
-          borderRadius: 16, overflow: 'hidden',
-        }}>
-          {sections.map((section, idx) => (
-            <div key={section.id} style={{ borderTop: idx > 0 ? `1px solid ${C.borderLight}` : 'none' }}>
-              {/* Section Header (clickable) */}
-              <button
-                onClick={() => toggleSection(section.id)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '18px 36px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-                }}
-              >
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 26, height: 26, borderRadius: 7, background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700,
-                  }}>{idx + 1}</span>
-                  {section.title}
-                </h2>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.textTertiary} strokeWidth="2" strokeLinecap="round"
-                  style={{ transform: expandedSections[section.id] ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {/* Section Content */}
-              {expandedSections[section.id] && (
-                <div style={{
-                  padding: '0 36px 28px', paddingLeft: 72,
-                  fontSize: 14.5, lineHeight: 1.9, color: C.textSecondary,
-                  whiteSpace: 'pre-wrap', wordBreak: 'keep-all',
-                }}>
-                  {section.content}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* CTA */}
-        <div style={{ marginTop: 32, textAlign: 'center' }}>
-          <div style={{ padding: '14px 20px', marginBottom: 16, borderRadius: 10, background: C.blueBg, border: `1px solid rgba(37, 99, 235, 0.1)`, fontSize: 14, color: C.blue, fontWeight: 500 }}>
-            이 PRD를 개발사 3~5곳에 동일하게 전달하면 정확한 견적 비교가 가능합니다
-          </div>
-          <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share&utm_campaign=shared-prd" target="_blank" rel="noopener noreferrer" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
-            background: C.gradient, color: 'white', textDecoration: 'none', fontWeight: 600, fontSize: 15,
-            boxShadow: '0 4px 16px rgba(37, 99, 235, 0.25)',
+      {/* ━━ Hero Header ━━ */}
+      <div style={{ background: C.gradient, color: '#fff', padding: '48px 20px 40px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(255,255,255,0.15)', padding: '6px 14px', borderRadius: 20,
+            fontSize: 11, fontWeight: 700, letterSpacing: 0.5, marginBottom: 20,
           }}>
-            🚀 위시켓에서 개발사 찾기 →
-          </a>
-          <div style={{ padding: '16px 0', marginTop: 16 }}>
-            <a href="/" style={{ fontSize: 14, color: C.blue, textDecoration: 'none', fontWeight: 500 }}>나도 AI PRD 만들기 →</a>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+            </svg>
+            PRD · 제품 요구사항 정의서
           </div>
-          <p style={{ fontSize: 12, color: C.textTertiary, marginTop: 8 }}>Powered by Wishket AI PRD Builder</p>
+          <h1 style={{ fontSize: 36, fontWeight: 800, margin: '0 0 12px 0', lineHeight: 1.2, letterSpacing: -0.5 }}>{prdData.projectName}</h1>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, opacity: 0.85, marginTop: 16 }}>
+            <span>📅 {prdData.documentMeta?.createdAt || '-'}</span>
+            <span>📋 v{prdData.documentMeta?.version || '1.0'}</span>
+            <span>⚙️ 기능 {totalFeatures}개</span>
+            <span>👁️ 조회 {viewCount}회</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ━━ Body ━━ */}
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px 60px' }}>
+
+        {/* TOC Card */}
+        <Card style={{ background: '#FAFBFD' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary, margin: '0 0 14px 0', textTransform: 'uppercase', letterSpacing: 0.5 }}>목차</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 6 }}>
+            {tocSections.map(s => (
+              <a key={s.num} href={`#sec-${s.num}`} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                borderRadius: 8, textDecoration: 'none', color: C.textSecondary, fontSize: 13,
+              }} onMouseEnter={(e) => { e.currentTarget.style.background = C.blueBg; e.currentTarget.style.color = C.blue; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSecondary; }}>
+                <span style={{
+                  background: C.blueBg, color: C.blue, width: 24, height: 24, borderRadius: 6,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0,
+                }}>{s.num}</span>
+                {s.title}
+              </a>
+            ))}
+          </div>
+        </Card>
+
+        {/* 1. Executive Summary */}
+        <SectionHeader number="1" title="Executive Summary" subtitle="프로젝트 핵심 요약" />
+        <Card style={{ borderLeft: `4px solid ${C.blue}` }}>
+          <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{prdData.executiveSummary}</p>
+        </Card>
+
+        {/* 2. Project Overview */}
+        <SectionHeader number="2" title="프로젝트 개요" subtitle="배경, 목적, 기대효과" />
+        <Card>
+          <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{prdData.projectOverview}</p>
+        </Card>
+
+        {/* 3. Problem & Goals */}
+        <SectionHeader number="3" title="문제 정의 & 프로젝트 목표" subtitle="해결하려는 문제와 성공 지표" />
+        {prdData.problemStatement && (
+          <Card style={{ borderLeft: `4px solid ${C.yellow}`, marginBottom: 14 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>🎯 문제 정의</h3>
+            <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{prdData.problemStatement}</p>
+          </Card>
+        )}
+        {prdData.projectGoals?.length > 0 && (
+          <Card>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📊 프로젝트 목표 & 성공 지표</h3>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {prdData.projectGoals.map((g, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: C.blueBg, borderRadius: 8, alignItems: 'flex-start' }}>
+                  <span style={{
+                    background: C.blue, color: '#fff', width: 22, height: 22, borderRadius: 6,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 1,
+                  }}>{i + 1}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, marginBottom: 2 }}>{g.goal}</div>
+                    <div style={{ fontSize: 12, color: C.textSecondary }}>📏 {g.metric}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* 4. Target Users */}
+        <SectionHeader number="4" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" />
+        <Card>
+          <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}>{prdData.targetUsers}</p>
+          {prdData.userPersonas?.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+              {prdData.userPersonas.map((p, i) => (
+                <div key={i} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px', background: i === 0 ? C.blueBg : C.purpleBg }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%', background: i === 0 ? C.blue : C.purple, color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700,
+                    }}>{p.name[0]}</div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: C.textTertiary }}>{p.role}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 6 }}><strong>니즈:</strong> {p.needs}</div>
+                  <div style={{ fontSize: 12, color: C.textSecondary }}><strong>불편사항:</strong> {p.painPoints}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* 5. Scope */}
+        <SectionHeader number="5" title="프로젝트 스코프" subtitle="포함/미포함 범위 정의" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+          <Card style={{ borderLeft: `4px solid ${C.green}` }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.green, margin: '0 0 12px 0' }}>✅ 포함 범위</h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {prdData.scopeInclusions?.map((s, i) => (
+                <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>{s}
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textTertiary, margin: '0 0 12px 0' }}>❌ 미포함</h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {prdData.scopeExclusions?.map((s, i) => (
+                <li key={i} style={{ fontSize: 12, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>—</span>{s}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+
+        {/* 6. Feature Specs */}
+        <SectionHeader number="6" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} />
+        {prdData.featureModules?.map((module, idx) => <ModuleSection key={idx} module={module} />)}
+
+        {/* 7. Tech Stack */}
+        <SectionHeader number="7" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" />
+        <Card>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr style={{ background: '#F1F5F9' }}>
+                <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, borderBottom: `2px solid ${C.border}` }}>분류</th>
+                <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, borderBottom: `2px solid ${C.border}` }}>기술</th>
+                <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, borderBottom: `2px solid ${C.border}` }}>선정 근거</th>
+              </tr></thead>
+              <tbody>{prdData.techStack?.map((t, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <td style={{ padding: '10px 14px', color: C.textTertiary, fontSize: 12 }}>{typeof t === 'object' ? t.category : '-'}</td>
+                  <td style={{ padding: '10px 14px', fontWeight: 600, color: C.textPrimary }}>
+                    <span style={{ background: C.blueBg, padding: '3px 10px', borderRadius: 6 }}>{typeof t === 'object' ? t.tech : t}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 12 }}>{typeof t === 'object' ? t.rationale : ''}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* 8. NFR */}
+        <SectionHeader number="8" title="비기능 요구사항" subtitle="성능, 보안, 접근성, 규정준수" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+          {prdData.nonFunctionalRequirements?.map((nfr, idx) => {
+            const icons: Record<string, string> = { '보안': '🔒', '성능': '⚡', '접근성': '♿', '규정': '📜' };
+            const icon = Object.entries(icons).find(([k]) => nfr.category.includes(k))?.[1] || '📋';
+            return (
+              <Card key={idx}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>{icon} {nfr.category}</h3>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {nfr.items?.map((item, i) => (
+                    <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 14, position: 'relative', lineHeight: 1.5 }}>
+                      <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>•</span>{item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* 9. Timeline */}
+        <SectionHeader number="9" title="일정 계획" subtitle="단계별 일정 및 산출물" />
+        <Card>
+          <div style={{ position: 'relative' }}>
+            {prdData.timeline?.map((t, i) => (
+              <div key={i} style={{ display: 'flex', gap: 16, marginBottom: i < (prdData.timeline?.length || 0) - 1 ? 24 : 0, position: 'relative' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 28 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: i === 0 ? C.blue : i === 1 ? C.green : C.yellow,
+                    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700, flexShrink: 0, zIndex: 1,
+                  }}>{i + 1}</div>
+                  {i < (prdData.timeline?.length || 0) - 1 && <div style={{ width: 2, flex: 1, background: C.borderLight, marginTop: 4 }} />}
+                </div>
+                <div style={{ flex: 1, paddingBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.phase}</span>
+                    <span style={{ background: C.blueBg, color: C.blue, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{t.duration}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {t.deliverables?.map((d, j) => (
+                      <span key={j} style={{ fontSize: 11, color: C.textSecondary, background: C.borderLight, padding: '3px 8px', borderRadius: 4 }}>{d}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* 10. Assumptions & Constraints */}
+        <SectionHeader number="10" title="전제 조건 & 제약사항" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+          <Card>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>📌 전제 조건</h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {prdData.assumptions?.map((a, i) => (
+                <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>{a}
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>🚧 제약사항</h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {prdData.constraints?.map((c, i) => (
+                <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>{c}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+
+        {/* 11. Risk Register */}
+        <SectionHeader number="11" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" />
+        <Card>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr style={{ background: '#F1F5F9' }}>
+                <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, borderBottom: `2px solid ${C.border}` }}>리스크</th>
+                <th style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 700, borderBottom: `2px solid ${C.border}`, width: 70 }}>영향도</th>
+                <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, borderBottom: `2px solid ${C.border}` }}>대응 전략</th>
+              </tr></thead>
+              <tbody>{prdData.risks?.map((r, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <td style={{ padding: '10px 14px', color: C.textSecondary }}>{r.risk}</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                      background: r.impact === '높음' ? C.redBg : C.yellowBg, color: r.impact === '높음' ? C.red : C.yellow,
+                    }}>{r.impact}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 12 }}>{r.mitigation}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* 12. Expert Insight */}
+        {prdData.expertInsight && (
+          <>
+            <SectionHeader number="12" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" />
+            <Card style={{ borderLeft: `4px solid ${C.purple}`, background: C.purpleBg }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', background: C.purple, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0,
+                }}>💡</div>
+                <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{prdData.expertInsight}</p>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {/* Glossary */}
+        {prdData.glossary?.length > 0 && (
+          <Card style={{ marginTop: 20 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>📖 용어 정의</h3>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {prdData.glossary.map((g, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: i < (prdData.glossary?.length || 0) - 1 ? `1px solid ${C.borderLight}` : 'none' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: C.blue, minWidth: 70, fontFamily: '"SF Mono", Monaco, monospace' }}>{g.term}</span>
+                  <span style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>{g.definition}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Reference & Additional */}
+        {prdData.referenceServices && prdData.referenceServices !== '해당 없음' && (
+          <Card>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>참고 서비스</h3>
+            <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}>{prdData.referenceServices}</p>
+          </Card>
+        )}
+
+        {/* ━━ CTA Section ━━ */}
+        <div className="no-print" style={{ marginTop: 40, textAlign: 'center' }}>
+          <div style={{
+            padding: '20px 24px', marginBottom: 20, borderRadius: 12,
+            background: C.blueBg, border: `1px solid rgba(37, 99, 235, 0.1)`,
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>
+              이 PRD로 정확한 견적 비교하기
+            </div>
+            <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+              동일한 PRD를 개발사 3~5곳에 전달하면 정확한 견적 비교가 가능합니다.
+              <br />위시켓에서 검증된 개발사를 찾아보세요.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share&utm_campaign=shared-prd" target="_blank" rel="noopener noreferrer" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
+              background: C.gradient, color: 'white', textDecoration: 'none', fontWeight: 600, fontSize: 15,
+              boxShadow: '0 4px 16px rgba(37, 99, 235, 0.25)',
+            }}>
+              🚀 위시켓에서 개발사 찾기 →
+            </a>
+            <a href="/" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
+              border: `1.5px solid ${C.border}`, background: C.white, color: C.textSecondary,
+              textDecoration: 'none', fontWeight: 600, fontSize: 14,
+            }}>
+              나도 AI PRD 만들기 →
+            </a>
+          </div>
+        </div>
+
+        {/* ━━ Footer ━━ */}
+        <div style={{ textAlign: 'center', paddingTop: 24, marginTop: 32, borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.textTertiary }}>
+          <p style={{ margin: '0 0 4px 0' }}>본 문서는 AI 기반으로 자동 생성되었으며, 실제 개발 착수 전 상세 검토가 필요합니다.</p>
+          <p style={{ margin: 0 }}>Wishket AI PRD Builder · © {new Date().getFullYear()} Wishket</p>
         </div>
       </div>
     </div>

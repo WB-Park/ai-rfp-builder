@@ -351,6 +351,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   const [prdData, setPrdData] = useState<PRDResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -391,6 +394,46 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }, []);
+
+  // Share PRD via URL
+  const handleShare = useCallback(async () => {
+    if (!prdData) return;
+    setSharing(true);
+    try {
+      const res = await fetch('/api/share-prd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rfpDocument: JSON.stringify(prdData),
+          rfpData,
+          projectName: prdData.projectName,
+        }),
+      });
+      const data = await res.json();
+      if (data.shareId) {
+        const url = `${window.location.origin}/share/${data.shareId}`;
+        setShareUrl(url);
+        try { await navigator.clipboard.writeText(url); } catch { /* fallback below */ }
+        setUrlCopied(true);
+        setTimeout(() => setUrlCopied(false), 3000);
+      }
+    } catch (err) {
+      console.error('Share error:', err);
+    }
+    setSharing(false);
+  }, [prdData, rfpData]);
+
+  const handleCopyShareUrl = useCallback(async () => {
+    try { await navigator.clipboard.writeText(shareUrl); } catch {
+      const ta = document.createElement('textarea');
+      ta.value = shareUrl; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    }
+    setUrlCopied(true);
+    setTimeout(() => setUrlCopied(false), 2500);
+  }, [shareUrl]);
+
+  const handlePrint = useCallback(() => { window.print(); }, []);
 
   // Generate markdown for copy
   const generateMarkdown = useCallback((d: PRDResult): string => {
@@ -514,6 +557,15 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }} ref={contentRef}>
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display: none !important; }
+          .print-break { page-break-before: always; }
+          * { box-shadow: none !important; }
+        }
+      `}</style>
       {/* ━━ Header ━━ */}
       <div style={{
         background: C.gradient, color: '#fff', padding: '48px 20px 40px', position: 'relative', overflow: 'hidden',
@@ -893,33 +945,75 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           </Card>
         )}
 
+        {/* ━━ Share URL Banner (shown after sharing) ━━ */}
+        {shareUrl && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px',
+            background: C.greenBg, border: `1px solid rgba(34, 197, 94, 0.2)`, borderRadius: 12,
+            marginTop: 32, marginBottom: 16,
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.green, marginBottom: 4 }}>✅ 공유 링크가 생성되었습니다</div>
+              <div style={{ fontSize: 12, color: C.textSecondary, wordBreak: 'break-all' }}>{shareUrl}</div>
+            </div>
+            <button onClick={handleCopyShareUrl} style={{
+              padding: '8px 16px', borderRadius: 8, border: `1px solid ${urlCopied ? C.green : C.border}`,
+              background: urlCopied ? C.green : C.white, color: urlCopied ? '#fff' : C.textSecondary,
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+            }}>
+              {urlCopied ? '복사됨!' : '링크 복사'}
+            </button>
+          </div>
+        )}
+
         {/* ━━ Action Buttons ━━ */}
         <div style={{
-          display: 'flex', gap: 12, marginTop: 40, marginBottom: 40, flexWrap: 'wrap',
+          display: 'flex', gap: 12, marginTop: shareUrl ? 8 : 40, marginBottom: 40, flexWrap: 'wrap',
         }}>
+          {/* Primary: Share URL */}
           <button
-            onClick={() => copyToClipboard(generateMarkdown(prdData))}
+            onClick={handleShare}
+            disabled={sharing}
             style={{
               padding: '14px 28px', borderRadius: 10, border: 'none',
-              background: C.gradient, color: '#fff',
-              fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+              background: sharing ? C.textTertiary : C.gradient, color: '#fff',
+              fontSize: 14, fontWeight: 700, cursor: sharing ? 'wait' : 'pointer', transition: 'all 0.2s',
               boxShadow: '0 4px 14px rgba(37,99,235,0.25)',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
             }}
           >
-            {copied ? '✅ 복사 완료!' : '📋 마크다운 복사'}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            {sharing ? '생성 중...' : shareUrl ? '새 링크 생성' : '🔗 공유 링크 만들기'}
           </button>
+          {/* Markdown Copy */}
           <button
-            onClick={() => copyToClipboard(JSON.stringify(prdData, null, 2))}
+            onClick={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
             style={{
               padding: '14px 28px', borderRadius: 10,
               border: `1.5px solid ${C.blue}`, background: '#fff', color: C.blue,
               fontSize: 14, fontWeight: 600, cursor: 'pointer',
             }}
           >
-            JSON 복사
+            {copied ? '✅ 복사됨!' : '📋 마크다운 복사'}
           </button>
+          {/* Print */}
+          <button
+            onClick={handlePrint}
+            style={{
+              padding: '14px 20px', borderRadius: 10,
+              border: `1.5px solid ${C.border}`, background: '#fff', color: C.textSecondary,
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            🖨️ 인쇄
+          </button>
+          {/* Wishket CTA */}
           <a
-            href="https://www.wishket.com/project/register"
+            href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=result&utm_campaign=prd-builder"
             target="_blank"
             rel="noopener noreferrer"
             style={{
