@@ -99,16 +99,15 @@ async function generateFullAIPRD(rfpData: RFPData): Promise<PRDResult> {
     ]);
   }
 
-  // ── Call A: 프로젝트 전략 + 분석 (텍스트 중심 필드) ──
+  // ── Call A: 프로젝트 스코프 + 사용자 분석 + 전문가 인사이트 ──
   const callA = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2500,
     system: `당신은 위시켓 13년차 수석 IT외주 PM 컨설턴트입니다. 116,000건 프로젝트 경험 기반으로 PRD를 작성합니다.
 
 [절대 규칙]
-- 이 프로젝트에만 해당하는 구체적 내용만 작성. 범용적/일반론 절대 금지
-- "좋은", "효율적인", "혁신적" 같은 추상적 수식어 → 금지. 수치/사례/비교로 대체
-- 국내 시장 데이터, 실제 서비스명, 구체적 수치를 반드시 포함
+- 사용자가 입력한 정보 기반의 팩트만 정리. 추측성 비즈니스 분석/시장 규모/성장률 금지
+- "좋은", "효율적인", "혁신적" 같은 추상적 수식어 → 금지
 - 존댓말 필수
 - 반드시 유효한 JSON만 출력 (마크다운/추가 텍스트 절대 금지)`,
     messages: [{
@@ -126,9 +125,7 @@ async function generateFullAIPRD(rfpData: RFPData): Promise<PRDResult> {
 JSON 형식으로 응답하세요:
 {
   "projectName": "서비스 성격이 드러나는 프로젝트명 15자 이내 (예: '펫케어 매칭 플랫폼')",
-  "executiveSummary": "300자 이상. 이 프로젝트가 뭔지, 왜 필요한지, 핵심 차별점은 뭔지를 C레벨이 30초 안에 파악 가능하도록. 관련 국내 시장 규모와 성장률 포함. 핵심 기능 수, 예상 기간 포함.",
-  "projectOverview": "500자 이상. (1) 시장 기회: 관련 국내 시장 규모와 트렌드 2~3가지 (2) 서비스 컨셉: 이 서비스가 정확히 무엇을 해결하는지 (3) 핵심 가치 제안: 기존 대안 대비 구체적 장점 3가지 (4) 수익 모델: 어떻게 돈을 벌 것인지",
-  "problemStatement": "400자 이상. (1) 타겟 사용자가 현재 겪는 구체적 문제 3가지 — 각각 빈도, 비용, 감정적 불만 포함 (2) 기존 대안(실제 서비스명)의 한계 2~3가지 (3) Before→After 비교 3항목 — 각각 정량적 개선 수치 포함",
+  "projectScope": "프로젝트 팩트 요약. 아래 4항목을 각각 한 줄로 작성:\n• 서비스 유형: [웹/모바일/하이브리드 등 플랫폼 형태]\n• 대상 사용자: [입력된 타겟 사용자 그대로]\n• 핵심 기능: [총 N개 — 주요 기능명 나열]\n• 기술 방향: [입력된 기술 요구사항 또는 추천 스택 간단 요약]\n\n⚠️ 시장 분석, 경쟁 우위, 비즈니스 가치 제안 등 추상적 컨설팅 문구 절대 금지. 입력 정보 기반 팩트만 작성.",
   "targetUsersAnalysis": "400자 이상. (1) Primary 사용자: 인구통계 + 핵심 Pain Point 3개 (2) Secondary 사용자 1그룹 (3) 사용자 여정 핵심 5단계별 이탈 방지 포인트",
   "expertInsight": "800자 이상. ★PRD에서 가장 가치있는 섹션★ (1) 💡 이 유형 프로젝트 성공 요인 TOP 3 — 위시켓 실제 데이터 기반 수치 포함 (2) ⚠️ 실패 원인 TOP 3 — 사례+금액 영향 (3) 📋 개발사 선정 체크리스트 5개 (4) 💰 이 프로젝트의 예산 최적화 전략 3개 — 각 절감비율 (5) 📝 계약 시 필수 조항 3개"
 }`
@@ -168,10 +165,10 @@ JSON 형식으로 응답하세요:
     {"phase": "Phase 1 — 기획·설계", "duration": "2~3주", "deliverables": ["구체적 산출물 3~4개"]}
   ],
   "risks": [
-    {"risk": "이 프로젝트 특유의 위험", "impact": "높음/중간/낮음", "mitigation": "구체적 대응책", "probability": "높음/중간/낮음"}
+    {"risk": "이 프로젝트 특유의 위험 요소를 구체적으로", "impact": "높음/중간/낮음", "mitigation": "구체적 대응 방안", "probability": "높음/중간/낮음"}
   ],
-  "assumptions": ["이 프로젝트만의 전제 5개"],
-  "constraints": ["이 프로젝트만의 제약 5개"],
+  "assumptions": ["★필수★ 이 프로젝트가 성립하기 위한 전제 5개. 예: '사용자가 스마트폰 사용 가능', 'API 연동 대상 서비스가 안정적으로 운영 중' 등 구체적으로"],
+  "constraints": ["★필수★ 이 프로젝트의 기술적/비즈니스적 제약 5개. 예: '초기 버전은 한국어만 지원', 'iOS/Android 동시 출시 필요', 'GDPR/개인정보보호법 준수 필수' 등 구체적으로"],
   "techStack": [
     {"category": "프론트엔드/백엔드/DB/인프라", "tech": "기술명", "rationale": "이 프로젝트에서 이 기술을 선택한 이유"}
   ],
@@ -190,7 +187,9 @@ JSON 형식으로 응답하세요:
 projectGoals: 정확히 4개. SMART 원칙 적용.
 userPersonas: 정확히 3명. 최소 1명은 서비스 운영자/관리자.
 timeline: 정확히 5단계 (기획설계/UI디자인/MVP개발/추가기능/QA출시).
-risks: 정확히 5개. 기술/비즈니스/운영 골고루.
+risks: 정확히 5개. 기술/비즈니스/운영 골고루. ★이 필드는 반드시 비어있지 않은 배열로 생성★
+assumptions: 정확히 5개. ★이 필드는 반드시 비어있지 않은 배열로 생성★
+constraints: 정확히 5개. ★이 필드는 반드시 비어있지 않은 배열로 생성★
 techStack: 4~6개. 프론트엔드, 백엔드, DB, 인프라 필수.
 competitorAnalysis: 3개. 실제 한국 서비스명 사용.
 approvalProcess: 정확히 4단계. 기획승인/디자인리뷰/개발완료/출시승인 단계 필수.
@@ -473,9 +472,9 @@ JSON 형식으로 응답:
   const result: PRDResult = {
     projectName,
     documentMeta: { version: '1.0', createdAt: now, generatedBy: 'Wishket AI PRD Builder' },
-    executiveSummary: dataA.executiveSummary || `${rfpData.overview} 프로젝트의 PRD입니다.`,
-    projectOverview: dataA.projectOverview || rfpData.overview || '',
-    problemStatement: dataA.problemStatement || '',
+    executiveSummary: dataA.projectScope || dataA.executiveSummary || `• 서비스 유형: ${rfpData.techRequirements || '웹 서비스'}\n• 대상 사용자: ${rfpData.targetUsers || '(미정)'}\n• 핵심 기능: ${features.length}개\n• 기술 방향: ${rfpData.techRequirements || '미정'}`,
+    projectOverview: '',
+    problemStatement: '',
     projectGoals: dataB.projectGoals || [{ goal: 'MVP 출시', metric: '핵심 기능 구현 완료' }],
     targetUsers: dataA.targetUsersAnalysis || rfpData.targetUsers || '',
     userPersonas: dataB.userPersonas || [],
@@ -497,9 +496,27 @@ JSON 형식으로 응답:
       { phase: 'Phase 4 — 추가 개발', duration: '2~4주', deliverables: ['추가 기능', '통합 테스트'] },
       { phase: 'Phase 5 — QA·출시', duration: '1~2주', deliverables: ['버그 수정', '배포', '모니터링'] },
     ],
-    assumptions: dataB.assumptions || [],
-    constraints: dataB.constraints || [],
-    risks: (dataB.risks || []).map((r: any) => ({
+    assumptions: (dataB.assumptions && dataB.assumptions.length > 0) ? dataB.assumptions : [
+      `타겟 사용자(${rfpData.targetUsers || '미정'})가 서비스에 접근 가능한 디바이스를 보유`,
+      '외부 연동 API/서비스가 안정적으로 운영 중',
+      '초기 출시 시 동시 접속자 1,000명 이하 가정',
+      '디자인 가이드/브랜딩 에셋은 별도 제공 예정',
+      '운영/CS 인력이 서비스 출시 전 확보됨',
+    ],
+    constraints: (dataB.constraints && dataB.constraints.length > 0) ? dataB.constraints : [
+      '1차 MVP는 한국어만 지원',
+      `개발 기간 내 핵심 기능(${features.length}개) 우선 구현`,
+      '개인정보보호법 및 관련 법규 준수 필수',
+      '초기 인프라 비용 월 50만원 이내 운영 가능해야 함',
+      '기존 레거시 시스템과의 연동 범위 1차 제외',
+    ],
+    risks: ((dataB.risks && dataB.risks.length > 0) ? dataB.risks : [
+      { risk: '핵심 기능 개발 복잡도가 예상보다 높을 수 있음', impact: '높음', mitigation: 'MVP 범위를 최소화하고 기능별 개발 스프린트 운영', probability: '중간' },
+      { risk: '외부 API 연동 시 스펙 변경/장애 발생 가능', impact: '중간', mitigation: 'API 연동 모듈 추상화 및 fallback 로직 구현', probability: '중간' },
+      { risk: '출시 후 사용자 피드백으로 대규모 수정 필요', impact: '중간', mitigation: '베타 테스트 기간 확보, 피드백 수집 체계 구축', probability: '높음' },
+      { risk: '보안 취약점으로 인한 개인정보 유출', impact: '높음', mitigation: '보안 코드 리뷰 + 침투 테스트 필수 포함', probability: '낮음' },
+      { risk: '개발사 커뮤니케이션 지연으로 일정 초과', impact: '높음', mitigation: '주 2회 정기 미팅 + 이슈 트래커 기반 관리', probability: '중간' },
+    ]).map((r: any) => ({
       ...r,
       probability: r.probability || (r.impact === '높음' ? '높음' : '중간'),
     })),

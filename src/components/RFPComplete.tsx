@@ -1099,9 +1099,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         results.push({ section, text: (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : ''), id });
       }
     };
-    addIfMatch(prdData.executiveSummary, 'Executive Summary', 'sec-summary');
-    addIfMatch(prdData.projectOverview, '프로젝트 개요', 'sec-overview');
-    addIfMatch(prdData.problemStatement, '문제 정의', 'sec-goals');
+    addIfMatch(prdData.executiveSummary, '프로젝트 스코프', 'sec-summary');
     addIfMatch(prdData.targetUsers, '타겟 사용자', 'sec-users');
     prdData.featureModules?.forEach(m => {
       m.features?.forEach(f => {
@@ -1294,20 +1292,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         new TextRun({ text: `버전 ${d.documentMeta?.version || '1.0'} | ${d.documentMeta?.createdAt || '-'} | ${d.documentMeta?.generatedBy || 'Wishket AI'}`, size: 20, color: '666666' }),
       ], spacing: { after: 400 } }));
 
-      // Executive Summary
-      sections.push(new Paragraph({ text: '1. Executive Summary', heading: HeadingLevel.HEADING_1 }));
-      sections.push(new Paragraph({ text: d.executiveSummary, spacing: { after: 300 } }));
-
-      // 프로젝트 개요
-      sections.push(new Paragraph({ text: '2. 프로젝트 개요', heading: HeadingLevel.HEADING_1 }));
-      sections.push(new Paragraph({ text: d.projectOverview, spacing: { after: 300 } }));
-
-      // 문제 정의
-      if (d.problemStatement) {
-        sections.push(new Paragraph({ text: '3. 문제 정의 & 프로젝트 목표', heading: HeadingLevel.HEADING_1 }));
-        sections.push(new Paragraph({ text: d.problemStatement, spacing: { after: 200 } }));
-      }
+      // 프로젝트 스코프
+      sections.push(new Paragraph({ text: '1. 프로젝트 스코프', heading: HeadingLevel.HEADING_1 }));
+      sections.push(new Paragraph({ text: d.executiveSummary, spacing: { after: 200 } }));
       if ((d.projectGoals?.length ?? 0) > 0) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: '프로젝트 목표 & 성공 지표', bold: true })], spacing: { before: 100, after: 100 } }));
         d.projectGoals.forEach((g, i) => {
           sections.push(new Paragraph({ children: [
             new TextRun({ text: `목표 ${i + 1}: `, bold: true }),
@@ -1319,7 +1308,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       }
 
       // 타겟 사용자
-      sections.push(new Paragraph({ text: '4. 타겟 사용자 & 페르소나', heading: HeadingLevel.HEADING_1 }));
+      sections.push(new Paragraph({ text: '2. 타겟 사용자 & 페르소나', heading: HeadingLevel.HEADING_1 }));
       sections.push(new Paragraph({ text: d.targetUsers, spacing: { after: 200 } }));
       if ((d.userPersonas?.length ?? 0) > 0) {
         d.userPersonas.forEach(p => {
@@ -1399,7 +1388,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
       // 리스크
       if ((d.risks?.length ?? 0) > 0) {
-        sections.push(new Paragraph({ text: '11. 리스크 관리', heading: HeadingLevel.HEADING_1 }));
+        sections.push(new Paragraph({ text: '10. 리스크 관리', heading: HeadingLevel.HEADING_1 }));
         d.risks.forEach(r => {
           sections.push(new Paragraph({ children: [
             new TextRun({ text: r.risk, bold: true }),
@@ -1438,22 +1427,23 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const generateMarkdown = useCallback((d: PRDResult): string => {
     let md = `# ${d.projectName} — PRD 기획서\n`;
     md += `> 문서 버전: ${d.documentMeta?.version || '1.0'} | 작성일: ${d.documentMeta?.createdAt || '-'} | ${d.documentMeta?.generatedBy || 'Wishket AI'}\n\n`;
-    md += `## 1. Executive Summary\n${d.executiveSummary}\n\n`;
-    md += `## 2. 프로젝트 개요\n${d.projectOverview}\n\n`;
-    md += `## 3. 문제 정의\n${d.problemStatement}\n\n`;
-    md += `## 4. 프로젝트 목표\n`;
-    d.projectGoals?.forEach((g, i) => { md += `${i + 1}. **${g.goal}** — 성공 지표: ${g.metric}\n`; });
-    md += `\n## 5. 타겟 사용자\n${d.targetUsers}\n\n`;
+    md += `## 1. 프로젝트 스코프\n${d.executiveSummary}\n\n`;
+    if ((d.projectGoals?.length ?? 0) > 0) {
+      md += `### 프로젝트 목표\n`;
+      d.projectGoals?.forEach((g, i) => { md += `${i + 1}. **${g.goal}** — 성공 지표: ${g.metric}\n`; });
+      md += '\n';
+    }
+    md += `## 2. 타겟 사용자\n${d.targetUsers}\n\n`;
     if ((d.userPersonas?.length ?? 0) > 0) {
       md += `### 사용자 페르소나\n`;
       d.userPersonas.forEach(p => { md += `- **${p.name}** (${p.role}): 니즈 — ${p.needs} / 문제점 — ${p.painPoints}\n`; });
       md += '\n';
     }
-    md += `## 6. 스코프\n### 포함\n`;
+    md += `## 3. 스코프\n### 포함\n`;
     d.scopeInclusions?.forEach(s => { md += `- ✅ ${s}\n`; });
     md += `### 미포함\n`;
     d.scopeExclusions?.forEach(s => { md += `- ❌ ${s}\n`; });
-    md += `\n## 7. 기능 명세\n`;
+    md += `\n## 5. 기능 명세\n`;
     d.featureModules?.forEach(m => {
       md += `### ${m.name} (${m.priority})\n`;
       m.features?.forEach(f => {
@@ -1463,23 +1453,23 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         md += '\n';
       });
     });
-    md += `## 8. 기술 스택\n`;
+    md += `## 6. 기술 스택\n`;
     d.techStack?.forEach(t => { md += `- **${t.tech}** (${t.category}): ${t.rationale}\n`; });
-    md += `\n## 9. 비기능 요구사항\n`;
+    md += `\n## 7. 비기능 요구사항\n`;
     d.nonFunctionalRequirements?.forEach(n => {
       md += `### ${n.category}\n`;
       n.items?.forEach(item => { md += `- ${item}\n`; });
     });
-    md += `\n## 10. 일정 계획\n`;
+    md += `\n## 8. 일정 계획\n`;
     d.timeline?.forEach(t => { md += `- **${t.phase}** (${t.duration}): ${t.deliverables.join(', ')}\n`; });
-    md += `\n## 11. 전제 조건 & 제약사항\n`;
+    md += `\n## 9. 전제 조건 & 제약사항\n`;
     md += `### 전제 조건\n`;
     d.assumptions?.forEach(a => { md += `- ${a}\n`; });
     md += `### 제약사항\n`;
     d.constraints?.forEach(c => { md += `- ${c}\n`; });
-    md += `\n## 12. 리스크 관리\n`;
+    md += `\n## 10. 리스크 관리\n`;
     d.risks?.forEach(r => { md += `- **${r.risk}** (영향: ${r.impact}) → 대응: ${r.mitigation}\n`; });
-    if (d.expertInsight) { md += `\n## 13. 전문가 인사이트\n${d.expertInsight}\n`; }
+    if (d.expertInsight) { md += `\n## 11. 전문가 인사이트\n${d.expertInsight}\n`; }
     md += `\n---\nGenerated by Wishket AI PRD Builder\n`;
     return md;
   }, []);
@@ -1581,21 +1571,19 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   }
 
   const tocSections = [
-    { num: '1', title: 'Executive Summary', id: 'sec-summary' },
-    { num: '2', title: '프로젝트 개요', id: 'sec-overview' },
-    { num: '3', title: '문제 정의 & 목표', id: 'sec-goals' },
-    { num: '4', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
-    { num: '5', title: '프로젝트 스코프', id: 'sec-scope' },
-    { num: '6', title: '정보 구조 (IA)', id: 'sec-ia' },
-    { num: '7', title: '기능 명세', id: 'sec-features' },
-    { num: '8', title: '기술 스택', id: 'sec-tech' },
-    { num: '9', title: '비기능 요구사항', id: 'sec-nfr' },
-    { num: '10', title: '일정 계획', id: 'sec-timeline' },
-    { num: '11', title: '전제 조건 & 제약사항', id: 'sec-assumptions' },
-    { num: '12', title: '리스크 관리', id: 'sec-risks' },
-    ...(prdData.expertInsight ? [{ num: '13', title: '전문가 인사이트', id: 'sec-expert' }] : []),
+    { num: '1', title: '프로젝트 스코프', id: 'sec-summary' },
+    { num: '2', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
+    { num: '3', title: '프로젝트 스코프 (기능 범위)', id: 'sec-scope' },
+    { num: '4', title: '정보 구조 (IA)', id: 'sec-ia' },
+    { num: '5', title: '기능 명세', id: 'sec-features' },
+    { num: '6', title: '기술 스택', id: 'sec-tech' },
+    { num: '7', title: '비기능 요구사항', id: 'sec-nfr' },
+    { num: '8', title: '일정 계획', id: 'sec-timeline' },
+    { num: '9', title: '전제 조건 & 제약사항', id: 'sec-assumptions' },
+    { num: '10', title: '리스크 관리', id: 'sec-risks' },
+    ...(prdData.expertInsight ? [{ num: '11', title: '전문가 인사이트', id: 'sec-expert' }] : []),
     ...(() => {
-      let n = prdData.expertInsight ? 14 : 13;
+      let n = prdData.expertInsight ? 12 : 11;
       const extra: { num: string; title: string; id: string }[] = [];
       extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
       if ((prdData.approvalProcess?.length ?? 0) > 0) extra.push({ num: String(n++), title: '승인 프로세스', id: 'sec-approval' });
@@ -1736,52 +1724,19 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           )}
         </div>
 
-        {/* 1. Executive Summary */}
+        {/* 1. 프로젝트 스코프 */}
         <div id="sec-summary" style={{ marginTop: 8 }}>
-          <SectionHeaderAnchored number="1" title="Executive Summary" subtitle="프로젝트 핵심 요약" id="sec-summary" />
-          <Card style={{ borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '32px' }}>
+          <SectionHeaderAnchored number="1" title="프로젝트 스코프" subtitle="프로젝트 핵심 정의" id="sec-summary" />
+          <Card style={{ borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '28px 32px' }}>
             <FormattedText
               value={prdData.executiveSummary}
               onChange={(v) => setPrdData({ ...prdData, executiveSummary: v })}
-              style={{ fontSize: 16, color: C.textSecondary, lineHeight: 1.9, margin: 0 }}
-              sectionKey="executiveSummary" sectionTitle="Executive Summary" projectContext={projectCtx}
+              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.9, margin: 0 }}
+              sectionKey="executiveSummary" sectionTitle="프로젝트 스코프" projectContext={projectCtx}
             />
           </Card>
-        </div>
-
-        <SectionDivider />
-
-        {/* 2. Project Overview */}
-        <div id="sec-overview">
-          <SectionHeaderAnchored number="2" title="프로젝트 개요" subtitle="배경, 목적, 기대효과" id="sec-overview" />
-          <Card>
-            <FormattedText
-              value={prdData.projectOverview}
-              onChange={(v) => setPrdData({ ...prdData, projectOverview: v })}
-              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: 0 }}
-              sectionKey="projectOverview" sectionTitle="프로젝트 개요" projectContext={projectCtx}
-            />
-          </Card>
-        </div>
-
-        <SectionDivider />
-
-        {/* 3. Problem & Goals */}
-        <div id="sec-goals">
-          <SectionHeaderAnchored number="3" title="문제 정의 & 프로젝트 목표" subtitle="해결하려는 문제와 성공 지표" id="sec-goals" />
-          {prdData.problemStatement && (
-            <Card style={{ borderLeft: `4px solid ${C.yellow}`, marginBottom: 14 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 10px 0', letterSpacing: -0.1 }}>🎯 문제 정의</h3>
-              <FormattedText
-                value={prdData.problemStatement}
-                onChange={(v) => setPrdData({ ...prdData, problemStatement: v })}
-                style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}
-                sectionKey="problemStatement" sectionTitle="문제 정의" projectContext={projectCtx}
-              />
-            </Card>
-          )}
           {(prdData.projectGoals?.length ?? 0) > 0 && (
-            <Card>
+            <Card style={{ marginTop: 14 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 16px 0', letterSpacing: -0.1 }}>📊 프로젝트 목표 & 성공 지표</h3>
               <div style={{ display: 'grid', gap: 10 }}>
                 {prdData.projectGoals.map((g, i) => (
@@ -1809,7 +1764,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 4. Target Users & Personas */}
         <div id="sec-users">
-          <SectionHeaderAnchored number="4" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" id="sec-users" />
+          <SectionHeaderAnchored number="2" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" id="sec-users" />
           <Card>
             <FormattedText
               value={prdData.targetUsers}
@@ -1862,7 +1817,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 5. Scope — 포함 범위만 표시 */}
         <div id="sec-scope">
-          <SectionHeaderAnchored number="5" title="프로젝트 스코프" subtitle="구현 범위 정의" id="sec-scope" />
+          <SectionHeaderAnchored number="3" title="프로젝트 스코프" subtitle="구현 범위 정의" id="sec-scope" />
           <Card style={{ borderLeft: `4px solid ${C.green}` }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
@@ -1881,7 +1836,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {/* 6. Information Architecture */}
         {(prdData.informationArchitecture?.sitemap?.length ?? 0) > 0 && (
           <div id="sec-ia">
-            <SectionHeaderAnchored number="6" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" id="sec-ia" />
+            <SectionHeaderAnchored number="4" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" id="sec-ia" />
             <Card>
               <div style={{ padding: '8px 0' }}>
                 {prdData.informationArchitecture.sitemap.map((node, i) => (
@@ -1930,7 +1885,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 7. Feature Specs */}
         <div id="sec-features">
-          <SectionHeaderAnchored number="7" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
+          <SectionHeaderAnchored number="5" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
           {/* B-2: Priority Filter Tabs + A-2: Expand/Collapse All */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
             <div role="tablist" aria-label="우선순위 필터" style={{ display: 'flex', gap: 4, background: C.borderLight, borderRadius: 8, padding: 3 }}>
@@ -2035,7 +1990,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 7. Tech Stack */}
         <div id="sec-tech">
-          <SectionHeaderAnchored number="8" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
+          <SectionHeaderAnchored number="6" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
           {/* B-5: Tech Stack Architecture Visualization */}
           {(prdData.techStack?.length ?? 0) > 0 && (
             <Card style={{ marginBottom: 14, padding: '24px 28px' }}>
@@ -2120,7 +2075,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 8. NFR */}
         <div id="sec-nfr">
-          <SectionHeaderAnchored number="9" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" id="sec-nfr" />
+          <SectionHeaderAnchored number="7" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" id="sec-nfr" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {prdData.nonFunctionalRequirements?.map((nfr, idx) => {
               const nfrThemes: Record<string, { icon: string; color: string; bg: string }> = {
@@ -2154,7 +2109,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 9. Timeline */}
         <div id="sec-timeline">
-          <SectionHeaderAnchored number="10" title="일정 계획" subtitle="단계별 일정 및 산출물" id="sec-timeline" />
+          <SectionHeaderAnchored number="8" title="일정 계획" subtitle="단계별 일정 및 산출물" id="sec-timeline" />
           {/* B-3: Gantt Chart */}
           <GanttChart timeline={prdData.timeline} />
           <Card>
@@ -2200,7 +2155,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 10. Assumptions & Constraints */}
         <div id="sec-assumptions">
-          <SectionHeaderAnchored number="11" title="전제 조건 & 제약사항" id="sec-assumptions" />
+          <SectionHeaderAnchored number="9" title="전제 조건 & 제약사항" id="sec-assumptions" />
           <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
@@ -2229,7 +2184,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 11. Risk Register */}
         <div id="sec-risks">
-          <SectionHeaderAnchored number="12" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
+          <SectionHeaderAnchored number="10" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
           {/* B-4: Risk Matrix Visualization */}
           <RiskMatrix risks={prdData.risks} />
           <Card>
@@ -2267,7 +2222,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {/* 12. Expert Insight (conditional) */}
         {prdData.expertInsight && (
           <div id="sec-expert">
-            <SectionHeaderAnchored number="13" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" id="sec-expert" />
+            <SectionHeaderAnchored number="11" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" id="sec-expert" />
             <Card style={{ borderLeft: `4px solid ${C.purple}`, background: C.purpleBg }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{
