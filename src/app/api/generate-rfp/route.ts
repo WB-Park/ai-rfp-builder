@@ -1502,7 +1502,7 @@ export async function POST(req: NextRequest) {
         // Q2: Enhanced Claude API call for 11 fields + informationArchitecture
         const response = await anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 6000,
+          max_tokens: 4000,
           system: `당신은 위시켓에서 13년간 10,000건 이상의 IT 외주 프로젝트를 분석한 수석 PM 컨설턴트입니다.
 실제 프로젝트 데이터와 업계 트렌드에 기반하여, 개발사와 클라이언트 양측이 실무에서 즉시 활용할 수 있는 수준의 분석을 제공합니다.
 반드시 존댓말을 사용하세요. 추상적 표현 대신 구체적 수치, 사례, 실행 가능한 제안을 포함하세요.
@@ -1606,8 +1606,8 @@ Q6: 절대로 사용자의 입력 요구사항에 직접적으로 관련 없는 
           }
         }
 
-        // F14: AI Dynamic Feature Blueprint for unmatched features
-        rfpDocument = await generateDynamicFeatureBlueprints(rfpDocument, features, analyzedFeatures, anthropic);
+        // F14: 동적 블루프린트는 타임아웃 방지를 위해 별도 호출 대신
+        // fallback DB 블루프린트를 사용 (이미 generateFallbackRFP에서 생성됨)
       } catch (aiError) {
         console.error('AI enhancement error (using base PRD):', aiError);
       }
