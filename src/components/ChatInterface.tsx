@@ -327,7 +327,11 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         content: combinedContent,
         timestamp: Date.now(),
         selectableFeatures: data.selectableFeatures || undefined,
-        inlineOptions: data.inlineOptions || undefined,
+        inlineOptions: (data.inlineOptions || []).filter((opt: string) =>
+          !/RFP|PRD|생성|완성|시작하기/.test(opt)
+        ).length > 0 ? (data.inlineOptions || []).filter((opt: string) =>
+          !/RFP|PRD|생성|완성|시작하기/.test(opt)
+        ) : undefined,
         isAnalysis: false,
       };
       const finalMessages = [...newMessages, assistantMsg];
