@@ -686,10 +686,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   )}
                 </div>
 
-                {/* Inline options */}
-                {msg.role === 'assistant' && msg.inlineOptions && msg.inlineOptions.length > 0 && i === messages.length - 1 && !loading && (
+                {/* Inline options + 직접입력 버튼 */}
+                {msg.role === 'assistant' && i === messages.length - 1 && !loading && !isComplete && (
                   <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {msg.inlineOptions.map((option, oi) => (
+                    {msg.inlineOptions && msg.inlineOptions.length > 0 && msg.inlineOptions.map((option, oi) => (
                       <button key={oi} onClick={() => sendMessage(option)} style={{
                         padding: '7px 14px', borderRadius: 20,
                         border: '1.5px solid var(--color-primary)',
@@ -701,8 +701,18 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-primary)'; }}
                       >{option}</button>
                     ))}
-                    {/* 직접 입력 옵션 */}
-                    <button onClick={() => { inputRef.current?.focus(); }} style={{
+                    {/* 직접 입력 옵션 — 항상 표시 */}
+                    <button onClick={() => {
+                      const el = inputRef.current;
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        setTimeout(() => {
+                          el.focus();
+                          el.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.3)';
+                          setTimeout(() => { el.style.boxShadow = ''; }, 1500);
+                        }, 300);
+                      }
+                    }} style={{
                       padding: '7px 14px', borderRadius: 20,
                       border: '1.5px dashed var(--text-tertiary)',
                       background: 'transparent', color: 'var(--text-tertiary)',
@@ -718,6 +728,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       </svg>
                       직접 입력하기
                     </button>
+                    {/* 건너뛰기 옵션 */}
+                    <button onClick={() => sendMessage('건너뛰기')} style={{
+                      padding: '7px 14px', borderRadius: 20,
+                      border: '1.5px dashed var(--text-quaternary)',
+                      background: 'transparent', color: 'var(--text-quaternary)',
+                      fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+                    >건너뛰기</button>
                   </div>
                 )}
 

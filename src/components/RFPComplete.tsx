@@ -11,6 +11,8 @@ interface RFPCompleteProps {
   rfpData: RFPData;
   email: string;
   sessionId?: string;
+  preloadedPrd?: string; // JSON string of PRDResult — skips API call, renders directly
+  readOnly?: boolean; // Hide editing features for share page
 }
 
 interface PRDResult {
@@ -1017,9 +1019,20 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
 }
 
 // ━━━━━ Main Component ━━━━━
-export default function RFPComplete({ rfpData, email, sessionId }: RFPCompleteProps) {
-  const [prdData, setPrdData] = useState<PRDResult | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly }: RFPCompleteProps) {
+  // preloadedPrd가 있으면 바로 파싱해서 사용 (share 페이지)
+  const initialPrd = useMemo(() => {
+    if (preloadedPrd) {
+      try {
+        const parsed = JSON.parse(preloadedPrd);
+        if (parsed?.projectName && parsed?.featureModules) return parsed as PRDResult;
+      } catch { /* parse failed */ }
+    }
+    return null;
+  }, [preloadedPrd]);
+
+  const [prdData, setPrdData] = useState<PRDResult | null>(initialPrd);
+  const [loading, setLoading] = useState(!initialPrd);
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [sharing, setSharing] = useState(false);
@@ -1110,6 +1123,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   ];
 
   useEffect(() => {
+    // preloadedPrd가 있으면 API 호출 스킵
+    if (initialPrd) return;
+
     const fetchPRD = async () => {
       // 단계별 진행 애니메이션
       const phaseTimer = setInterval(() => {
@@ -1669,19 +1685,21 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
       {/* ━━ Body ━━ */}
       <div className="prd-container" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
-        {/* P1: Document Search */}
-        <div className="prd-search-bar no-print" style={{ marginBottom: 20, position: 'relative' }}>
+        {/* B-1: KPI Summary Cards */}
+        <KPISummary prdData={prdData} />
+        {/* P1: Document Search — KPI 아래, 첫 섹션 위 */}
+        <div className="prd-search-bar no-print" style={{ marginBottom: 24, position: 'relative', maxWidth: 400 }}>
           <div style={{ position: 'relative' }}>
-            <svg style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.textTertiary} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textTertiary} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="문서 내 검색... (⌘K)"
+              placeholder="문서 내 검색 (⌘K)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="PRD 문서 내 검색"
               style={{
-                width: '100%', padding: '10px 14px 10px 40px', borderRadius: 10,
+                width: '100%', padding: '8px 12px 8px 34px', borderRadius: 8,
                 border: `1px solid ${searchQuery ? C.blue : C.border}`, background: C.white,
                 fontSize: 13, color: C.textPrimary, outline: 'none',
                 transition: 'border-color 0.15s',
@@ -1689,8 +1707,8 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             />
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{
-                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: C.textTertiary,
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: C.textTertiary,
               }} aria-label="검색 초기화">✕</button>
             )}
           </div>
@@ -1717,8 +1735,6 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             </div>
           )}
         </div>
-        {/* B-1: KPI Summary Cards */}
-        <KPISummary prdData={prdData} />
 
         {/* 1. Executive Summary */}
         <div id="sec-summary" style={{ marginTop: 8 }}>

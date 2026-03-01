@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import SharedPRDView from '@/components/SharedPRDView';
 import type { Metadata } from 'next';
+import SharePageClient from './SharePageClient';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lwecmebszyqgomzvexxt.supabase.co',
@@ -82,5 +82,5 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
   // Increment view count
   await supabase.from('shared_prds').update({ view_count: (data.view_count || 0) + 1 }).eq('share_id', id);
 
-  return <SharedPRDView rfpDocument={data.rfp_document} projectName={data.project_name} rfpData={data.rfp_data} shareId={id} viewCount={data.view_count + 1} />;
+  return <SharePageClient rfpDocument={data.rfp_document} projectName={data.project_name} />;
 }
