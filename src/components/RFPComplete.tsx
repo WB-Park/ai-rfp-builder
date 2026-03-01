@@ -898,44 +898,7 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
   );
 }
 
-// ━━━━━ B-4: Risk Matrix Visualization ━━━━━
-function RiskMatrix({ risks }: { risks: PRDResult['risks'] }) {
-  if (!risks || risks.length === 0) return null;
-  const impactMap: Record<string, number> = { '높음': 3, '중간': 2, '낮음': 1 };
-  return (
-    <Card style={{ padding: '28px' }}>
-      <div className="prd-risk-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        {/* Header */}
-        <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '80px 1fr 1fr 1fr', gap: 8, marginBottom: 4 }}>
-          <div />
-          {['높음', '중간', '낮음'].map(level => (
-            <div key={level} style={{ fontSize: 10, fontWeight: 700, color: C.textTertiary, textAlign: 'center', textTransform: 'uppercase' }}>
-              영향도: {level}
-            </div>
-          ))}
-        </div>
-        {/* Matrix cells */}
-        {risks.map((r, i) => {
-          const impact = impactMap[r.impact] || 2;
-          const bgColors = { 3: C.redBg, 2: C.yellowBg, 1: C.greenBg };
-          const dotColors = { 3: C.red, 2: C.yellow, 1: C.green };
-          return (
-            <div key={i} style={{
-              gridColumn: impact === 3 ? '1' : impact === 2 ? '2' : '3',
-              background: bgColors[impact as keyof typeof bgColors],
-              border: `1px solid ${dotColors[impact as keyof typeof dotColors]}20`,
-              borderRadius: 10, padding: '12px 14px',
-              borderLeft: `3px solid ${dotColors[impact as keyof typeof dotColors]}`,
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{r.risk}</div>
-              <div style={{ fontSize: 11, color: C.textSecondary, lineHeight: 1.5 }}>💡 {r.mitigation}</div>
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
+// (B-4: Risk Matrix 제거 — 테이블로 통합)
 
 // ━━━━━ B-8: Sticky Action Bar ━━━━━
 function StickyActionBar({ onShare, onCopy, onPDF, onDOCX, sharing, pdfGen, docxGen, copied }: {
@@ -1048,10 +1011,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'P0' | 'P1' | 'P2'>('all');
   // A-2: Expand/collapse all
   const [expandAll, setExpandAll] = useState<boolean | null>(null);
-  // P1: Document Search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ section: string; text: string; id: string }[]>([]);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  // (검색 기능 제거됨)
 
   // A-1: Intersection Observer for Floating TOC
   useEffect(() => {
@@ -1066,50 +1026,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     return () => observer.disconnect();
   }, [loading, prdData]);
 
-  // P1: Ctrl+K search shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      if (e.key === 'Escape') {
-        setSearchQuery('');
-        setSearchResults([]);
-        searchInputRef.current?.blur();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // P1: Search logic
-  useEffect(() => {
-    if (!prdData || !searchQuery || searchQuery.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const q = searchQuery.toLowerCase();
-    const results: { section: string; text: string; id: string }[] = [];
-    const addIfMatch = (text: string | undefined, section: string, id: string) => {
-      if (text && text.toLowerCase().includes(q)) {
-        const idx = text.toLowerCase().indexOf(q);
-        const start = Math.max(0, idx - 30);
-        const end = Math.min(text.length, idx + searchQuery.length + 30);
-        results.push({ section, text: (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : ''), id });
-      }
-    };
-    addIfMatch(prdData.executiveSummary, '프로젝트 스코프', 'sec-summary');
-    addIfMatch(prdData.targetUsers, '타겟 사용자', 'sec-users');
-    prdData.featureModules?.forEach(m => {
-      m.features?.forEach(f => {
-        addIfMatch(f.name, `기능: ${m.name}`, 'sec-features');
-        addIfMatch(f.description, `기능: ${f.name}`, 'sec-features');
-      });
-    });
-    addIfMatch(prdData.expertInsight, '전문가 인사이트', 'sec-expert');
-    setSearchResults(results.slice(0, 8));
-  }, [searchQuery, prdData]);
+  // (검색 기능 관련 effect 제거됨)
 
   // F11: 단계별 진행 상태
   const [loadingPhase, setLoadingPhase] = useState(0);
@@ -1675,54 +1592,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="prd-container" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
         {/* B-1: KPI Summary Cards */}
         <KPISummary prdData={prdData} />
-        {/* P1: Document Search — KPI 아래, 첫 섹션 위 */}
-        <div className="prd-search-bar no-print" style={{ marginBottom: 24, position: 'relative', maxWidth: 400 }}>
-          <div style={{ position: 'relative' }}>
-            <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textTertiary} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="문서 내 검색 (⌘K)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="PRD 문서 내 검색"
-              style={{
-                width: '100%', padding: '8px 12px 8px 34px', borderRadius: 8,
-                border: `1px solid ${searchQuery ? C.blue : C.border}`, background: C.white,
-                fontSize: 13, color: C.textPrimary, outline: 'none',
-                transition: 'border-color 0.15s',
-              }}
-            />
-            {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{
-                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: C.textTertiary,
-              }} aria-label="검색 초기화">✕</button>
-            )}
-          </div>
-          {searchResults.length > 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-              background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4, maxHeight: 320, overflowY: 'auto',
-            }}>
-              {searchResults.map((r, i) => (
-                <a key={i} href={`#${r.id}`} onClick={() => { setSearchQuery(''); setSearchResults([]); }}
-                  style={{
-                    display: 'block', padding: '10px 16px', textDecoration: 'none',
-                    borderBottom: i < searchResults.length - 1 ? `1px solid ${C.borderLight}` : 'none',
-                    transition: 'background 0.1s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = C.blueBg; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, marginBottom: 2 }}>{r.section}</div>
-                  <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>{r.text}</div>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* 검색 기능 제거됨 */}
 
         {/* 1. 프로젝트 스코프 */}
         <div id="sec-summary" style={{ marginTop: 8 }}>
@@ -2185,8 +2055,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {/* 11. Risk Register */}
         <div id="sec-risks">
           <SectionHeaderAnchored number="10" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
-          {/* B-4: Risk Matrix Visualization */}
-          <RiskMatrix risks={prdData.risks} />
+          {/* 리스크 테이블 */}
           <Card>
             <div className="prd-table-responsive" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
