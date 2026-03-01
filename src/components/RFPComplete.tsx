@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from '
 import { RFPData } from '@/types/rfp';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, Header, Footer, PageNumber, NumberFormat, ShadingType, StyleLevel, PageBreak, Tab, TabStopType, TabStopPosition } from 'docx';
 import { saveAs } from 'file-saver';
 
 interface RFPCompleteProps {
@@ -45,6 +45,8 @@ interface PRDResult {
       businessRules: string[];
       dataEntities: { name: string; fields: string }[];
       errorCases: string[];
+      estimatedManDays?: number;
+      dependencies?: string[];
     }[];
   }[];
   nonFunctionalRequirements: { category: string; items: string[] }[];
@@ -92,6 +94,9 @@ const C = {
   gradient: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
 };
 
+// ━━━━━ ReadOnly Context ━━━━━
+const ReadOnlyContext = React.createContext(false);
+
 // ━━━━━ Text Formatting Utility ━━━━━
 function formatTextContent(text: string): React.ReactNode[] {
   if (!text) return [];
@@ -120,57 +125,17 @@ function formatTextContent(text: string): React.ReactNode[] {
   ));
 }
 
-// ━━━━━ Formatted Editable Text ━━━━━
-function FormattedText({ value, onChange, style, sectionKey, sectionTitle, projectContext }: {
+// ━━━━━ Unified Editable Text (FormattedText + EditableText merged) ━━━━━
+// #4: 편집 UX 통일 — AI 재생성, 포맷팅, readOnly 모두 지원
+function FormattedText({ value, onChange, style, sectionKey, sectionTitle, projectContext, readOnly: ro, formatted = true }: {
   value: string;
   onChange: (v: string) => void;
   style?: React.CSSProperties;
   sectionKey?: string;
   sectionTitle?: string;
   projectContext?: { projectName?: string; projectType?: string; coreFeatures?: string };
-}) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(value);
-
-  useEffect(() => { setText(value); }, [value]);
-
-  if (editing) {
-    return (
-      <div style={{ ...style }}>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => { setEditing(false); onChange(text); }}
-          autoFocus
-          style={{
-            width: '100%', minHeight: 120, padding: 12, border: `2px solid ${C.blue}`,
-            borderRadius: 8, fontSize: 14, lineHeight: 1.8, resize: 'vertical',
-            fontFamily: 'inherit', color: C.textSecondary, background: C.blueBg,
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      onClick={() => setEditing(true)}
-      style={{ ...style, cursor: 'pointer', fontSize: 15, color: C.textSecondary }}
-      title="클릭하여 편집"
-    >
-      {formatTextContent(value)}
-    </div>
-  );
-}
-
-// ━━━━━ F4+F8: Editable Text Section with AI Regeneration ━━━━━
-function EditableText({ value, onChange, style, sectionKey, sectionTitle, projectContext }: {
-  value: string;
-  onChange: (v: string) => void;
-  style?: React.CSSProperties;
-  sectionKey?: string;
-  sectionTitle?: string;
-  projectContext?: { projectName?: string; projectType?: string; coreFeatures?: string };
+  readOnly?: boolean;
+  formatted?: boolean; // true: use formatTextContent, false: plain text
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -186,8 +151,7 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
     }
   }, [editing]);
 
-  // F8: AI 재생성
-  const handleRegenerate = async () => {
+  const handleRegenerate = async (tone?: string) => {
     if (!sectionKey || regenerating) return;
     setRegenerating(true);
     try {
@@ -199,17 +163,25 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
           sectionTitle: sectionTitle || sectionKey,
           currentContent: value,
           projectContext: projectContext || {},
+          tone: tone || undefined,
         }),
       });
       const data = await res.json();
-      if (data.regeneratedContent) {
-        onChange(data.regeneratedContent);
-      }
-    } catch (err) {
-      console.error('Regenerate error:', err);
-    }
+      if (data.regeneratedContent) onChange(data.regeneratedContent);
+    } catch (err) { console.error('Regenerate error:', err); }
     setRegenerating(false);
   };
+
+  // readOnly mode — no editing UI (prop or context)
+  const globalReadOnly = React.useContext(ReadOnlyContext);
+  const isReadOnly = ro || globalReadOnly;
+  if (isReadOnly) {
+    return (
+      <div style={{ ...style, fontSize: 15, color: C.textSecondary }}>
+        {formatted ? formatTextContent(value) : value}
+      </div>
+    );
+  }
 
   if (editing) {
     return (
@@ -217,36 +189,37 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
         <textarea
           ref={textareaRef}
           value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            e.target.style.height = 'auto';
-            e.target.style.height = e.target.scrollHeight + 'px';
-          }}
+          onChange={(e) => { setDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
           style={{
-            ...style,
-            width: '100%',
-            border: `2px solid ${C.blue}`,
-            borderRadius: 8,
-            padding: '12px',
-            fontSize: 15,
-            fontFamily: 'inherit',
-            lineHeight: 1.8,
-            resize: 'none',
-            outline: 'none',
-            background: 'rgba(37, 99, 235, 0.02)',
-            color: C.textSecondary,
-            margin: 0,
+            ...style, width: '100%', border: `2px solid ${C.blue}`, borderRadius: 8,
+            padding: '12px', fontSize: 15, fontFamily: 'inherit', lineHeight: 1.8,
+            resize: 'none', outline: 'none', background: 'rgba(37, 99, 235, 0.02)',
+            color: C.textSecondary, margin: 0,
           }}
         />
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8, flexWrap: 'wrap' }}>
           {sectionKey && (
-            <button onClick={handleRegenerate} disabled={regenerating} style={{
-              padding: '6px 14px', borderRadius: 6, border: `1px solid ${C.purple}`,
-              background: regenerating ? C.purpleBg : C.white, fontSize: 12, cursor: regenerating ? 'wait' : 'pointer',
-              color: C.purple, fontWeight: 500, marginRight: 'auto',
-            }}>
-              {regenerating ? '⏳ AI 재작성 중...' : '🤖 AI 재작성'}
-            </button>
+            <div style={{ display: 'flex', gap: 4, marginRight: 'auto', flexWrap: 'wrap' }}>
+              <button onClick={() => handleRegenerate()} disabled={regenerating} style={{
+                padding: '6px 14px', borderRadius: 6, border: `1px solid ${C.purple}`,
+                background: regenerating ? C.purpleBg : C.white, fontSize: 12, cursor: regenerating ? 'wait' : 'pointer',
+                color: C.purple, fontWeight: 500,
+              }}>
+                {regenerating ? '⏳ AI 재작성 중...' : '🤖 AI 재작성'}
+              </button>
+              {/* #11: 톤 조절 퀵 버튼 */}
+              {!regenerating && ([
+                { key: 'concise', label: '📝 간결하게' },
+                { key: 'detailed', label: '📖 상세하게' },
+                { key: 'executive', label: '👔 경영진용' },
+                { key: 'developer', label: '💻 개발자용' },
+              ] as const).map(t => (
+                <button key={t.key} onClick={() => handleRegenerate(t.key)} style={{
+                  padding: '4px 10px', borderRadius: 5, border: `1px solid ${C.border}`,
+                  background: C.white, fontSize: 11, cursor: 'pointer', color: C.textTertiary,
+                }}>{t.label}</button>
+              ))}
+            </div>
           )}
           <button onClick={() => { setDraft(value); setEditing(false); }} style={{
             padding: '6px 14px', borderRadius: 6, border: `1px solid ${C.border}`,
@@ -269,19 +242,26 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
       tabIndex={0}
       aria-label={`${sectionTitle || '섹션'} 편집하기`}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(true); } }}
-      style={{ ...style, cursor: 'pointer', position: 'relative', borderRadius: 6, transition: 'background 0.15s' }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.03)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      style={{ ...style, cursor: 'pointer', position: 'relative', borderRadius: 6, transition: 'background 0.15s', padding: '4px 6px' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.03)'; (e.currentTarget.querySelector('.edit-hint') as HTMLElement)?.style && ((e.currentTarget.querySelector('.edit-hint') as HTMLElement).style.opacity = '1'); }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; (e.currentTarget.querySelector('.edit-hint') as HTMLElement)?.style && ((e.currentTarget.querySelector('.edit-hint') as HTMLElement).style.opacity = '0'); }}
       title="클릭하여 편집"
     >
-      {value}
-      <span style={{
+      {formatted ? formatTextContent(value) : value}
+      <span className="edit-hint" style={{
         position: 'absolute', top: 4, right: 4,
-        fontSize: 11, color: C.textTertiary, opacity: 0.5,
-        background: 'rgba(255,255,255,0.9)', padding: '2px 6px', borderRadius: 4,
-      }}>✏️</span>
+        fontSize: 11, color: C.textTertiary, opacity: 0,
+        background: 'rgba(255,255,255,0.95)', padding: '2px 8px', borderRadius: 4,
+        transition: 'opacity 0.15s', pointerEvents: 'none',
+        border: `1px solid ${C.border}`,
+      }}>✏️ 편집</span>
     </div>
   );
+}
+
+// #4: EditableText is now an alias for FormattedText with formatted=false
+function EditableText(props: Parameters<typeof FormattedText>[0]) {
+  return <FormattedText {...props} formatted={false} />;
 }
 
 // ━━━━━ Section Divider ━━━━━
@@ -386,8 +366,17 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
             background: C.blueBg, padding: '4px 8px', borderRadius: 6, flexShrink: 0,
           }}>{index}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h5 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 2px 0' }}>{feature.name}</h5>
-            <p style={{ fontSize: 13, color: C.textTertiary, margin: 0, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: expanded ? undefined : 1, WebkitBoxOrient: 'vertical' as any }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h5 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
+              {feature.estimatedManDays > 0 && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: C.yellow, background: C.yellowBg,
+                  padding: '2px 8px', borderRadius: 4, border: `1px solid rgba(245,158,11,0.15)`,
+                  whiteSpace: 'nowrap',
+                }}>⏱ {feature.estimatedManDays}MD</span>
+              )}
+            </div>
+            <p style={{ fontSize: 13, color: C.textTertiary, margin: '2px 0 0 0', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: expanded ? undefined : 1, WebkitBoxOrient: 'vertical' as any }}>
               {feature.description}
             </p>
           </div>
@@ -598,7 +587,10 @@ const ModuleCard = memo(function ModuleCard({ module, forceExpand }: { module: a
             <h4 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{module.name}</h4>
             <PriorityBadge priority={module.priority} label={module.priorityLabel} />
           </div>
-          <span style={{ fontSize: 13, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
+            {(() => { const totalMD = module.features?.reduce((s: number, f: any) => s + (f.estimatedManDays || 0), 0) || 0; return totalMD > 0 ? <span style={{ fontSize: 11, fontWeight: 600, color: C.yellow, background: C.yellowBg, padding: '2px 8px', borderRadius: 4 }}>총 {totalMD}MD</span> : null; })()}
+          </div>
         </div>
         <div style={{
           width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1145,189 +1137,367 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   const handlePrint = useCallback(() => { window.print(); }, []);
 
-  // F3: PDF 내보내기
+  // #13: PDF 내보내기 — 고품질 멀티페이지 (개선)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const handlePDF = useCallback(async () => {
     if (!contentRef.current || !prdData) return;
     setPdfGenerating(true);
     try {
-      // no-print 요소 숨기기
-      const noPrintEls = contentRef.current.querySelectorAll('.no-print');
-      noPrintEls.forEach(el => (el as HTMLElement).style.display = 'none');
+      // no-print 및 편집 UI 요소 숨기기
+      const hideEls = contentRef.current.querySelectorAll('.no-print, .edit-hint, .prd-skip-nav');
+      hideEls.forEach(el => (el as HTMLElement).style.display = 'none');
+      // 편집 커서 제거
+      const editables = contentRef.current.querySelectorAll('.prd-editable');
+      editables.forEach(el => { (el as HTMLElement).style.cursor = 'default'; });
 
       const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         logging: false,
-        backgroundColor: '#F8FAFC',
-        windowWidth: 960,
+        backgroundColor: '#FFFFFF',
+        windowWidth: 1100,
+        removeContainer: true,
       });
 
-      // no-print 요소 복원
-      noPrintEls.forEach(el => (el as HTMLElement).style.display = '');
+      // 요소 복원
+      hideEls.forEach(el => (el as HTMLElement).style.display = '');
+      editables.forEach(el => { (el as HTMLElement).style.cursor = 'pointer'; });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
+      const margin = 5;
+      const usableWidth = pdfWidth - margin * 2;
+      const usableHeight = pdfHeight - margin * 2;
+      const imgWidth = usableWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
 
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = -(imgHeight - heightLeft);
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+      // 멀티페이지 — 정확한 분할
+      let yOffset = 0;
+      let pageNum = 0;
+      while (yOffset < imgHeight) {
+        if (pageNum > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margin, margin - yOffset, imgWidth, imgHeight);
+        // 페이지 푸터
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(`${prdData.projectName} — PRD`, margin, pdfHeight - 3);
+        pdf.text(`${pageNum + 1}`, pdfWidth - margin, pdfHeight - 3, { align: 'right' });
+        yOffset += usableHeight;
+        pageNum++;
       }
 
       const fileName = `${prdData.projectName.replace(/[^가-힣a-zA-Z0-9]/g, '_')}_PRD_${new Date().toISOString().slice(0, 10)}.pdf`;
       pdf.save(fileName);
     } catch (err) {
       console.error('PDF generation error:', err);
-      alert('PDF 생성 중 오류가 발생했습니다. 브라우저 인쇄 기능을 이용해주세요.');
+      alert('PDF 생성 중 오류가 발생했습니다. 브라우저 인쇄(Ctrl+P) 기능을 이용해주세요.');
     }
     setPdfGenerating(false);
   }, [prdData]);
 
-  // F12: DOCX 내보내기
+  // F12: DOCX 내보내기 (Pro-grade)
   const [docxGenerating, setDocxGenerating] = useState(false);
   const handleDOCX = useCallback(async () => {
     if (!prdData) return;
     setDocxGenerating(true);
     try {
       const d = prdData;
-      const sections: Paragraph[] = [];
+      const totalFeats = d.featureModules?.reduce((s, m) => s + (m.features?.length || 0), 0) || 0;
+      const totalDur = d.timeline?.reduce((s, t) => { const m = t.duration.match(/(\d+)/); return s + (m ? parseInt(m[1]) : 0); }, 0) || 0;
 
-      // 타이틀
-      sections.push(new Paragraph({ text: d.projectName, heading: HeadingLevel.TITLE, spacing: { after: 200 } }));
-      sections.push(new Paragraph({ children: [
-        new TextRun({ text: `버전 ${d.documentMeta?.version || '1.0'} | ${d.documentMeta?.createdAt || '-'} | ${d.documentMeta?.generatedBy || 'Wishket AI'}`, size: 20, color: '666666' }),
-      ], spacing: { after: 400 } }));
+      // ── DOCX Helper: styled table ──
+      const thinBorder = { style: BorderStyle.SINGLE, size: 1, color: 'D0D5DD' };
+      const cellBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+      const headerShading = { type: ShadingType.SOLID, color: 'F1F5F9', fill: 'F1F5F9' };
+      const hCell = (text: string, width?: number) => new TableCell({
+        children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 20, font: 'Pretendard' })], spacing: { before: 60, after: 60 } })],
+        borders: cellBorders, shading: headerShading,
+        ...(width ? { width: { size: width, type: WidthType.PERCENTAGE } } : {}),
+      });
+      const bCell = (text: string, width?: number) => new TableCell({
+        children: [new Paragraph({ children: [new TextRun({ text, size: 20, font: 'Pretendard' })], spacing: { before: 40, after: 40 } })],
+        borders: cellBorders,
+        ...(width ? { width: { size: width, type: WidthType.PERCENTAGE } } : {}),
+      });
 
-      // 프로젝트 스코프
-      sections.push(new Paragraph({ text: '1. 프로젝트 스코프', heading: HeadingLevel.HEADING_1 }));
-      sections.push(new Paragraph({ text: d.executiveSummary, spacing: { after: 200 } }));
+      // ── Cover Page Section ──
+      const coverChildren: Paragraph[] = [
+        new Paragraph({ spacing: { before: 2400 } }),
+        new Paragraph({ children: [new TextRun({ text: 'PRD · 제품 요구사항 정의서', size: 22, color: '2563EB', font: 'Pretendard' })], spacing: { after: 200 }, alignment: AlignmentType.CENTER }),
+        new Paragraph({ children: [new TextRun({ text: d.projectName, size: 56, bold: true, font: 'Pretendard', color: '0F172A' })], spacing: { after: 300 }, alignment: AlignmentType.CENTER }),
+        new Paragraph({ children: [
+          new TextRun({ text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', color: '2563EB', size: 20 }),
+        ], alignment: AlignmentType.CENTER, spacing: { after: 400 } }),
+        new Paragraph({ children: [new TextRun({ text: `문서 버전: ${d.documentMeta?.version || '1.0'}`, size: 22, color: '475569', font: 'Pretendard' })], alignment: AlignmentType.CENTER, spacing: { after: 80 } }),
+        new Paragraph({ children: [new TextRun({ text: `작성일: ${d.documentMeta?.createdAt || new Date().toISOString().slice(0, 10)}`, size: 22, color: '475569', font: 'Pretendard' })], alignment: AlignmentType.CENTER, spacing: { after: 80 } }),
+        new Paragraph({ children: [new TextRun({ text: `작성 도구: ${d.documentMeta?.generatedBy || 'Wishket AI PRD Builder'}`, size: 22, color: '475569', font: 'Pretendard' })], alignment: AlignmentType.CENTER, spacing: { after: 200 } }),
+        new Paragraph({ spacing: { before: 800 } }),
+        // KPI summary on cover
+        new Paragraph({ children: [
+          new TextRun({ text: `총 기능 ${totalFeats}개  ·  예상 ${totalDur}~${Math.round(totalDur * 1.4)}주  ·  ${d.timeline?.length || 0}개 페이즈`, size: 22, color: '2563EB', font: 'Pretendard' }),
+        ], alignment: AlignmentType.CENTER, spacing: { after: 100 } }),
+      ];
+
+      // ── Body Section ──
+      const body: (Paragraph | Table)[] = [];
+      const h1 = (num: string, title: string) => new Paragraph({ children: [new TextRun({ text: `${num}. ${title}`, size: 28, bold: true, font: 'Pretendard', color: '0F172A' })], heading: HeadingLevel.HEADING_1, spacing: { before: 360, after: 160 } });
+      const h2 = (title: string) => new Paragraph({ children: [new TextRun({ text: title, size: 24, bold: true, font: 'Pretendard', color: '1E3A5F' })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 120 } });
+      const bodyText = (text: string) => new Paragraph({ children: [new TextRun({ text, size: 20, font: 'Pretendard', color: '475569' })], spacing: { after: 120 }, style: 'Normal' });
+      const bullet = (text: string, sym = '•') => new Paragraph({ children: [new TextRun({ text: `${sym} ${text}`, size: 20, font: 'Pretendard', color: '475569' })], spacing: { after: 60 }, indent: { left: 360 } });
+      const pageBreak = () => new Paragraph({ children: [new PageBreak()] });
+
+      // 1. 프로젝트 스코프
+      body.push(h1('1', '프로젝트 스코프'));
+      body.push(bodyText(d.executiveSummary));
       if ((d.projectGoals?.length ?? 0) > 0) {
-        sections.push(new Paragraph({ children: [new TextRun({ text: '프로젝트 목표 & 성공 지표', bold: true })], spacing: { before: 100, after: 100 } }));
-        d.projectGoals.forEach((g, i) => {
-          sections.push(new Paragraph({ children: [
-            new TextRun({ text: `목표 ${i + 1}: `, bold: true }),
-            new TextRun({ text: g.goal }),
-            new TextRun({ text: ` — 성공 지표: ${g.metric}`, color: '666666' }),
-          ], spacing: { after: 100 } }));
-        });
-        sections.push(new Paragraph({ spacing: { after: 200 } }));
+        body.push(h2('프로젝트 목표 & 성공 지표'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('목표', 60), hCell('성공 지표', 40)] }),
+          ...d.projectGoals.map(g => new TableRow({ children: [bCell(g.goal, 60), bCell(g.metric, 40)] })),
+        ] }));
+        body.push(new Paragraph({ spacing: { after: 200 } }));
       }
 
-      // 타겟 사용자
-      sections.push(new Paragraph({ text: '2. 타겟 사용자 & 페르소나', heading: HeadingLevel.HEADING_1 }));
-      sections.push(new Paragraph({ text: d.targetUsers, spacing: { after: 200 } }));
+      // 2. 타겟 사용자
+      body.push(pageBreak());
+      body.push(h1('2', '타겟 사용자 & 페르소나'));
+      body.push(bodyText(d.targetUsers));
       if ((d.userPersonas?.length ?? 0) > 0) {
-        d.userPersonas.forEach(p => {
-          sections.push(new Paragraph({ children: [
-            new TextRun({ text: `${p.name} (${p.role})`, bold: true }),
-            new TextRun({ text: ` — 니즈: ${p.needs} / 불편사항: ${p.painPoints}` }),
-          ], spacing: { after: 100 } }));
-        });
-        sections.push(new Paragraph({ spacing: { after: 200 } }));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('이름', 15), hCell('역할', 25), hCell('니즈', 30), hCell('불편사항', 30)] }),
+          ...d.userPersonas.map(p => new TableRow({ children: [bCell(p.name, 15), bCell(p.role, 25), bCell(p.needs, 30), bCell(p.painPoints, 30)] })),
+        ] }));
+        body.push(new Paragraph({ spacing: { after: 200 } }));
       }
 
-      // 스코프
-      sections.push(new Paragraph({ text: '5. 프로젝트 스코프', heading: HeadingLevel.HEADING_1 }));
-      sections.push(new Paragraph({ text: '포함 범위 (In-Scope)', heading: HeadingLevel.HEADING_2 }));
-      d.scopeInclusions?.forEach(s => {
-        sections.push(new Paragraph({ text: `✓ ${s}`, spacing: { after: 60 } }));
-      });
-      sections.push(new Paragraph({ text: '미포함 (Out-of-Scope)', heading: HeadingLevel.HEADING_2 }));
-      d.scopeExclusions?.forEach(s => {
-        sections.push(new Paragraph({ text: `— ${s}`, spacing: { after: 60 } }));
-      });
-      sections.push(new Paragraph({ spacing: { after: 200 } }));
+      // 3. 프로젝트 범위
+      body.push(pageBreak());
+      body.push(h1('3', '프로젝트 범위'));
+      body.push(h2('포함 범위 (In-Scope)'));
+      d.scopeInclusions?.forEach(s => body.push(bullet(s, '✓')));
+      body.push(h2('미포함 범위 (Out-of-Scope)'));
+      d.scopeExclusions?.forEach(s => body.push(bullet(s, '✗')));
+      body.push(new Paragraph({ spacing: { after: 200 } }));
 
-      // 기능 명세
-      sections.push(new Paragraph({ text: '6. 기능 명세', heading: HeadingLevel.HEADING_1 }));
-      d.featureModules?.forEach(m => {
-        sections.push(new Paragraph({ text: `${m.name} (${m.priority} · ${m.priorityLabel})`, heading: HeadingLevel.HEADING_2 }));
-        m.features?.forEach(f => {
-          sections.push(new Paragraph({ children: [
-            new TextRun({ text: `${f.id} ${f.name}`, bold: true }),
-          ], spacing: { after: 60 } }));
-          sections.push(new Paragraph({ text: f.description, spacing: { after: 60 } }));
-          if (f.subFeatures?.length) {
-            sections.push(new Paragraph({ text: `하위 기능: ${f.subFeatures.join(', ')}`, spacing: { after: 60 } }));
-          }
-          if (f.acceptanceCriteria?.length) {
-            sections.push(new Paragraph({ text: `수락 기준: ${f.acceptanceCriteria.join(' / ')}`, spacing: { after: 100 } }));
-          }
-        });
-      });
-
-      // 기술 스택
-      if ((d.techStack?.length ?? 0) > 0) {
-        sections.push(new Paragraph({ text: '7. 기술 스택 권장안', heading: HeadingLevel.HEADING_1 }));
-        const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
-        const techTable = new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            new TableRow({
-              children: ['분류', '기술', '선정 근거'].map(h =>
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })], width: { size: 33, type: WidthType.PERCENTAGE } })
-              ),
-            }),
-            ...d.techStack.map(t => new TableRow({
-              children: [
-                new TableCell({ children: [new Paragraph({ text: typeof t === 'object' ? t.category : '-' })], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
-                new TableCell({ children: [new Paragraph({ text: typeof t === 'object' ? t.tech : String(t) })], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
-                new TableCell({ children: [new Paragraph({ text: typeof t === 'object' ? t.rationale : '' })], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
-              ],
-            })),
-          ],
-        });
-        sections.push(techTable as unknown as Paragraph);
-        sections.push(new Paragraph({ spacing: { after: 200 } }));
-      }
-
-      // 비기능 요구사항
-      if ((d.nonFunctionalRequirements?.length ?? 0) > 0) {
-        sections.push(new Paragraph({ text: '8. 비기능 요구사항', heading: HeadingLevel.HEADING_1 }));
-        d.nonFunctionalRequirements.forEach(n => {
-          sections.push(new Paragraph({ text: n.category, heading: HeadingLevel.HEADING_2 }));
-          n.items?.forEach(item => {
-            sections.push(new Paragraph({ text: `• ${item}`, spacing: { after: 60 } }));
+      // 4. 정보 구조
+      if ((d.informationArchitecture?.sitemap?.length ?? 0) > 0) {
+        body.push(h1('4', '정보 구조 (IA)'));
+        d.informationArchitecture.sitemap.forEach(node => {
+          body.push(new Paragraph({ children: [new TextRun({ text: `■ ${node.label}`, size: 22, bold: true, font: 'Pretendard' })], spacing: { before: 120, after: 60 } }));
+          node.children?.forEach(child => {
+            body.push(new Paragraph({ children: [new TextRun({ text: `  ├─ ${child.label}`, size: 20, font: 'Pretendard', color: '2563EB' })], spacing: { after: 40 }, indent: { left: 360 } }));
+            child.children?.forEach(leaf => {
+              body.push(new Paragraph({ children: [new TextRun({ text: `      └─ ${leaf.label}`, size: 18, font: 'Pretendard', color: '475569' })], spacing: { after: 30 }, indent: { left: 720 } }));
+            });
           });
         });
+        body.push(new Paragraph({ spacing: { after: 200 } }));
       }
 
-      // 리스크
-      if ((d.risks?.length ?? 0) > 0) {
-        sections.push(new Paragraph({ text: '10. 리스크 관리', heading: HeadingLevel.HEADING_1 }));
-        d.risks.forEach(r => {
-          sections.push(new Paragraph({ children: [
-            new TextRun({ text: r.risk, bold: true }),
-            new TextRun({ text: ` (영향: ${r.impact}) → 대응: ${r.mitigation}` }),
-          ], spacing: { after: 100 } }));
+      // 5. 기능 명세
+      body.push(pageBreak());
+      body.push(h1('5', '기능 명세'));
+      d.featureModules?.forEach(m => {
+        body.push(h2(`${m.name} (${m.priority} · ${m.priorityLabel})`));
+        m.features?.forEach(f => {
+          body.push(new Paragraph({ children: [
+            new TextRun({ text: `[${f.id}] `, size: 20, bold: true, color: '2563EB', font: 'Pretendard' }),
+            new TextRun({ text: f.name, size: 22, bold: true, font: 'Pretendard' }),
+          ], spacing: { before: 120, after: 60 } }));
+          body.push(bodyText(f.description));
+          if (f.subFeatures?.length) {
+            body.push(new Paragraph({ children: [new TextRun({ text: '하위 기능:', size: 18, bold: true, color: '475569', font: 'Pretendard' })], spacing: { before: 60, after: 40 } }));
+            f.subFeatures.forEach(sf => body.push(bullet(sf, '→')));
+          }
+          if (f.acceptanceCriteria?.length) {
+            body.push(new Paragraph({ children: [new TextRun({ text: '수락 기준 (AC):', size: 18, bold: true, color: '475569', font: 'Pretendard' })], spacing: { before: 60, after: 40 } }));
+            f.acceptanceCriteria.forEach(ac => body.push(bullet(ac, '✓')));
+          }
+          if (f.userFlow && f.userFlow !== '(사용자 흐름 미정의)') {
+            body.push(new Paragraph({ children: [new TextRun({ text: '사용자 흐름:', size: 18, bold: true, color: '475569', font: 'Pretendard' })], spacing: { before: 60, after: 40 } }));
+            body.push(new Paragraph({ children: [new TextRun({ text: f.userFlow, size: 18, font: 'Consolas', color: '475569' })], spacing: { after: 80 }, indent: { left: 360 } }));
+          }
+          if (f.businessRules?.length) {
+            body.push(new Paragraph({ children: [new TextRun({ text: '비즈니스 규칙:', size: 18, bold: true, color: '475569', font: 'Pretendard' })], spacing: { before: 60, after: 40 } }));
+            f.businessRules.forEach(br => body.push(bullet(br, '⚙')));
+          }
+          if (f.errorCases?.length) {
+            body.push(new Paragraph({ children: [new TextRun({ text: '에러 케이스:', size: 18, bold: true, color: '475569', font: 'Pretendard' })], spacing: { before: 60, after: 40 } }));
+            f.errorCases.forEach(ec => body.push(bullet(ec, '⚠')));
+          }
+          body.push(new Paragraph({ spacing: { after: 120 } }));
+        });
+      });
+
+      // 6. 기술 스택
+      if ((d.techStack?.length ?? 0) > 0) {
+        body.push(pageBreak());
+        body.push(h1('6', '기술 스택 권장안'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('분류', 20), hCell('기술', 25), hCell('선정 근거', 55)] }),
+          ...d.techStack.map(t => new TableRow({ children: [
+            bCell(typeof t === 'object' ? t.category : '-', 20),
+            bCell(typeof t === 'object' ? t.tech : String(t), 25),
+            bCell(typeof t === 'object' ? t.rationale : '', 55),
+          ] })),
+        ] }));
+        body.push(new Paragraph({ spacing: { after: 200 } }));
+      }
+
+      // 7. NFR
+      if ((d.nonFunctionalRequirements?.length ?? 0) > 0) {
+        body.push(h1('7', '비기능 요구사항'));
+        d.nonFunctionalRequirements.forEach(n => {
+          body.push(h2(n.category));
+          n.items?.forEach(item => body.push(bullet(item)));
         });
       }
 
-      // Expert insight
-      if (d.expertInsight) {
-        sections.push(new Paragraph({ text: '전문가 인사이트', heading: HeadingLevel.HEADING_1 }));
-        sections.push(new Paragraph({ text: d.expertInsight, spacing: { after: 200 } }));
+      // 8. 일정 계획
+      if ((d.timeline?.length ?? 0) > 0) {
+        body.push(pageBreak());
+        body.push(h1('8', '일정 계획'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('단계', 25), hCell('기간', 15), hCell('산출물', 60)] }),
+          ...d.timeline.map(t => new TableRow({ children: [
+            bCell(t.phase, 25), bCell(t.duration, 15), bCell(t.deliverables?.join(', ') || '', 60),
+          ] })),
+        ] }));
+        body.push(new Paragraph({ spacing: { after: 200 } }));
       }
 
-      // 푸터
-      sections.push(new Paragraph({ spacing: { after: 400 } }));
-      sections.push(new Paragraph({ children: [
-        new TextRun({ text: 'Generated by Wishket AI PRD Builder', color: '999999', size: 18 }),
+      // 9. 전제 조건 & 제약사항
+      body.push(h1('9', '전제 조건 & 제약사항'));
+      body.push(h2('전제 조건 (Assumptions)'));
+      d.assumptions?.forEach(a => body.push(bullet(a)));
+      body.push(h2('제약사항 (Constraints)'));
+      d.constraints?.forEach(c => body.push(bullet(c)));
+
+      // 10. 리스크 관리
+      if ((d.risks?.length ?? 0) > 0) {
+        body.push(pageBreak());
+        body.push(h1('10', '리스크 관리'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('리스크', 35), hCell('영향도', 10), hCell('확률', 10), hCell('대응 전략', 45)] }),
+          ...d.risks.map(r => new TableRow({ children: [
+            bCell(r.risk, 35), bCell(r.impact, 10), bCell(r.probability || '-', 10), bCell(r.mitigation, 45),
+          ] })),
+        ] }));
+        body.push(new Paragraph({ spacing: { after: 200 } }));
+      }
+
+      // 11. 전문가 인사이트
+      if (d.expertInsight) {
+        body.push(h1('11', 'AI 전문가 인사이트'));
+        body.push(bodyText(d.expertInsight));
+      }
+
+      // 용어 정의
+      if ((d.glossary?.length ?? 0) > 0) {
+        body.push(h1('12', '용어 정의'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('용어', 25), hCell('정의', 75)] }),
+          ...d.glossary.map(g => new TableRow({ children: [bCell(g.term, 25), bCell(g.definition, 75)] })),
+        ] }));
+      }
+
+      // 승인 프로세스
+      if ((d.approvalProcess?.length ?? 0) > 0) {
+        body.push(pageBreak());
+        body.push(h1('13', '승인 프로세스'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('단계', 25), hCell('승인자', 25), hCell('기준', 50)] }),
+          ...d.approvalProcess!.map(ap => new TableRow({ children: [bCell(ap.stage, 25), bCell(ap.approver, 25), bCell(ap.criteria, 50)] })),
+        ] }));
+      }
+
+      // QA 전략
+      if ((d.qaStrategy?.length ?? 0) > 0) {
+        body.push(h1('14', 'QA 전략'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('유형', 18), hCell('범위', 27), hCell('도구', 20), hCell('통과 기준', 35)] }),
+          ...d.qaStrategy!.map(qa => new TableRow({ children: [bCell(qa.type, 18), bCell(qa.scope, 27), bCell(qa.tools, 20), bCell(qa.criteria, 35)] })),
+        ] }));
+      }
+
+      // API 명세
+      if ((d.apiEndpoints?.length ?? 0) > 0) {
+        body.push(pageBreak());
+        body.push(h1('15', 'API 명세'));
+        body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [hCell('메소드', 10), hCell('엔드포인트', 25), hCell('설명', 40), hCell('기능', 25)] }),
+          ...d.apiEndpoints!.map(ep => new TableRow({ children: [bCell(ep.method, 10), bCell(ep.path, 25), bCell(ep.description, 40), bCell(ep.feature, 25)] })),
+        ] }));
+      }
+
+      // 데이터 모델
+      if ((d.dataModel?.length ?? 0) > 0) {
+        body.push(h1('16', '데이터 모델'));
+        d.dataModel!.forEach(entity => {
+          body.push(h2(entity.entity));
+          body.push(new Paragraph({ children: [new TextRun({ text: '필드: ', bold: true, size: 20, font: 'Pretendard' }), new TextRun({ text: entity.fields.join(', '), size: 20, font: 'Consolas', color: '475569' })], spacing: { after: 60 } }));
+          if (entity.relationships.length > 0) {
+            body.push(new Paragraph({ children: [new TextRun({ text: '관계: ', bold: true, size: 20, font: 'Pretendard' }), new TextRun({ text: entity.relationships.join(', '), size: 20, font: 'Pretendard', color: '2563EB' })], spacing: { after: 80 } }));
+          }
+        });
+      }
+
+      // 푸터 면책 조항
+      body.push(new Paragraph({ spacing: { before: 600 } }));
+      body.push(new Paragraph({ children: [
+        new TextRun({ text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', size: 16, color: 'D0D5DD' }),
+      ], alignment: AlignmentType.CENTER }));
+      body.push(new Paragraph({ children: [
+        new TextRun({ text: '본 문서는 AI 기반으로 자동 생성되었으며, 실제 개발 착수 전 상세 검토가 필요합니다.', size: 18, color: '94A3B8', font: 'Pretendard' }),
+      ], alignment: AlignmentType.CENTER, spacing: { after: 40 } }));
+      body.push(new Paragraph({ children: [
+        new TextRun({ text: 'Generated by Wishket AI PRD Builder', size: 18, color: '94A3B8', font: 'Pretendard' }),
       ], alignment: AlignmentType.CENTER }));
 
       const doc = new Document({
-        sections: [{ children: sections }],
+        styles: {
+          default: {
+            document: { run: { font: 'Pretendard', size: 20 } },
+            heading1: { run: { font: 'Pretendard', size: 28, bold: true, color: '0F172A' }, paragraph: { spacing: { before: 360, after: 160 } } },
+            heading2: { run: { font: 'Pretendard', size: 24, bold: true, color: '1E3A5F' }, paragraph: { spacing: { before: 200, after: 120 } } },
+          },
+        },
+        sections: [
+          // Cover Page
+          {
+            properties: { page: { margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 } } },
+            children: coverChildren,
+          },
+          // Body — with header, footer, page numbers
+          {
+            properties: {
+              page: { margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 }, pageNumbers: { start: 1 } },
+            },
+            headers: {
+              default: new Header({
+                children: [new Paragraph({ children: [
+                  new TextRun({ text: `${d.projectName} — PRD`, size: 16, color: '94A3B8', font: 'Pretendard' }),
+                ], alignment: AlignmentType.RIGHT })],
+              }),
+            },
+            footers: {
+              default: new Footer({
+                children: [new Paragraph({
+                  children: [
+                    new TextRun({ text: 'Wishket AI PRD Builder  |  Page ', size: 16, color: '94A3B8', font: 'Pretendard' }),
+                    new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '94A3B8', font: 'Pretendard' }),
+                    new TextRun({ text: ' / ', size: 16, color: '94A3B8', font: 'Pretendard' }),
+                    new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '94A3B8', font: 'Pretendard' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                })],
+              }),
+            },
+            children: body as Paragraph[],
+          },
+        ],
       });
 
       const blob = await Packer.toBlob(doc);
@@ -1350,44 +1520,62 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       d.projectGoals?.forEach((g, i) => { md += `${i + 1}. **${g.goal}** — 성공 지표: ${g.metric}\n`; });
       md += '\n';
     }
-    md += `## 2. 타겟 사용자\n${d.targetUsers}\n\n`;
+    md += `## 2. 타겟 사용자 & 페르소나\n${d.targetUsers}\n\n`;
     if ((d.userPersonas?.length ?? 0) > 0) {
       md += `### 사용자 페르소나\n`;
       d.userPersonas.forEach(p => { md += `- **${p.name}** (${p.role}): 니즈 — ${p.needs} / 문제점 — ${p.painPoints}\n`; });
       md += '\n';
     }
-    md += `## 3. 스코프\n### 포함\n`;
+    md += `## 3. 프로젝트 범위\n### 포함 범위 (In-Scope)\n`;
     d.scopeInclusions?.forEach(s => { md += `- ✅ ${s}\n`; });
-    md += `### 미포함\n`;
+    md += `### 미포함 범위 (Out-of-Scope)\n`;
     d.scopeExclusions?.forEach(s => { md += `- ❌ ${s}\n`; });
-    md += `\n## 5. 기능 명세\n`;
+    md += '\n';
+    // 4. IA (if exists)
+    if ((d.informationArchitecture?.sitemap?.length ?? 0) > 0) {
+      md += `## 4. 정보 구조 (IA)\n`;
+      d.informationArchitecture.sitemap.forEach(n => {
+        md += `- **${n.label}**\n`;
+        n.children?.forEach(c => { md += `  - ${c.label}\n`; c.children?.forEach(l => { md += `    - ${l.label}\n`; }); });
+      });
+      md += '\n';
+    }
+    md += `## 5. 기능 명세\n`;
     d.featureModules?.forEach(m => {
-      md += `### ${m.name} (${m.priority})\n`;
+      md += `### ${m.name} (${m.priority} · ${m.priorityLabel})\n`;
       m.features?.forEach(f => {
-        md += `#### ${f.id} ${f.name}\n${f.description}\n`;
-        if (f.subFeatures?.length) { md += `하위 기능: ${f.subFeatures.join(', ')}\n`; }
-        if (f.acceptanceCriteria?.length) { md += `수락 기준: ${f.acceptanceCriteria.join(' / ')}\n`; }
+        md += `#### [${f.id}] ${f.name}\n${f.description}\n`;
+        if (f.subFeatures?.length) { md += `**하위 기능:** ${f.subFeatures.join(', ')}\n`; }
+        if (f.acceptanceCriteria?.length) { md += `**수락 기준:** ${f.acceptanceCriteria.join(' / ')}\n`; }
+        if (f.userFlow && f.userFlow !== '(사용자 흐름 미정의)') { md += `**사용자 흐름:**\n\`\`\`\n${f.userFlow}\n\`\`\`\n`; }
         md += '\n';
       });
     });
-    md += `## 6. 기술 스택\n`;
-    d.techStack?.forEach(t => { md += `- **${t.tech}** (${t.category}): ${t.rationale}\n`; });
+    md += `## 6. 기술 스택 권장안\n`;
+    md += `| 분류 | 기술 | 선정 근거 |\n|------|------|----------|\n`;
+    d.techStack?.forEach(t => { md += `| ${t.category} | ${t.tech} | ${t.rationale} |\n`; });
     md += `\n## 7. 비기능 요구사항\n`;
     d.nonFunctionalRequirements?.forEach(n => {
       md += `### ${n.category}\n`;
       n.items?.forEach(item => { md += `- ${item}\n`; });
     });
     md += `\n## 8. 일정 계획\n`;
-    d.timeline?.forEach(t => { md += `- **${t.phase}** (${t.duration}): ${t.deliverables.join(', ')}\n`; });
+    md += `| 단계 | 기간 | 산출물 |\n|------|------|--------|\n`;
+    d.timeline?.forEach(t => { md += `| ${t.phase} | ${t.duration} | ${t.deliverables.join(', ')} |\n`; });
     md += `\n## 9. 전제 조건 & 제약사항\n`;
     md += `### 전제 조건\n`;
     d.assumptions?.forEach(a => { md += `- ${a}\n`; });
     md += `### 제약사항\n`;
     d.constraints?.forEach(c => { md += `- ${c}\n`; });
     md += `\n## 10. 리스크 관리\n`;
-    d.risks?.forEach(r => { md += `- **${r.risk}** (영향: ${r.impact}) → 대응: ${r.mitigation}\n`; });
-    if (d.expertInsight) { md += `\n## 11. 전문가 인사이트\n${d.expertInsight}\n`; }
-    md += `\n---\nGenerated by Wishket AI PRD Builder\n`;
+    md += `| 리스크 | 영향도 | 대응 전략 |\n|--------|--------|----------|\n`;
+    d.risks?.forEach(r => { md += `| ${r.risk} | ${r.impact} | ${r.mitigation} |\n`; });
+    if (d.expertInsight) { md += `\n## 11. AI 전문가 인사이트\n${d.expertInsight}\n`; }
+    if ((d.glossary?.length ?? 0) > 0) {
+      md += `\n## 12. 용어 정의\n`;
+      d.glossary?.forEach(g => { md += `- **${g.term}**: ${g.definition}\n`; });
+    }
+    md += `\n---\nGenerated by Wishket AI PRD Builder · © ${new Date().getFullYear()} Wishket\n`;
     return md;
   }, []);
 
@@ -1490,7 +1678,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const tocSections = [
     { num: '1', title: '프로젝트 스코프', id: 'sec-summary' },
     { num: '2', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
-    { num: '3', title: '프로젝트 스코프 (기능 범위)', id: 'sec-scope' },
+    { num: '3', title: '프로젝트 범위', id: 'sec-scope' },
     { num: '4', title: '정보 구조 (IA)', id: 'sec-ia' },
     { num: '5', title: '기능 명세', id: 'sec-features' },
     { num: '6', title: '기술 스택', id: 'sec-tech' },
@@ -1522,20 +1710,39 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   };
 
   return (
+    <ReadOnlyContext.Provider value={!!readOnly}>
     <div style={{ minHeight: '100vh', background: C.bg }} ref={contentRef} role="main" lang="ko">
       {/* Skip Navigation (Accessibility) */}
       <a href="#sec-summary" className="prd-skip-nav">본문으로 건너뛰기</a>
-      {/* Print styles */}
+      {/* #9: Print styles — 최적화 + #15: Mobile responsive */}
       <style>{`
         @media print {
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important; }
+          .no-print, .prd-skip-nav, .floating-toc-wrap { display: none !important; }
           .print-break { page-break-before: always; }
-          * { box-shadow: none !important; }
+          * { box-shadow: none !important; text-shadow: none !important; }
+          .prd-card { border: 1px solid #ddd !important; background: white !important; }
+          .prd-container { max-width: 100% !important; padding: 0 !important; }
+          .prd-module-card { break-inside: avoid; }
+          .prd-editable { cursor: default !important; }
+          .edit-hint { display: none !important; }
+          [style*="gradient"] { background: #1E3A5F !important; }
+          .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+          .prd-two-col { grid-template-columns: 1fr 1fr !important; }
+          .prd-persona-grid { grid-template-columns: 1fr 1fr !important; }
+          a[href]:after { content: none !important; }
+          h1, h2, h3, h4 { page-break-after: avoid; }
+          table, pre { page-break-inside: avoid; }
         }
         @media (max-width: 768px) {
           .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .floating-toc-wrap { display: none !important; }
+          .prd-container { padding: 20px 12px 40px !important; }
+          .prd-two-col { grid-template-columns: 1fr !important; }
+          .prd-persona-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 480px) {
+          .kpi-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
@@ -1547,12 +1754,14 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="floating-toc-wrap">
         <FloatingTOC sections={tocSections} activeSection={activeSection} />
       </div>
-      {/* B-8: Sticky Action Bar */}
-      <StickyActionBar
-        onShare={handleShare} onCopy={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
-        onPDF={handlePDF} onDOCX={handleDOCX}
-        sharing={sharing} pdfGen={pdfGenerating} docxGen={docxGenerating} copied={copied}
-      />
+      {/* B-8: Sticky Action Bar — readOnly에서는 숨김 */}
+      {!readOnly && (
+        <StickyActionBar
+          onShare={handleShare} onCopy={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
+          onPDF={handlePDF} onDOCX={handleDOCX}
+          sharing={sharing} pdfGen={pdfGenerating} docxGen={docxGenerating} copied={copied}
+        />
+      )}
       {/* ━━ Header ━━ */}
       <div style={{
         background: C.gradient, color: '#fff', padding: '48px 20px 40px', position: 'relative', overflow: 'hidden',
@@ -1592,7 +1801,37 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="prd-container" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
         {/* B-1: KPI Summary Cards */}
         <KPISummary prdData={prdData} />
-        {/* 검색 기능 제거됨 */}
+
+        {/* #5: 변경 이력 (Revision History) */}
+        <Card style={{ marginBottom: 32, background: C.borderLight, border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textTertiary, margin: 0, letterSpacing: 0.3, textTransform: 'uppercase' as const }}>
+              📋 문서 변경 이력
+            </h3>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                  {['버전', '일자', '작성자', '변경 사항'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: C.textSecondary, whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 600, color: C.blue }}>v{prdData.documentMeta?.version || '1.0'}</td>
+                  <td style={{ padding: '8px 12px', color: C.textSecondary }}>{prdData.documentMeta?.createdAt || new Date().toISOString().slice(0, 10)}</td>
+                  <td style={{ padding: '8px 12px', color: C.textSecondary }}>{prdData.documentMeta?.generatedBy || 'Wishket AI'}</td>
+                  <td style={{ padding: '8px 12px', color: C.textSecondary }}>초안 자동 생성 (AI PRD Builder)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: 11, color: C.textTertiary, margin: '8px 0 0 0' }}>
+            ※ 편집 시 변경 사항을 기록하여 문서 이력을 관리하세요.
+          </p>
+        </Card>
 
         {/* 1. 프로젝트 스코프 */}
         <div id="sec-summary" style={{ marginTop: 8 }}>
@@ -1685,20 +1924,35 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         <SectionDivider />
 
-        {/* 5. Scope — 포함 범위만 표시 */}
+        {/* 3. 프로젝트 범위 — In-Scope + Out-of-Scope */}
         <div id="sec-scope">
-          <SectionHeaderAnchored number="3" title="프로젝트 스코프" subtitle="구현 범위 정의" id="sec-scope" />
-          <Card style={{ borderLeft: `4px solid ${C.green}` }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-              {prdData.scopeInclusions?.map((s, i) => (
-                <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
-                  <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </Card>
+          <SectionHeaderAnchored number="3" title="프로젝트 범위" subtitle="구현 범위 및 제외 항목 정의" id="sec-scope" />
+          <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+            <Card style={{ borderLeft: `4px solid ${C.green}` }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0' }}>✅ 포함 범위 (In-Scope)</h3>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {prdData.scopeInclusions?.map((s, i) => (
+                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+                    <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textTertiary, margin: '0 0 14px 0' }}>🚫 미포함 범위 (Out-of-Scope)</h3>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {(prdData.scopeExclusions?.length ?? 0) > 0 ? prdData.scopeExclusions!.map((s, i) => (
+                  <li key={i} style={{ fontSize: 13, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+                    <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>✗</span>
+                    {s}
+                  </li>
+                )) : (
+                  <li style={{ fontSize: 13, color: C.textTertiary, lineHeight: 1.6 }}>미포함 항목이 정의되지 않았습니다.</li>
+                )}
+              </ul>
+            </Card>
+          </div>
         </div>
 
         <SectionDivider />
@@ -1709,43 +1963,100 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             <SectionHeaderAnchored number="4" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" id="sec-ia" />
             <Card>
               <div style={{ padding: '8px 0' }}>
-                {prdData.informationArchitecture.sitemap.map((node, i) => (
-                  <div key={i} style={{ marginBottom: 16 }}>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
-                      background: C.gradient, borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 16,
-                    }}>
-                      <span>🏠</span> {node.label}
-                    </div>
-                    {node.children && node.children.length > 0 && (
-                      <div style={{ marginLeft: 24, borderLeft: `2px solid ${C.border}`, paddingLeft: 20, marginTop: 8 }}>
-                        {node.children.map((child, j) => (
-                          <div key={j} style={{ marginBottom: 8 }}>
+                {/* #6: IA Tree Visualization — Pro tree diagram */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {prdData.informationArchitecture.sitemap.map((node, i) => {
+                    const isLast = i === prdData.informationArchitecture.sitemap.length - 1;
+                    return (
+                      <div key={i} style={{ position: 'relative' }}>
+                        {/* Root node */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px',
+                          background: C.gradient, borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 15,
+                          boxShadow: '0 2px 8px rgba(37,99,235,0.2)', position: 'relative', zIndex: 1,
+                        }}>
+                          <span style={{ fontSize: 16 }}>🏠</span> {node.label}
+                          {(node.children?.length ?? 0) > 0 && (
+                            <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 'auto' }}>
+                              {node.children!.length}개 하위
+                            </span>
+                          )}
+                        </div>
+                        {/* Children — tree lines */}
+                        {node.children && node.children.length > 0 && (
+                          <div style={{ paddingLeft: 20, position: 'relative' }}>
+                            {/* Vertical connector line */}
                             <div style={{
-                              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
-                              background: C.blueBg, borderRadius: 8, fontWeight: 600, fontSize: 14, color: C.blue,
-                            }}>
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue, flexShrink: 0 }} />
-                              {child.label}
-                            </div>
-                            {child.children && child.children.length > 0 && (
-                              <div style={{ marginLeft: 20, borderLeft: `1px dashed ${C.border}`, paddingLeft: 16, marginTop: 4 }}>
-                                {child.children.map((leaf, k) => (
-                                  <div key={k} style={{
-                                    padding: '5px 12px', fontSize: 13, color: C.textSecondary, marginBottom: 2,
-                                    display: 'flex', alignItems: 'center', gap: 6,
+                              position: 'absolute', left: 30, top: 0,
+                              width: 2, height: 'calc(100% - 20px)',
+                              background: `linear-gradient(180deg, ${C.blue}40, ${C.border})`,
+                            }} />
+                            {node.children.map((child, j) => {
+                              const isChildLast = j === node.children!.length - 1;
+                              return (
+                                <div key={j} style={{ position: 'relative', paddingLeft: 30, marginTop: j === 0 ? 12 : 6 }}>
+                                  {/* Horizontal connector */}
+                                  <div style={{
+                                    position: 'absolute', left: 10, top: 16,
+                                    width: 20, height: 2, background: isChildLast ? C.border : `${C.blue}40`,
+                                  }} />
+                                  {/* Branch dot */}
+                                  <div style={{
+                                    position: 'absolute', left: 6, top: 12,
+                                    width: 10, height: 10, borderRadius: '50%',
+                                    background: C.white, border: `2px solid ${C.blue}`,
+                                  }} />
+                                  {/* Child node */}
+                                  <div style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+                                    background: C.blueBg, borderRadius: 8, fontWeight: 600, fontSize: 14, color: C.blue,
+                                    border: `1px solid rgba(37,99,235,0.1)`,
                                   }}>
-                                    <span style={{ color: C.textTertiary }}>└</span> {leaf.label}
+                                    📄 {child.label}
+                                    {(child.children?.length ?? 0) > 0 && (
+                                      <span style={{ fontSize: 10, color: C.textTertiary, fontWeight: 400 }}>
+                                        +{child.children!.length}
+                                      </span>
+                                    )}
                                   </div>
-                                ))}
-                              </div>
-                            )}
+                                  {/* Leaf nodes */}
+                                  {child.children && child.children.length > 0 && (
+                                    <div style={{ paddingLeft: 24, position: 'relative', marginTop: 4 }}>
+                                      <div style={{
+                                        position: 'absolute', left: 8, top: 0,
+                                        width: 1, height: 'calc(100% - 12px)',
+                                        borderLeft: `1px dashed ${C.border}`,
+                                      }} />
+                                      {child.children.map((leaf, k) => (
+                                        <div key={k} style={{
+                                          position: 'relative', paddingLeft: 20, marginBottom: 2,
+                                          display: 'flex', alignItems: 'center', gap: 6,
+                                        }}>
+                                          <div style={{
+                                            position: 'absolute', left: 8, top: 10,
+                                            width: 12, height: 1, borderTop: `1px dashed ${C.border}`,
+                                          }} />
+                                          <span style={{
+                                            display: 'inline-block', padding: '4px 12px', fontSize: 12,
+                                            color: C.textSecondary, background: C.borderLight,
+                                            borderRadius: 6, whiteSpace: 'nowrap',
+                                          }}>
+                                            {leaf.label}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
+                        )}
+                        {!isLast && <div style={{ height: 16 }} />}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             </Card>
           </div>
@@ -1826,24 +2137,36 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                             <span style={{ fontSize: 10, color: C.textTertiary }}>—</span>
                           </td>;
                         }
-                        // 간단한 의존성 스코어링: 같은 priority면 높음, 공유 키워드가 많으면 높음
-                        const sharedKeywords = rowMod.features.filter(rf =>
-                          colMod.features.some(cf =>
-                            rf.subFeatures?.some(sf => cf.name.includes(sf.split(' ')[0])) ||
-                            cf.subFeatures?.some(sf => rf.name.includes(sf.split(' ')[0]))
+                        // #8: AI 기반 의존성 스코어링 — dependencies 필드 우선, 없으면 키워드 폴백
+                        const allRowFeatNames = rowMod.features.map((f: any) => f.name);
+                        const allColFeatNames = colMod.features.map((f: any) => f.name);
+                        // AI dependencies 기반 점수
+                        const aiDeps = rowMod.features.reduce((s: number, rf: any) => {
+                          return s + (rf.dependencies || []).filter((dep: string) =>
+                            allColFeatNames.some((cn: string) => cn.includes(dep) || dep.includes(cn))
+                          ).length;
+                        }, 0) + colMod.features.reduce((s: number, cf: any) => {
+                          return s + (cf.dependencies || []).filter((dep: string) =>
+                            allRowFeatNames.some((rn: string) => rn.includes(dep) || dep.includes(rn))
+                          ).length;
+                        }, 0);
+                        // Keyword 폴백
+                        const kwScore = rowMod.features.filter((rf: any) =>
+                          colMod.features.some((cf: any) =>
+                            rf.subFeatures?.some((sf: string) => cf.name.includes(sf.split(' ')[0])) ||
+                            cf.subFeatures?.some((sf: string) => rf.name.includes(sf.split(' ')[0]))
                           )
                         ).length;
-                        const samePriority = rowMod.priority === colMod.priority ? 1 : 0;
-                        const score = Math.min(sharedKeywords + samePriority, 3);
+                        const score = Math.min(aiDeps > 0 ? aiDeps + 1 : kwScore + (rowMod.priority === colMod.priority ? 1 : 0), 3);
                         const colors = ['transparent', 'rgba(37,99,235,0.08)', 'rgba(37,99,235,0.18)', 'rgba(37,99,235,0.35)'];
                         return (
                           <td key={ci} style={{
                             padding: 4, textAlign: 'center',
                             background: colors[score],
                             border: `1px solid ${C.borderLight}`,
-                          }}>
+                          }} title={aiDeps > 0 ? `AI 분석: ${aiDeps}건 의존` : score > 0 ? '키워드 연관' : ''}>
                             {score > 0 && <span style={{ fontSize: 10, color: score >= 2 ? C.blue : C.textTertiary }}>
-                              {'●'.repeat(score)}
+                              {aiDeps > 0 ? '⬤' : '●'}{'●'.repeat(Math.max(0, score - 1))}
                             </span>}
                           </td>
                         );
@@ -2351,7 +2674,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           </div>
         )}
 
-        {/* ━━ Action Buttons ━━ */}
+        {/* ━━ Action Buttons ━━ (#16: readOnly에서는 PDF/DOCX만 표시) */}
         <div style={{
           display: 'flex', gap: 10, marginTop: shareUrl ? 8 : 48, marginBottom: 40, flexWrap: 'wrap',
           padding: '24px 0', borderTop: `1px solid ${C.borderLight}`,
@@ -2546,5 +2869,6 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         </div>
       </div>
     </div>
+    </ReadOnlyContext.Provider>
   );
 }

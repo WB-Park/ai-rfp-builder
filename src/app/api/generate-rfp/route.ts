@@ -45,6 +45,8 @@ interface PRDResult {
       businessRules: string[];
       dataEntities: { name: string; fields: string }[];
       errorCases: string[];
+      estimatedManDays?: number;
+      dependencies?: string[];
     }[];
   }[];
   nonFunctionalRequirements: { category: string; items: string[] }[];
@@ -181,6 +183,9 @@ JSON 형식으로 응답하세요:
   ],
   "qaStrategy": [
     {"type": "테스트 유형 (단위/통합/E2E/성능/보안)", "scope": "테스트 대상 범위", "tools": "도구명", "criteria": "통과 기준"}
+  ],
+  "glossary": [
+    {"term": "이 프로젝트에서 사용되는 전문 용어/약어", "definition": "비개발자도 이해할 수 있는 명확한 설명"}
   ]
 }
 
@@ -193,7 +198,8 @@ constraints: 정확히 5개. ★이 필드는 반드시 비어있지 않은 배�
 techStack: 4~6개. 프론트엔드, 백엔드, DB, 인프라 필수.
 competitorAnalysis: 3개. 실제 한국 서비스명 사용.
 approvalProcess: 정확히 4단계. 기획승인/디자인리뷰/개발완료/출시승인 단계 필수.
-qaStrategy: 정확히 5개. 단위테스트, 통합테스트, E2E, 성능, 보안 반드시 포함.`
+qaStrategy: 정확히 5개. 단위테스트, 통합테스트, E2E, 성능, 보안 반드시 포함.
+glossary: 8~12개. PRD/MVP/SLA 같은 공통 용어 + 이 프로젝트 도메인 특화 용어 포함. 비개발자 독자 대상.`
     }],
   });
 
@@ -243,7 +249,9 @@ JSON 형식으로 응답:
       "dataEntities": [
         {"name": "테이블명", "fields": "컬럼들 (id, name, ...)"}
       ],
-      "errorCases": ["에러 케이스 3~5개. 각각 사용자에게 보여줄 메시지 포함"]
+      "errorCases": ["에러 케이스 3~5개. 각각 사용자에게 보여줄 메시지 포함"],
+      "estimatedManDays": "숫자. 이 기능 구현에 필요한 예상 공수 (Man-Day). 시니어 개발자 기준 1MD=8시간. 프론트+백엔드+테스트 포함. 소수점 가능 (예: 3.5)",
+      "dependencies": ["이 기능이 의존하는 다른 기능명 (위 목록에서). 없으면 빈 배열"]
     }
   ]
 }
@@ -342,6 +350,8 @@ JSON 형식으로 응답:
           businessRules: Array.isArray(spec.businessRules) ? spec.businessRules : [],
           dataEntities: Array.isArray(spec.dataEntities) ? spec.dataEntities : [],
           errorCases: Array.isArray(spec.errorCases) ? spec.errorCases : [],
+          estimatedManDays: spec.estimatedManDays ? parseFloat(spec.estimatedManDays) || 0 : 0,
+          dependencies: Array.isArray(spec.dependencies) ? spec.dependencies : [],
         };
       }),
     });
@@ -404,8 +414,8 @@ JSON 형식으로 응답:
     },
   ];
 
-  // Glossary
-  const glossary: PRDResult['glossary'] = [
+  // #10: Glossary — AI 생성 우선, 폴백으로 기본 용어
+  const defaultGlossary: PRDResult['glossary'] = [
     { term: 'MVP', definition: 'Minimum Viable Product — 핵심 기능만으로 시장 검증하는 첫 번째 버전' },
     { term: 'P0/P1/P2', definition: '우선순위 등급. P0=필수(MVP), P1=우선(2차), P2=선택(향후)' },
     { term: 'PRD', definition: 'Product Requirements Document — 제품 요구사항 정의서' },
@@ -415,6 +425,10 @@ JSON 형식으로 응답:
     { term: 'WBS', definition: 'Work Breakdown Structure — 업무 분류 체계 (일정/공수 산정 기초)' },
     { term: 'API', definition: 'Application Programming Interface — 소프트웨어 간 통신 규약' },
   ];
+  const aiGlossary = Array.isArray(dataB.glossary) && dataB.glossary.length > 0
+    ? dataB.glossary.filter((g: any) => g.term && g.definition)
+    : [];
+  const glossary: PRDResult['glossary'] = aiGlossary.length >= 5 ? aiGlossary : [...aiGlossary, ...defaultGlossary.filter(dg => !aiGlossary.some((ag: any) => ag.term === dg.term))];
 
   // IA (Sitemap)
   const informationArchitecture: PRDResult['informationArchitecture'] = {
