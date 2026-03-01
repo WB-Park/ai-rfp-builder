@@ -52,6 +52,9 @@ interface PRDResult {
   risks: { risk: string; impact: string; mitigation: string }[];
   glossary: { term: string; definition: string }[];
   expertInsight: string;
+  informationArchitecture: {
+    sitemap: { id: string; label: string; children?: { id: string; label: string; children?: { id: string; label: string }[] }[] }[];
+  };
 }
 
 // ━━━━━ Design Tokens ━━━━━
@@ -144,7 +147,7 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
             border: `2px solid ${C.blue}`,
             borderRadius: 8,
             padding: '12px',
-            fontSize: 14,
+            fontSize: 15,
             fontFamily: 'inherit',
             lineHeight: 1.8,
             resize: 'none',
@@ -198,26 +201,26 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
 // ━━━━━ Section Number ━━━━━
 function SectionHeader({ number, title, subtitle }: { number: string; title: string; subtitle?: string }) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <span style={{
           background: C.gradient,
           color: '#fff',
-          width: 32, height: 32,
-          borderRadius: 8,
+          width: 36, height: 36,
+          borderRadius: 10,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 13,
+          fontSize: 15,
           fontWeight: 800,
           flexShrink: 0,
         }}>{number}</span>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: -0.3 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: C.textPrimary, margin: 0, letterSpacing: -0.3 }}>
           {title}
         </h2>
       </div>
       {subtitle && (
-        <p style={{ fontSize: 12, color: C.textTertiary, margin: '8px 0 0 44px', lineHeight: 1.5 }}>{subtitle}</p>
+        <p style={{ fontSize: 14, color: C.textTertiary, margin: '8px 0 0 50px', lineHeight: 1.6 }}>{subtitle}</p>
       )}
     </div>
   );
@@ -278,10 +281,10 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
       >
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.blue, fontFamily: 'monospace' }}>{index}</span>
-            <h5 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
+            <span style={{ fontSize: 12, fontWeight: 700, color: C.blue, fontFamily: 'monospace' }}>{index}</span>
+            <h5 style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
           </div>
-          <p style={{ fontSize: 12, color: C.textSecondary, margin: 0, lineHeight: 1.5, paddingLeft: 0 }}>
+          <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, lineHeight: 1.6, paddingLeft: 0 }}>
             {feature.description}
           </p>
         </div>
@@ -373,13 +376,13 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
 
 function DetailSection({ title, items, icon }: { title: string; items: string[]; icon?: string }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+    <div style={{ marginBottom: 16 }}>
+      <h6 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {title}
       </h6>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {items.map((item, i) => (
-          <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 5, paddingLeft: 16, position: 'relative' }}>
+          <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 6, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
             <span style={{ position: 'absolute', left: 0 }}>{icon || '•'}</span>
             {item}
           </li>
@@ -407,10 +410,10 @@ function ModuleCard({ module }: { module: any }) {
       >
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-            <h4 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{module.name}</h4>
+            <h4 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{module.name}</h4>
             <PriorityBadge priority={module.priority} label={module.priorityLabel} />
           </div>
-          <span style={{ fontSize: 12, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
+          <span style={{ fontSize: 13, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
         </div>
         <div style={{
           width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -437,7 +440,7 @@ function ModuleCard({ module }: { module: any }) {
 function TableOfContents({ sections }: { sections: { num: string; title: string; id: string }[] }) {
   return (
     <Card style={{ background: '#FAFBFD' }}>
-      <h3 style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary, margin: '0 0 14px 0', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary, margin: '0 0 14px 0', textTransform: 'uppercase', letterSpacing: 0.5 }}>
         목차
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 6 }}>
@@ -932,14 +935,15 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     { num: '3', title: '문제 정의 & 목표', id: 'sec-goals' },
     { num: '4', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
     { num: '5', title: '프로젝트 스코프', id: 'sec-scope' },
-    { num: '6', title: '기능 명세', id: 'sec-features' },
-    { num: '7', title: '기술 스택', id: 'sec-tech' },
-    { num: '8', title: '비기능 요구사항', id: 'sec-nfr' },
-    { num: '9', title: '일정 계획', id: 'sec-timeline' },
-    { num: '10', title: '전제 조건 & 제약사항', id: 'sec-assumptions' },
-    { num: '11', title: '리스크 관리', id: 'sec-risks' },
-    ...(prdData.expertInsight ? [{ num: '12', title: '전문가 인사이트', id: 'sec-expert' }] : []),
-    { num: prdData.expertInsight ? '13' : '12', title: '용어 정의', id: 'sec-glossary' },
+    { num: '6', title: '정보 구조 (IA)', id: 'sec-ia' },
+    { num: '7', title: '기능 명세', id: 'sec-features' },
+    { num: '8', title: '기술 스택', id: 'sec-tech' },
+    { num: '9', title: '비기능 요구사항', id: 'sec-nfr' },
+    { num: '10', title: '일정 계획', id: 'sec-timeline' },
+    { num: '11', title: '전제 조건 & 제약사항', id: 'sec-assumptions' },
+    { num: '12', title: '리스크 관리', id: 'sec-risks' },
+    ...(prdData.expertInsight ? [{ num: '13', title: '전문가 인사이트', id: 'sec-expert' }] : []),
+    { num: prdData.expertInsight ? '14' : '13', title: '용어 정의', id: 'sec-glossary' },
   ];
 
   const totalFeatures = prdData.featureModules?.reduce((sum, m) => sum + (m.features?.length || 0), 0) || 0;
@@ -970,7 +974,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           position: 'absolute', top: -60, right: -60, width: 200, height: 200,
           borderRadius: '50%', background: 'rgba(255,255,255,0.05)',
         }} />
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'rgba(255,255,255,0.15)', padding: '6px 14px', borderRadius: 20,
@@ -998,7 +1002,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       </div>
 
       {/* ━━ Body ━━ */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px 60px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
         {/* TOC */}
         <TableOfContents sections={tocSections} />
 
@@ -1009,7 +1013,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             <EditableText
               value={prdData.executiveSummary}
               onChange={(v) => setPrdData({ ...prdData, executiveSummary: v })}
-              style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
               sectionKey="executiveSummary" sectionTitle="Executive Summary" projectContext={projectCtx}
             />
           </Card>
@@ -1022,7 +1026,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             <EditableText
               value={prdData.projectOverview}
               onChange={(v) => setPrdData({ ...prdData, projectOverview: v })}
-              style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
               sectionKey="projectOverview" sectionTitle="프로젝트 개요" projectContext={projectCtx}
             />
           </Card>
@@ -1033,18 +1037,18 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           <SectionHeader number="3" title="문제 정의 & 프로젝트 목표" subtitle="해결하려는 문제와 성공 지표" />
           {prdData.problemStatement && (
             <Card style={{ borderLeft: `4px solid ${C.yellow}`, marginBottom: 14 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>🎯 문제 정의</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>🎯 문제 정의</h3>
               <EditableText
                 value={prdData.problemStatement}
                 onChange={(v) => setPrdData({ ...prdData, problemStatement: v })}
-                style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}
+                style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}
                 sectionKey="problemStatement" sectionTitle="문제 정의" projectContext={projectCtx}
               />
             </Card>
           )}
           {prdData.projectGoals?.length > 0 && (
             <Card>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📊 프로젝트 목표 & 성공 지표</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📊 프로젝트 목표 & 성공 지표</h3>
               <div style={{ display: 'grid', gap: 10 }}>
                 {prdData.projectGoals.map((g, i) => (
                   <div key={i} style={{
@@ -1057,8 +1061,8 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                       fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 1,
                     }}>{i + 1}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, marginBottom: 2 }}>{g.goal}</div>
-                      <div style={{ fontSize: 12, color: C.textSecondary }}>📏 {g.metric}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 2 }}>{g.goal}</div>
+                      <div style={{ fontSize: 13, color: C.textSecondary }}>📏 {g.metric}</div>
                     </div>
                   </div>
                 ))}
@@ -1074,7 +1078,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             <EditableText
               value={prdData.targetUsers}
               onChange={(v) => setPrdData({ ...prdData, targetUsers: v })}
-              style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}
+              style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}
               sectionKey="targetUsers" sectionTitle="타겟 사용자" projectContext={projectCtx}
             />
             {prdData.userPersonas?.length > 0 && (
@@ -1093,13 +1097,13 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                       }}>{p.name[0]}</div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: C.textTertiary }}>{p.role}</div>
+                        <div style={{ fontSize: 12, color: C.textTertiary }}>{p.role}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, color: C.textSecondary, marginBottom: 6 }}>
                       <strong>니즈:</strong> {p.needs}
                     </div>
-                    <div style={{ fontSize: 12, color: C.textSecondary }}>
+                    <div style={{ fontSize: 13, color: C.textSecondary }}>
                       <strong>불편사항:</strong> {p.painPoints}
                     </div>
                   </div>
@@ -1114,10 +1118,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           <SectionHeader number="5" title="프로젝트 스코프" subtitle="포함/미포함 범위 정의" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card style={{ borderLeft: `4px solid ${C.green}` }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.green, margin: '0 0 12px 0' }}>✅ 포함 범위 (In-Scope)</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.green, margin: '0 0 12px 0' }}>✅ 포함 범위 (In-Scope)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.scopeInclusions?.map((s, i) => (
-                  <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
+                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>
                     {s}
                   </li>
@@ -1125,10 +1129,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               </ul>
             </Card>
             <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textTertiary, margin: '0 0 12px 0' }}>❌ 미포함 (Out-of-Scope)</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textTertiary, margin: '0 0 12px 0' }}>❌ 미포함 (Out-of-Scope)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.scopeExclusions?.map((s, i) => (
-                  <li key={i} style={{ fontSize: 12, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
+                  <li key={i} style={{ fontSize: 13, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 0 }}>—</span>
                     {s}
                   </li>
@@ -1138,9 +1142,57 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           </div>
         </div>
 
-        {/* 6. Feature Specs */}
+        {/* 6. Information Architecture */}
+        {prdData.informationArchitecture?.sitemap?.length > 0 && (
+          <div id="sec-ia">
+            <SectionHeader number="6" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" />
+            <Card>
+              <div style={{ padding: '8px 0' }}>
+                {prdData.informationArchitecture.sitemap.map((node, i) => (
+                  <div key={i} style={{ marginBottom: 16 }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
+                      background: C.gradient, borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 16,
+                    }}>
+                      <span>🏠</span> {node.label}
+                    </div>
+                    {node.children && node.children.length > 0 && (
+                      <div style={{ marginLeft: 24, borderLeft: `2px solid ${C.border}`, paddingLeft: 20, marginTop: 8 }}>
+                        {node.children.map((child, j) => (
+                          <div key={j} style={{ marginBottom: 8 }}>
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
+                              background: C.blueBg, borderRadius: 8, fontWeight: 600, fontSize: 14, color: C.blue,
+                            }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue, flexShrink: 0 }} />
+                              {child.label}
+                            </div>
+                            {child.children && child.children.length > 0 && (
+                              <div style={{ marginLeft: 20, borderLeft: `1px dashed ${C.border}`, paddingLeft: 16, marginTop: 4 }}>
+                                {child.children.map((leaf, k) => (
+                                  <div key={k} style={{
+                                    padding: '5px 12px', fontSize: 13, color: C.textSecondary, marginBottom: 2,
+                                    display: 'flex', alignItems: 'center', gap: 6,
+                                  }}>
+                                    <span style={{ color: C.textTertiary }}>└</span> {leaf.label}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* 7. Feature Specs */}
         <div id="sec-features">
-          <SectionHeader number="6" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} />
+          <SectionHeader number="7" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} />
           {prdData.featureModules?.map((module, idx) => (
             <ModuleCard key={idx} module={module} />
           ))}
@@ -1149,10 +1201,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* F10: 기능 의존성 시각화 */}
         {prdData.featureModules?.length > 1 && (
           <Card style={{ marginTop: 8 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>
               🔗 기능 모듈 의존성 매트릭스
             </h3>
-            <p style={{ fontSize: 11, color: C.textTertiary, margin: '0 0 14px 0' }}>
+            <p style={{ fontSize: 12, color: C.textTertiary, margin: '0 0 14px 0' }}>
               모듈 간 연관도를 나타냅니다. 진한 셀은 높은 의존성을 의미합니다.
             </p>
             <div style={{ overflowX: 'auto' }}>
@@ -1219,10 +1271,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 7. Tech Stack */}
         <div id="sec-tech">
-          <SectionHeader number="7" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" />
+          <SectionHeader number="8" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" />
           <Card>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#F1F5F9' }}>
                     <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>분류</th>
@@ -1233,13 +1285,13 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                 <tbody>
                   {prdData.techStack?.map((t, i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                      <td style={{ padding: '10px 14px', color: C.textTertiary, fontSize: 12 }}>{typeof t === 'object' ? t.category : '-'}</td>
+                      <td style={{ padding: '10px 14px', color: C.textTertiary, fontSize: 13 }}>{typeof t === 'object' ? t.category : '-'}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: C.textPrimary }}>
                         <span style={{ background: C.blueBg, padding: '3px 10px', borderRadius: 6 }}>
                           {typeof t === 'object' ? t.tech : t}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 12 }}>{typeof t === 'object' ? t.rationale : ''}</td>
+                      <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 13 }}>{typeof t === 'object' ? t.rationale : ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1250,19 +1302,19 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 8. NFR */}
         <div id="sec-nfr">
-          <SectionHeader number="8" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" />
+          <SectionHeader number="9" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {prdData.nonFunctionalRequirements?.map((nfr, idx) => {
               const icons: Record<string, string> = { '보안': '🔒', '성능': '⚡', '접근성': '♿', '규정': '📜' };
               const icon = Object.entries(icons).find(([k]) => nfr.category.includes(k))?.[1] || '📋';
               return (
                 <Card key={idx}>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>
                     {icon} {nfr.category}
                   </h3>
                   <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                     {nfr.items?.map((item, i) => (
-                      <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 14, position: 'relative', lineHeight: 1.5 }}>
+                      <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 14, position: 'relative', lineHeight: 1.5 }}>
                         <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>•</span>
                         {item}
                       </li>
@@ -1276,7 +1328,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 9. Timeline */}
         <div id="sec-timeline">
-          <SectionHeader number="9" title="일정 계획" subtitle="단계별 일정 및 산출물" />
+          <SectionHeader number="10" title="일정 계획" subtitle="단계별 일정 및 산출물" />
           <Card>
             <div style={{ position: 'relative' }}>
               {prdData.timeline?.map((t, i) => (
@@ -1318,23 +1370,23 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 10. Assumptions & Constraints */}
         <div id="sec-assumptions">
-          <SectionHeader number="10" title="전제 조건 & 제약사항" />
+          <SectionHeader number="11" title="전제 조건 & 제약사항" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>📌 전제 조건 (Assumptions)</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>📌 전제 조건 (Assumptions)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.assumptions?.map((a, i) => (
-                  <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
                     <span style={{ position: 'absolute', left: 0 }}>•</span>{a}
                   </li>
                 ))}
               </ul>
             </Card>
             <Card>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>🚧 제약사항 (Constraints)</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>🚧 제약사항 (Constraints)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.constraints?.map((c, i) => (
-                  <li key={i} style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
                     <span style={{ position: 'absolute', left: 0 }}>•</span>{c}
                   </li>
                 ))}
@@ -1345,10 +1397,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 11. Risk Register */}
         <div id="sec-risks">
-          <SectionHeader number="11" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" />
+          <SectionHeader number="12" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" />
           <Card>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#F1F5F9' }}>
                     <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: C.textPrimary, borderBottom: `2px solid ${C.border}` }}>리스크</th>
@@ -1367,7 +1419,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                           color: r.impact === '높음' ? C.red : C.yellow,
                         }}>{r.impact}</span>
                       </td>
-                      <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 12 }}>{r.mitigation}</td>
+                      <td style={{ padding: '10px 14px', color: C.textSecondary, fontSize: 13 }}>{r.mitigation}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1379,7 +1431,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* 12. Expert Insight (conditional) */}
         {prdData.expertInsight && (
           <div id="sec-expert">
-            <SectionHeader number="12" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" />
+            <SectionHeader number="13" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" />
             <Card style={{ borderLeft: `4px solid ${C.purple}`, background: C.purpleBg }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{
@@ -1389,7 +1441,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                 <EditableText
                   value={prdData.expertInsight}
                   onChange={(v) => setPrdData({ ...prdData, expertInsight: v })}
-                  style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
+                  style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}
                   sectionKey="expertInsight" sectionTitle="AI 전문가 인사이트" projectContext={projectCtx}
                 />
               </div>
@@ -1399,7 +1451,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 13. Glossary */}
         <div id="sec-glossary">
-          <SectionHeader number={prdData.expertInsight ? '13' : '12'} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" />
+          <SectionHeader number={prdData.expertInsight ? '14' : '13'} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" />
           <Card>
             <div style={{ display: 'grid', gap: 8 }}>
               {prdData.glossary?.map((g, i) => (
@@ -1408,7 +1460,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
                     fontWeight: 700, fontSize: 13, color: C.blue,
                     minWidth: 70, fontFamily: '"SF Mono", Monaco, monospace',
                   }}>{g.term}</span>
-                  <span style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>{g.definition}</span>
+                  <span style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>{g.definition}</span>
                 </div>
               ))}
             </div>

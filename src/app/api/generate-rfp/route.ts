@@ -857,6 +857,34 @@ function generateOpenItems(rfpData: RFPData, features: FeatureItem[], projectInf
 // Main PRD Document Generator (v7 — CEO PRD Standard)
 // ═══════════════════════════════════════════
 
+// ═══════════════════════════════════════════
+// Q1: Feature Sanitization
+// ═══════════════════════════════════════════
+
+function sanitizeFeatures(features: FeatureItem[]): FeatureItem[] {
+  const conversationalPatterns = ['입니다', '싶습니다', '있습니다', '했습니다', '하고', '해요', '거예요', '거든요', '그래요'];
+
+  return features.filter(feature => {
+    const name = feature.name || '';
+
+    // Filter out entries longer than 30 chars
+    if (name.length > 30) return false;
+
+    // Filter out pure numbers
+    if (/^\d+$/.test(name.trim())) return false;
+
+    // Filter out conversational Korean (entries containing conversational endings)
+    for (const pattern of conversationalPatterns) {
+      if (name.includes(pattern)) return false;
+    }
+
+    return true;
+  }).map(feature => ({
+    ...feature,
+    name: feature.name.length > 30 ? feature.name.slice(0, 30) : feature.name,
+  }));
+}
+
 function generateSmartProjectName(overview: string, features: FeatureItem[], projectType: string): string {
   // Extract core service keywords from overview
   const overviewText = (overview || '').toLowerCase();
@@ -976,11 +1004,18 @@ interface PRDResult {
   risks: { risk: string; impact: string; mitigation: string }[];
   glossary: { term: string; definition: string }[];
   expertInsight: string;
+  informationArchitecture: {
+    sitemap: { id: string; label: string; children?: { id: string; label: string; children?: { id: string; label: string }[] }[] }[];
+  };
 }
 
 function generateFallbackRFP(rfpData: RFPData): string {
   const projectInfo = getProjectTypeInfo(rfpData.overview);
-  const features = rfpData.coreFeatures || [];
+  let features = rfpData.coreFeatures || [];
+
+  // Q1: Sanitize features to remove garbage data
+  features = sanitizeFeatures(features);
+
   const analyzedFeatures = features.map(f => analyzeFeature(f));
   const overview = rfpData.overview || '';
   const target = rfpData.targetUsers || '일반 사용자';
@@ -1031,10 +1066,19 @@ function generateFallbackRFP(rfpData: RFPData): string {
     );
   }
 
-  // Scope
+  // Scope (Q8: Add proper scope items from project type's mustHaveFeatures)
   const scopeInclusions = features.map(f => `${f.name}${f.description ? ` — ${f.description}` : ''}`);
-  const scopeExclusions: string[] = [];
+
+  // Add mustHaveFeatures that aren't already in the feature list
   const featureNames = features.map(f => f.name.toLowerCase()).join(' ');
+  for (const mustHave of projectInfo.mustHaveFeatures) {
+    const mustHaveKeyword = mustHave.split('(')[0].trim().toLowerCase();
+    if (!featureNames.includes(mustHaveKeyword.slice(0, 3))) {
+      scopeInclusions.push(mustHave);
+    }
+  }
+
+  const scopeExclusions: string[] = [];
   if (!featureNames.includes('다국어')) scopeExclusions.push('다국어 지원 (i18n) — 추후 검토');
   if (!featureNames.includes('오프라인')) scopeExclusions.push('오프라인 모드 — 추후 검토');
   if (!featureNames.includes('접근성')) scopeExclusions.push('접근성 고도화 (WCAG AAA) — 추후 검토');
@@ -1242,6 +1286,58 @@ function generateFallbackRFP(rfpData: RFPData): string {
     { term: 'UAT', definition: 'User Acceptance Testing, 사용자 인수 테스트' },
   ];
 
+  // F15: Generate Information Architecture (Sitemap)
+  const generateSitemap = (): PRDResult['informationArchitecture'] => {
+    const mainPages = [
+      { id: 'home', label: '홈' },
+      { id: 'search', label: '검색' },
+      { id: 'mypage', label: '마이페이지' },
+    ];
+
+    // Add feature-based pages
+    const featurePages = features.slice(0, 5).map((f, i) => ({
+      id: `feature-${i + 1}`,
+      label: f.name,
+    }));
+
+    // Build sitemap structure
+    const sitemap = [
+      {
+        id: 'root',
+        label: projectName,
+        children: [
+          {
+            id: 'main-nav',
+            label: '주요 섹션',
+            children: [...mainPages, ...featurePages],
+          },
+          {
+            id: 'auth',
+            label: '인증',
+            children: [
+              { id: 'login', label: '로그인' },
+              { id: 'signup', label: '회원가입' },
+              { id: 'password-reset', label: '비밀번호 찾기' },
+            ],
+          },
+          {
+            id: 'settings',
+            label: '설정',
+            children: [
+              { id: 'profile', label: '프로필 설정' },
+              { id: 'notifications', label: '알림 설정' },
+              { id: 'privacy', label: '개인정보' },
+            ],
+          },
+        ],
+      },
+    ];
+
+    return { sitemap };
+  };
+
+  const informationArchitecture = generateSitemap();
+
   const result: PRDResult = {
     projectName,
     documentMeta,
@@ -1264,9 +1360,104 @@ function generateFallbackRFP(rfpData: RFPData): string {
     risks,
     glossary,
     expertInsight: '',
+    informationArchitecture,
   };
 
   return JSON.stringify(result);
+}
+
+// ═══════════════════════════════════════════
+// F14: AI Dynamic Feature Blueprint Generation
+// ═══════════════════════════════════════════
+
+async function generateDynamicFeatureBlueprints(
+  rfpDocumentJson: string,
+  features: FeatureItem[],
+  analyzedFeatures: FeatureAnalysis[],
+  anthropic: any
+): Promise<string> {
+  try {
+    // Find features not matched in FEATURE_DB
+    const unmatchedFeatures = features.filter(f => !getFeatureBlueprint(f.name));
+
+    if (unmatchedFeatures.length === 0) return rfpDocumentJson;
+
+    // Batch all unmatched features into a single API call
+    const unmatchedList = unmatchedFeatures.map(f => f.name).join(', ');
+
+    const blueprintResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      system: '당신은 소프트웨어 아키텍트입니다. 기능에 대한 상세한 기술 사양을 JSON 형식으로 제공하세요.',
+      messages: [
+        {
+          role: 'user',
+          content: `다음 기능들에 대한 상세 기술 사양을 생성하세요:
+기능 목록: ${unmatchedList}
+
+각 기능마다 다음 JSON 형식으로 응답하세요:
+{
+  "features": [
+    {
+      "name": "기능명",
+      "subFeatures": ["서브기능1", "서브기능2", "서브기능3", "서브기능4", "서브기능5"],
+      "acceptanceCriteria": ["수용기준1", "수용기준2", "수용기준3", "수용기준4"],
+      "userFlow": "단계별 사용자 흐름을 텍스트로 설명",
+      "screenSpecs": [
+        { "id": "SCR-001", "name": "화면명", "purpose": "목적", "elements": ["요소1", "요소2"], "scenarios": [["시나리오1", "조건", "동작", "결과"]] }
+      ],
+      "businessRules": ["규칙1", "규칙2", "규칙3"],
+      "dataEntities": [
+        { "name": "엔티티명", "fields": "필드1, 필드2, 필드3" }
+      ],
+      "errorCases": ["에러케이스1", "에러케이스2", "에러케이스3"]
+    }
+  ]
+}`,
+        },
+      ],
+    });
+
+    const blueprintContent = blueprintResponse.content[0];
+    if (blueprintContent.type === 'text') {
+      try {
+        const jsonMatch = blueprintContent.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const blueprintData = JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(rfpDocumentJson) as PRDResult;
+
+          // Apply generated blueprints to featureModules
+          if (blueprintData.features && Array.isArray(blueprintData.features)) {
+            for (const generated of blueprintData.features) {
+              // Find matching feature in featureModules and update it
+              for (const module of parsed.featureModules) {
+                const idx = module.features.findIndex(f => f.name === generated.name);
+                if (idx >= 0) {
+                  const feature = module.features[idx];
+                  if (generated.subFeatures) feature.subFeatures = generated.subFeatures.slice(0, 10);
+                  if (generated.acceptanceCriteria) feature.acceptanceCriteria = generated.acceptanceCriteria.slice(0, 6);
+                  if (generated.userFlow) feature.userFlow = generated.userFlow;
+                  if (generated.screenSpecs) feature.screenSpecs = generated.screenSpecs.slice(0, 5);
+                  if (generated.businessRules) feature.businessRules = generated.businessRules.slice(0, 5);
+                  if (generated.dataEntities) feature.dataEntities = generated.dataEntities.slice(0, 3);
+                  if (generated.errorCases) feature.errorCases = generated.errorCases.slice(0, 5);
+                }
+              }
+            }
+          }
+
+          console.log('Dynamic feature blueprints generated for unmatched features');
+          return JSON.stringify(parsed);
+        }
+      } catch {
+        console.log('Blueprint parse failed, using base feature specs');
+      }
+    }
+  } catch (error) {
+    console.error('Dynamic feature blueprint generation error:', error);
+  }
+
+  return rfpDocumentJson;
 }
 
 // ═══════════════════════════════════════════
@@ -1294,7 +1485,7 @@ export async function POST(req: NextRequest) {
     // 1단계: 서버 DB 기반 구조화된 PRDResult 생성 (항상 신뢰 가능)
     let rfpDocument: string = generateFallbackRFP(rfpData);
 
-    // 2단계: Claude API로 자연어 부분 강화 (프로젝트 개요, 전문가 인사이트)
+    // 2단계: Claude API로 전체 필드 강화 + 동적 기능 생성
     if (HAS_API_KEY) {
       try {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
@@ -1302,19 +1493,25 @@ export async function POST(req: NextRequest) {
           apiKey: process.env.ANTHROPIC_API_KEY,
         });
 
-        const analyzedFeatures = (rfpData.coreFeatures || []).map(f => analyzeFeature(f));
+        let features = rfpData.coreFeatures || [];
+        features = sanitizeFeatures(features);
+
+        const analyzedFeatures = features.map(f => analyzeFeature(f));
         const featureList = analyzedFeatures.map(f => f.name).join(', ');
 
+        // Q2: Enhanced Claude API call for 11 fields + informationArchitecture
         const response = await anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 3000,
+          max_tokens: 6000,
           system: `당신은 위시켓에서 13년간 10,000건 이상의 IT 외주 프로젝트를 분석한 수석 PM 컨설턴트입니다.
 실제 프로젝트 데이터와 업계 트렌드에 기반하여, 개발사와 클라이언트 양측이 실무에서 즉시 활용할 수 있는 수준의 분석을 제공합니다.
-반드시 존댓말을 사용하세요. 추상적 표현 대신 구체적 수치, 사례, 실행 가능한 제안을 포함하세요.`,
+반드시 존댓말을 사용하세요. 추상적 표현 대신 구체적 수치, 사례, 실행 가능한 제안을 포함하세요.
+
+Q6: 절대로 사용자의 입력 요구사항에 직접적으로 관련 없는 기술(블록체인, NFT, 메타버스 등)을 추천하거나 언급하지 마세요. 오직 입력된 프로젝트와 직접 관련된 내용만 작성하세요.`,
           messages: [
             {
               role: 'user',
-              content: `다음 프로젝트의 전문 분석을 JSON 형식으로 작성해주세요.
+              content: `다음 프로젝트의 전문 분석 및 상세 기획을 JSON 형식으로 작성해주세요.
 
 프로젝트 설명: ${rfpData.overview || ''}
 타겟 사용자: ${rfpData.targetUsers || ''}
@@ -1326,10 +1523,30 @@ export async function POST(req: NextRequest) {
 
 아래 JSON 형식으로만 응답하세요 (각 필드는 한국어로, 존댓말 사용):
 {
-  "projectOverview": "다음을 모두 포함하는 전문 개요를 작성하세요 (500자 이상): (1) 프로젝트 배경과 시장 기회 - 관련 시장 규모나 성장률 등 구체적 수치 인용, (2) 핵심 가치제안 - 기존 솔루션 대비 차별점 3가지, (3) 기대 효과 - 정량적 목표 (MAU, 전환율, 비용 절감률 등), (4) 핵심 성공 지표(KPI) 2~3개",
+  "projectName": "브랜드 지향적이고 매력적인 한국 프로젝트명 (예: 펫케어 플러스, 배달 통합 플랫폼) — 최대 20자",
+  "executiveSummary": "1줄 요약 (100자 이내) - 프로젝트의 핵심 가치를 간결하게 표현",
+  "projectOverview": "다음을 모두 포함하는 전문 개요 (500자 이상): (1) 프로젝트 배경과 시장 기회 - 관련 시장 규모나 성장률 등 구체적 수치 인용, (2) 핵심 가치제안 - 기존 솔루션 대비 차별점 3가지, (3) 기대 효과 - 정량적 목표 (MAU, 전환율, 비용 절감률 등), (4) 핵심 성공 지표(KPI) 2~3개",
   "targetUsersAnalysis": "다음을 포함하는 타겟 사용자 심층 분석 (400자 이상): (1) 주 사용자 세그먼트별 특성과 규모 추정, (2) 각 세그먼트의 핵심 Pain Point와 현재 해결 방식, (3) 사용자 여정에서의 핵심 접점(touchpoint), (4) UX/UI 설계 시 특별히 고려해야 할 점",
-  "expertInsight": "위시켓 10,000건+ 프로젝트 데이터 기반 실전 인사이트 (600자 이상): (1) 이 유형 프로젝트의 핵심 성공 요인 TOP 3 - 실제 성공 사례의 공통점, (2) 가장 흔한 실패 원인 TOP 3 - 구체적 사례와 함께, (3) 개발사 선정 시 반드시 확인해야 할 체크리스트 3가지, (4) 예산 및 일정 리스크 최소화를 위한 계약 시 권고사항",
-  "problemStatement": "다음을 포함하는 문제 정의 (300자 이상): (1) 현재 시장/사용자가 겪는 핵심 문제 2~3가지와 그 비용/영향, (2) 기존 대안의 한계점, (3) 이 프로젝트가 제시하는 해결 방향과 예상 임팩트"
+  "projectGoals": [
+    { "goal": "구체적 목표명", "metric": "측정 가능한 지표 (예: MAU 5,000명 달성, NPS 40점 이상)" },
+    { "goal": "구체적 목표명", "metric": "측정 가능한 지표" }
+  ],
+  "userPersonas": [
+    { "name": "한국인 이름 (예: 김민준, 이소은)", "role": "역할 및 연령대", "needs": "구체적 니즈", "painPoints": "현재 겪는 문제점" },
+    { "name": "한국인 이름", "role": "역할 및 연령대", "needs": "구체적 니즈", "painPoints": "현재 겪는 문제점" }
+  ],
+  "timeline": [
+    { "phase": "기획 & 설계", "duration": "기간 (예: 2~3주)", "deliverables": ["산출물1", "산출물2"] },
+    { "phase": "단계명", "duration": "기간", "deliverables": ["산출물1", "산출물2"] }
+  ],
+  "risks": [
+    { "risk": "위험 요소", "impact": "높음/중간/낮음", "mitigation": "대응 방안" },
+    { "risk": "위험 요소", "impact": "높음/중간/낮음", "mitigation": "대응 방안" }
+  ],
+  "assumptions": ["가정1: 구체적 내용", "가정2: 구체적 내용"],
+  "constraints": ["제약1: 구체적 내용", "제약2: 구체적 내용"],
+  "problemStatement": "다음을 포함하는 문제 정의 (300자 이상): (1) 현재 시장/사용자가 겪는 핵심 문제 2~3가지와 그 비용/영향, (2) 기존 대안의 한계점, (3) 이 프로젝트가 제시하는 해결 방향과 예상 임팩트",
+  "expertInsight": "위시켓 10,000건+ 프로젝트 데이터 기반 실전 인사이트 (600자 이상): (1) 이 유형 프로젝트의 핵심 성공 요인 TOP 3 - 실제 성공 사례의 공통점, (2) 가장 흔한 실패 원인 TOP 3 - 구체적 사례와 함께, (3) 개발사 선정 시 반드시 확인해야 할 체크리스트 3가지, (4) 예산 및 일정 리스크 최소화를 위한 계약 시 권고사항"
 }`,
             },
           ],
@@ -1341,8 +1558,15 @@ export async function POST(req: NextRequest) {
             const jsonMatch = content.text.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               const aiEnhancement = JSON.parse(jsonMatch[0]);
-              // PRDResult에 AI 강화 텍스트 병합
               const parsed = JSON.parse(rfpDocument) as PRDResult;
+
+              // Q2: Apply all AI-enhanced fields
+              if (aiEnhancement.projectName) {
+                parsed.projectName = aiEnhancement.projectName;
+              }
+              if (aiEnhancement.executiveSummary) {
+                parsed.executiveSummary = aiEnhancement.executiveSummary;
+              }
               if (aiEnhancement.projectOverview) {
                 parsed.projectOverview = aiEnhancement.projectOverview +
                   `\n\n프로젝트 유형: ${projectInfo.type} | 평균 예산: ${projectInfo.avgBudget} | 예상 기간: ${projectInfo.avgDuration}`;
@@ -1350,21 +1574,41 @@ export async function POST(req: NextRequest) {
               if (aiEnhancement.targetUsersAnalysis) {
                 parsed.targetUsers = aiEnhancement.targetUsersAnalysis;
               }
-              if (aiEnhancement.expertInsight) {
-                parsed.expertInsight = aiEnhancement.expertInsight;
+              if (aiEnhancement.projectGoals && Array.isArray(aiEnhancement.projectGoals)) {
+                parsed.projectGoals = aiEnhancement.projectGoals;
+              }
+              if (aiEnhancement.userPersonas && Array.isArray(aiEnhancement.userPersonas)) {
+                parsed.userPersonas = aiEnhancement.userPersonas;
+              }
+              if (aiEnhancement.timeline && Array.isArray(aiEnhancement.timeline)) {
+                parsed.timeline = aiEnhancement.timeline;
+              }
+              if (aiEnhancement.risks && Array.isArray(aiEnhancement.risks)) {
+                parsed.risks = aiEnhancement.risks;
+              }
+              if (aiEnhancement.assumptions && Array.isArray(aiEnhancement.assumptions)) {
+                parsed.assumptions = aiEnhancement.assumptions;
+              }
+              if (aiEnhancement.constraints && Array.isArray(aiEnhancement.constraints)) {
+                parsed.constraints = aiEnhancement.constraints;
               }
               if (aiEnhancement.problemStatement) {
                 parsed.problemStatement = aiEnhancement.problemStatement;
               }
+              if (aiEnhancement.expertInsight) {
+                parsed.expertInsight = aiEnhancement.expertInsight;
+              }
+
               rfpDocument = JSON.stringify(parsed);
             }
           } catch {
-            // AI 강화 실패 시 기본 PRDResult 유지
             console.log('AI enhancement parse failed, using base PRD');
           }
         }
+
+        // F14: AI Dynamic Feature Blueprint for unmatched features
+        rfpDocument = await generateDynamicFeatureBlueprints(rfpDocument, features, analyzedFeatures, anthropic);
       } catch (aiError) {
-        // AI 호출 실패 시 기본 PRDResult 유지 (이미 생성됨)
         console.error('AI enhancement error (using base PRD):', aiError);
       }
     }
