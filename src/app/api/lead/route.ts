@@ -46,6 +46,26 @@ async function notifySlack(type: string, data: Record<string, string>) {
   }
 }
 
+// [M3] GET — 세션/리드 카운트 반환
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('count') === 'true') {
+      const { count, error } = await supabase
+        .from('rfp_sessions')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) {
+        return NextResponse.json({ count: 0 });
+      }
+      return NextResponse.json({ count: count || 0 });
+    }
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  } catch {
+    return NextResponse.json({ count: 0 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, name, phone, company, step } = await req.json();
