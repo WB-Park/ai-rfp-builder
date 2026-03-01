@@ -328,10 +328,27 @@ export async function POST(req: NextRequest) {
 
       // 기능 선택 UI 표시 여부 결정
       let selectableFeatures: SelectableFeature[] | null = null;
-      if (aiResult.showFeatureSelector && rfpData.overview) {
-        const aiFeatures = await generateAIFeatures(rfpData.overview || userText);
-        if (aiFeatures && aiFeatures.length >= 3) {
-          selectableFeatures = aiFeatures;
+      const featureSourceText = rfpData.overview || userText;
+      if (aiResult.showFeatureSelector && featureSourceText && featureSourceText.length >= 2) {
+        try {
+          const aiFeatures = await generateAIFeatures(featureSourceText);
+          if (aiFeatures && aiFeatures.length >= 3) {
+            selectableFeatures = aiFeatures;
+          }
+        } catch (e) {
+          console.error('Feature generation failed:', e);
+        }
+      }
+      // showFeatureSelector=true인데 기능 리스트 생성 실패 시, 메시지에서 기능 선택 안내 제거
+      let finalQuestion = aiResult.question;
+      if (aiResult.showFeatureSelector && !selectableFeatures) {
+        finalQuestion = finalQuestion
+          .replace(/기능을?\s*선택해\s*주세요[.!]?/g, '')
+          .replace(/아래에서?\s*기능을?\s*선택[^.]*[.!]?/g, '')
+          .replace(/기능\s*리스트를?\s*확인[^.]*[.!]?/g, '')
+          .trim();
+        if (!finalQuestion) {
+          finalQuestion = '프로젝트에 필요한 핵심 기능들을 알려주세요. 어떤 기능이 가장 중요한가요?';
         }
       }
 
@@ -342,8 +359,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         analysisMessage: aiResult.analysis,
-        questionMessage: aiResult.question,
-        message: aiResult.question || aiResult.analysis,
+        questionMessage: finalQuestion,
+        message: finalQuestion || aiResult.analysis,
         rfpUpdate,
         nextAction: isComplete ? 'complete' : 'continue',
         quickReplies: selectableFeatures ? [] : aiResult.quickReplies,

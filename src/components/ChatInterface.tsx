@@ -701,6 +701,23 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-primary)'; }}
                       >{option}</button>
                     ))}
+                    {/* 직접 입력 옵션 */}
+                    <button onClick={() => { inputRef.current?.focus(); }} style={{
+                      padding: '7px 14px', borderRadius: 20,
+                      border: '1.5px dashed var(--text-tertiary)',
+                      background: 'transparent', color: 'var(--text-tertiary)',
+                      fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      직접 입력하기
+                    </button>
                   </div>
                 )}
 

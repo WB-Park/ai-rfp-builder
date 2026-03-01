@@ -348,3 +348,433 @@ body {
 ::selection {
   background: rgba(var(--color-primary-rgb), 0.15);
 }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PRD Result Page — Responsive + Print + Hover
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* ── PRD Container ── */
+.prd-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.prd-main-content {
+  margin-left: 260px;
+  transition: margin-left 0.3s var(--ease-out);
+}
+
+/* ── PRD Cards & Sections ── */
+.prd-card {
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+.prd-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+
+.prd-section-header {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.prd-section-header:hover {
+  color: var(--color-primary) !important;
+}
+
+/* ── Editable Text Hover ── */
+.prd-editable {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border-radius: 8px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border: 1px solid transparent;
+}
+.prd-editable:hover {
+  background: rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.15);
+}
+
+/* ── Buttons ── */
+.prd-btn {
+  transition: all 0.15s var(--ease-out);
+  cursor: pointer;
+}
+.prd-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.prd-btn:active {
+  transform: translateY(0);
+}
+
+.prd-btn-primary {
+  background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+}
+.prd-btn-primary:hover {
+  background: linear-gradient(135deg, #172e4d 0%, #1D4ED8 100%);
+}
+
+.prd-btn-secondary {
+  background: #fff;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 500;
+}
+.prd-btn-secondary:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+/* ── KPI Cards ── */
+.prd-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/* ── Feature Priority Tabs ── */
+.prd-tab {
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  background: transparent;
+  padding: 8px 20px;
+  border-radius: 100px;
+  font-weight: 500;
+  font-size: 14px;
+}
+.prd-tab:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: #2563EB;
+}
+.prd-tab-active {
+  background: #2563EB !important;
+  color: #fff !important;
+}
+
+/* ── Floating TOC ── */
+.prd-floating-toc {
+  position: fixed;
+  left: 40px;
+  top: 80px;
+  width: 220px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  z-index: 90;
+  transition: transform 0.3s var(--ease-out), opacity 0.3s;
+}
+
+.prd-toc-item {
+  display: block;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #94A3B8;
+  text-decoration: none;
+  border-left: 2px solid #E2E8F0;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.prd-toc-item:hover {
+  color: #2563EB;
+  background: rgba(37, 99, 235, 0.04);
+  border-left-color: #93C5FD;
+}
+.prd-toc-item-active {
+  color: #2563EB !important;
+  font-weight: 600;
+  border-left-color: #2563EB !important;
+  background: rgba(37, 99, 235, 0.06);
+}
+
+/* ── Sticky Bars ── */
+.prd-sticky-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.85);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  transform: translateY(-100%);
+  transition: transform 0.3s var(--ease-out);
+}
+.prd-sticky-top-visible {
+  transform: translateY(0);
+}
+
+.prd-sticky-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.9);
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding: 12px 24px;
+}
+
+/* ── Module Cards (expandable) ── */
+.prd-module-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.prd-module-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+.prd-module-header {
+  cursor: pointer;
+  transition: background 0.15s;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.prd-module-header:hover {
+  background: #F8FAFC;
+}
+
+/* ── Search Bar ── */
+.prd-search-bar {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 110;
+  width: 500px;
+  max-width: 90vw;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 0.2s var(--ease-spring) both;
+}
+.prd-search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  padding: 8px 12px;
+  background: transparent;
+  font-family: var(--font-kr);
+}
+
+/* ━━ RESPONSIVE — Tablet ━━ */
+@media (max-width: 1024px) {
+  .prd-floating-toc {
+    display: none;
+  }
+  .prd-main-content {
+    margin-left: 0 !important;
+  }
+  .prd-container {
+    padding: 0 24px;
+  }
+}
+
+/* ━━ RESPONSIVE — Mobile ━━ */
+@media (max-width: 768px) {
+  .prd-container {
+    padding: 0 16px;
+  }
+  .prd-card {
+    padding: 20px;
+    border-radius: 12px;
+  }
+  .prd-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .prd-sticky-bottom {
+    padding: 10px 16px;
+  }
+  .prd-sticky-bottom .prd-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+  .prd-section-header {
+    font-size: 20px !important;
+  }
+  .prd-module-header {
+    padding: 16px;
+  }
+  .prd-search-bar {
+    width: calc(100vw - 32px);
+    top: 16px;
+  }
+  /* Hide non-essential elements on mobile */
+  .prd-hide-mobile {
+    display: none !important;
+  }
+}
+
+/* ━━ RESPONSIVE — Small Mobile ━━ */
+@media (max-width: 480px) {
+  .prd-container {
+    padding: 0 12px;
+  }
+  .prd-card {
+    padding: 16px;
+    border-radius: 10px;
+  }
+}
+
+/* ━━ PRINT STYLES ━━ */
+@media print {
+  /* Hide interactive elements */
+  .prd-floating-toc,
+  .prd-sticky-top,
+  .prd-sticky-bottom,
+  .prd-search-bar,
+  .prd-btn,
+  .prd-hide-print,
+  .prd-toc-inline {
+    display: none !important;
+  }
+
+  .prd-main-content {
+    margin-left: 0 !important;
+  }
+
+  .prd-container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .prd-card {
+    border: 1px solid #ddd;
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .prd-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .prd-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  body {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #000;
+  }
+
+  a {
+    color: #000;
+    text-decoration: none;
+  }
+
+  /* Show URL after links in print */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 10px;
+    color: #666;
+  }
+}
+
+/* ━━ ACCESSIBILITY ━━ */
+.prd-editable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.prd-toc-item:focus-visible,
+.prd-tab:focus-visible,
+.prd-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Skip Navigation (a11y) */
+.prd-skip-nav {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 200;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.prd-skip-nav:focus {
+  top: 16px;
+}
+
+/* ── Gantt Chart responsive ── */
+.prd-gantt-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Risk Matrix responsive ── */
+.prd-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .prd-risk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Tech Stack table responsive ── */
+.prd-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 768px) {
+  .prd-table-responsive table {
+    min-width: 600px;
+  }
+}
+
+/* ── Persona cards responsive ── */
+.prd-persona-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* ── Two column layout ── */
+.prd-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .prd-two-col {
+    grid-template-columns: 1fr;
+  }
+}

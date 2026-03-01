@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { RFPData } from '@/types/rfp';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -60,6 +60,9 @@ interface PRDResult {
   apiEndpoints?: { method: string; path: string; description: string; feature: string }[];
   dataModel?: { entity: string; fields: string[]; relationships: string[] }[];
   competitorAnalysis?: { name: string; strengths: string; weaknesses: string; differentiation: string }[];
+  // P1: Approval & QA
+  approvalProcess?: { stage: string; approver: string; criteria: string }[];
+  qaStrategy?: { type: string; scope: string; tools: string; criteria: string }[];
 }
 
 // ━━━━━ Design Tokens ━━━━━
@@ -259,6 +262,11 @@ function EditableText({ value, onChange, style, sectionKey, sectionTitle, projec
   return (
     <div
       onClick={() => setEditing(true)}
+      className="prd-editable"
+      role="button"
+      tabIndex={0}
+      aria-label={`${sectionTitle || '섹션'} 편집하기`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(true); } }}
       style={{ ...style, cursor: 'pointer', position: 'relative', borderRadius: 6, transition: 'background 0.15s' }}
       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.03)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -315,9 +323,9 @@ function SectionHeader({ number, title, subtitle }: { number: string; title: str
 }
 
 // ━━━━━ Card Wrapper ━━━━━
-function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Card({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
   return (
-    <div style={{
+    <div className={`prd-card ${className || ''}`} style={{
       background: C.white,
       border: `1px solid ${C.border}`,
       borderRadius: 14,
@@ -564,7 +572,7 @@ function DetailSection({ title, items, icon }: { title: string; items: string[];
 }
 
 // ━━━━━ Module Card ━━━━━
-function ModuleCard({ module, forceExpand }: { module: any; forceExpand?: boolean | null }) {
+const ModuleCard = memo(function ModuleCard({ module, forceExpand }: { module: any; forceExpand?: boolean | null }) {
   const [expanded, setExpanded] = useState(module.priority === 'P0');
   useEffect(() => {
     if (forceExpand === true) setExpanded(true);
@@ -572,7 +580,7 @@ function ModuleCard({ module, forceExpand }: { module: any; forceExpand?: boolea
   }, [forceExpand]);
 
   return (
-    <div style={{
+    <div className="prd-module-card" style={{
       background: C.white, border: `1px solid ${C.border}`, borderRadius: 12,
       overflow: 'hidden', marginBottom: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
     }}>
@@ -609,7 +617,7 @@ function ModuleCard({ module, forceExpand }: { module: any; forceExpand?: boolea
       )}
     </div>
   );
-}
+});
 
 // ━━━━━ TOC (Table of Contents) ━━━━━
 function TableOfContents({ sections }: { sections: { num: string; title: string; id: string }[] }) {
@@ -651,7 +659,7 @@ function TableOfContents({ sections }: { sections: { num: string; title: string;
 function FloatingTOC({ sections, activeSection }: { sections: { num: string; title: string; id: string }[]; activeSection: string }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
-    <div className="no-print" style={{
+    <nav className="prd-floating-toc no-print" aria-label="문서 목차" style={{
       position: 'fixed', left: 16, top: '50%', transform: 'translateY(-50%)',
       zIndex: 100, transition: 'all 0.3s ease',
     }}>
@@ -694,7 +702,7 @@ function FloatingTOC({ sections, activeSection }: { sections: { num: string; tit
           })}
         </div>
       )}
-    </div>
+    </nav>
   );
 }
 
@@ -807,7 +815,7 @@ function KPISummary({ prdData }: { prdData: PRDResult }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
+    <div className="prd-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
       {cards.map((c, i) => (
         <div key={i} style={{
           background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 16px',
@@ -841,9 +849,9 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
   const totalWeeks = cumulativeWeeks;
 
   return (
-    <Card style={{ padding: '28px 28px 20px' }}>
+    <Card className="prd-gantt-container" style={{ padding: '28px 28px 20px' }}>
       {/* Week markers */}
-      <div style={{ display: 'flex', marginBottom: 6, paddingLeft: 140 }}>
+      <div className="prd-hide-mobile" style={{ display: 'flex', marginBottom: 6, paddingLeft: 140 }}>
         {Array.from({ length: totalWeeks + 1 }, (_, i) => (
           <div key={i} style={{ flex: 1, fontSize: 9, color: C.textTertiary, textAlign: 'left' }}>
             {i % 2 === 0 ? `${i}주` : ''}
@@ -894,7 +902,7 @@ function RiskMatrix({ risks }: { risks: PRDResult['risks'] }) {
   const impactMap: Record<string, number> = { '높음': 3, '중간': 2, '낮음': 1 };
   return (
     <Card style={{ padding: '28px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+      <div className="prd-risk-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         {/* Header */}
         <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '80px 1fr 1fr 1fr', gap: 8, marginBottom: 4 }}>
           <div />
@@ -1027,6 +1035,10 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'P0' | 'P1' | 'P2'>('all');
   // A-2: Expand/collapse all
   const [expandAll, setExpandAll] = useState<boolean | null>(null);
+  // P1: Document Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ section: string; text: string; id: string }[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // A-1: Intersection Observer for Floating TOC
   useEffect(() => {
@@ -1040,6 +1052,53 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     sectionEls.forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, [loading, prdData]);
+
+  // P1: Ctrl+K search shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === 'Escape') {
+        setSearchQuery('');
+        setSearchResults([]);
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // P1: Search logic
+  useEffect(() => {
+    if (!prdData || !searchQuery || searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const q = searchQuery.toLowerCase();
+    const results: { section: string; text: string; id: string }[] = [];
+    const addIfMatch = (text: string | undefined, section: string, id: string) => {
+      if (text && text.toLowerCase().includes(q)) {
+        const idx = text.toLowerCase().indexOf(q);
+        const start = Math.max(0, idx - 30);
+        const end = Math.min(text.length, idx + searchQuery.length + 30);
+        results.push({ section, text: (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : ''), id });
+      }
+    };
+    addIfMatch(prdData.executiveSummary, 'Executive Summary', 'sec-summary');
+    addIfMatch(prdData.projectOverview, '프로젝트 개요', 'sec-overview');
+    addIfMatch(prdData.problemStatement, '문제 정의', 'sec-goals');
+    addIfMatch(prdData.targetUsers, '타겟 사용자', 'sec-users');
+    prdData.featureModules?.forEach(m => {
+      m.features?.forEach(f => {
+        addIfMatch(f.name, `기능: ${m.name}`, 'sec-features');
+        addIfMatch(f.description, `기능: ${f.name}`, 'sec-features');
+      });
+    });
+    addIfMatch(prdData.expertInsight, '전문가 인사이트', 'sec-expert');
+    setSearchResults(results.slice(0, 8));
+  }, [searchQuery, prdData]);
 
   // F11: 단계별 진행 상태
   const [loadingPhase, setLoadingPhase] = useState(0);
@@ -1523,6 +1582,8 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       let n = prdData.expertInsight ? 14 : 13;
       const extra: { num: string; title: string; id: string }[] = [];
       extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
+      if ((prdData.approvalProcess?.length ?? 0) > 0) extra.push({ num: String(n++), title: '승인 프로세스', id: 'sec-approval' });
+      if ((prdData.qaStrategy?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'QA 전략', id: 'sec-qa' });
       if ((prdData.apiEndpoints?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'API 명세', id: 'sec-api' });
       if ((prdData.dataModel?.length ?? 0) > 0) extra.push({ num: String(n++), title: '데이터 모델', id: 'sec-datamodel' });
       if ((prdData.competitorAnalysis?.length ?? 0) > 0) extra.push({ num: String(n++), title: '경쟁 서비스 분석', id: 'sec-competitor' });
@@ -1540,7 +1601,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }} ref={contentRef}>
+    <div style={{ minHeight: '100vh', background: C.bg }} ref={contentRef} role="main" lang="ko">
+      {/* Skip Navigation (Accessibility) */}
+      <a href="#sec-summary" className="prd-skip-nav">본문으로 건너뛰기</a>
       {/* Print styles */}
       <style>{`
         @media print {
@@ -1605,7 +1668,55 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       </div>
 
       {/* ━━ Body ━━ */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
+      <div className="prd-container" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
+        {/* P1: Document Search */}
+        <div className="prd-search-bar no-print" style={{ marginBottom: 20, position: 'relative' }}>
+          <div style={{ position: 'relative' }}>
+            <svg style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.textTertiary} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="문서 내 검색... (⌘K)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="PRD 문서 내 검색"
+              style={{
+                width: '100%', padding: '10px 14px 10px 40px', borderRadius: 10,
+                border: `1px solid ${searchQuery ? C.blue : C.border}`, background: C.white,
+                fontSize: 13, color: C.textPrimary, outline: 'none',
+                transition: 'border-color 0.15s',
+              }}
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{
+                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: C.textTertiary,
+              }} aria-label="검색 초기화">✕</button>
+            )}
+          </div>
+          {searchResults.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+              background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4, maxHeight: 320, overflowY: 'auto',
+            }}>
+              {searchResults.map((r, i) => (
+                <a key={i} href={`#${r.id}`} onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+                  style={{
+                    display: 'block', padding: '10px 16px', textDecoration: 'none',
+                    borderBottom: i < searchResults.length - 1 ? `1px solid ${C.borderLight}` : 'none',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = C.blueBg; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, marginBottom: 2 }}>{r.section}</div>
+                  <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>{r.text}</div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
         {/* B-1: KPI Summary Cards */}
         <KPISummary prdData={prdData} />
 
@@ -1691,7 +1802,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               sectionKey="targetUsers" sectionTitle="타겟 사용자" projectContext={projectCtx}
             />
             {(prdData.userPersonas?.length ?? 0) > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+              <div className="prd-persona-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
                 {prdData.userPersonas.map((p, i) => {
                   const personaColors = [
                     { bg: C.blueBg, color: C.blue },
@@ -1806,9 +1917,9 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           <SectionHeaderAnchored number="7" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
           {/* B-2: Priority Filter Tabs + A-2: Expand/Collapse All */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 4, background: C.borderLight, borderRadius: 8, padding: 3 }}>
+            <div role="tablist" aria-label="우선순위 필터" style={{ display: 'flex', gap: 4, background: C.borderLight, borderRadius: 8, padding: 3 }}>
               {([['all', '전체'], ['P0', 'P0 핵심'], ['P1', 'P1 중요'], ['P2', 'P2 선택']] as const).map(([key, label]) => (
-                <button key={key} onClick={() => setPriorityFilter(key as any)} style={{
+                <button key={key} role="tab" aria-selected={priorityFilter === key} onClick={() => setPriorityFilter(key as any)} style={{
                   padding: '6px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600,
                   background: priorityFilter === key ? C.white : 'transparent',
                   color: priorityFilter === key ? C.blue : C.textTertiary,
@@ -1962,7 +2073,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             </Card>
           )}
           <Card>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="prd-table-responsive" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#F1F5F9' }}>
@@ -2074,7 +2185,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         {/* 10. Assumptions & Constraints */}
         <div id="sec-assumptions">
           <SectionHeaderAnchored number="11" title="전제 조건 & 제약사항" id="sec-assumptions" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+          <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
@@ -2106,7 +2217,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
           {/* B-4: Risk Matrix Visualization */}
           <RiskMatrix risks={prdData.risks} />
           <Card>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="prd-table-responsive" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#F1F5F9' }}>
@@ -2156,6 +2267,84 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               </div>
             </Card>
           </div>
+        )}
+
+        <SectionDivider />
+
+        {/* P1: Approval Process */}
+        {(prdData.approvalProcess?.length ?? 0) > 0 && (
+          <>
+            <SectionDivider />
+            <div id="sec-approval">
+              <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-approval')?.num || '14')} title="승인 프로세스" subtitle="단계별 의사결정 및 거버넌스" id="sec-approval" />
+              <Card>
+                <div style={{ position: 'relative' }}>
+                  {prdData.approvalProcess!.map((ap, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 16, marginBottom: i < (prdData.approvalProcess?.length || 0) - 1 ? 20 : 0, position: 'relative' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 28 }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%',
+                          background: C.blue, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, flexShrink: 0, zIndex: 1,
+                        }}>{i + 1}</div>
+                        {i < (prdData.approvalProcess?.length || 0) - 1 && (
+                          <div style={{ width: 2, flex: 1, background: C.borderLight, marginTop: 4 }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, paddingBottom: 4 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{ap.stage}</div>
+                        <div style={{ fontSize: 13, color: C.textSecondary, marginBottom: 2 }}>
+                          <span style={{ fontWeight: 600 }}>승인자:</span> {ap.approver}
+                        </div>
+                        <div style={{ fontSize: 13, color: C.textTertiary }}>
+                          <span style={{ fontWeight: 600 }}>기준:</span> {ap.criteria}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </>
+        )}
+
+        {/* P1: QA Strategy */}
+        {(prdData.qaStrategy?.length ?? 0) > 0 && (
+          <>
+            <SectionDivider />
+            <div id="sec-qa">
+              <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-qa')?.num || '15')} title="QA 전략" subtitle="품질 보증 및 테스트 전략" id="sec-qa" />
+              <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                {prdData.qaStrategy!.map((qa, i) => {
+                  const qaColors: Record<string, { icon: string; color: string; bg: string }> = {
+                    '단위': { icon: '🔬', color: C.blue, bg: C.blueBg },
+                    '통합': { icon: '🔗', color: C.green, bg: C.greenBg },
+                    'E2E': { icon: '🎯', color: C.purple, bg: C.purpleBg },
+                    '성능': { icon: '⚡', color: C.yellow, bg: C.yellowBg },
+                    '보안': { icon: '🔒', color: C.red, bg: C.redBg },
+                  };
+                  const theme = Object.entries(qaColors).find(([k]) => qa.type.includes(k))?.[1] || { icon: '✅', color: C.blue, bg: C.blueBg };
+                  return (
+                    <Card key={i} style={{ borderTop: `3px solid ${theme.color}` }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: theme.bg, fontSize: 14 }}>{theme.icon}</span>
+                        {qa.type}
+                      </h3>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
+                        <strong>범위:</strong> {qa.scope}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
+                        <strong>도구:</strong> <span style={{ background: C.blueBg, padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{qa.tools}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                        <strong>통과 기준:</strong> {qa.criteria}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
 
         <SectionDivider />

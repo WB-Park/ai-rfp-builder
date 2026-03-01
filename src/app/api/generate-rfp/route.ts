@@ -61,6 +61,8 @@ interface PRDResult {
   apiEndpoints?: { method: string; path: string; description: string; feature: string }[];
   dataModel?: { entity: string; fields: string[]; relationships: string[] }[];
   competitorAnalysis?: { name: string; strengths: string; weaknesses: string; differentiation: string }[];
+  approvalProcess?: { stage: string; approver: string; criteria: string }[];
+  qaStrategy?: { type: string; scope: string; tools: string; criteria: string }[];
 }
 
 // ═══════════════════════════════════════════
@@ -176,7 +178,13 @@ JSON 형식으로 응답하세요:
   "competitorAnalysis": [
     {"name": "실제 경쟁 서비스명", "strengths": "강점", "weaknesses": "약점", "differentiation": "우리 서비스의 차별점"}
   ],
-  "scopeExclusions": ["1차 MVP에서 제외할 기능/범위 5개 — 각각 제외 이유 포함"]
+  "scopeExclusions": ["1차 MVP에서 제외할 기능/범위 5개 — 각각 제외 이유 포함"],
+  "approvalProcess": [
+    {"stage": "단계명 (예: 기획 승인, 디자인 리뷰, QA 통과)", "approver": "담당자/역할", "criteria": "승인 기준 구체적으로"}
+  ],
+  "qaStrategy": [
+    {"type": "테스트 유형 (단위/통합/E2E/성능/보안)", "scope": "테스트 대상 범위", "tools": "도구명", "criteria": "통과 기준"}
+  ]
 }
 
 projectGoals: 정확히 4개. SMART 원칙 적용.
@@ -184,7 +192,9 @@ userPersonas: 정확히 3명. 최소 1명은 서비스 운영자/관리자.
 timeline: 정확히 5단계 (기획설계/UI디자인/MVP개발/추가기능/QA출시).
 risks: 정확히 5개. 기술/비즈니스/운영 골고루.
 techStack: 4~6개. 프론트엔드, 백엔드, DB, 인프라 필수.
-competitorAnalysis: 3개. 실제 한국 서비스명 사용.`
+competitorAnalysis: 3개. 실제 한국 서비스명 사용.
+approvalProcess: 정확히 4단계. 기획승인/디자인리뷰/개발완료/출시승인 단계 필수.
+qaStrategy: 정확히 5개. 단위테스트, 통합테스트, E2E, 성능, 보안 반드시 포함.`
     }],
   });
 
@@ -500,6 +510,8 @@ JSON 형식으로 응답:
     apiEndpoints,
     dataModel,
     competitorAnalysis: dataB.competitorAnalysis || [],
+    approvalProcess: dataB.approvalProcess || [],
+    qaStrategy: dataB.qaStrategy || [],
   };
 
   return result;
@@ -577,6 +589,8 @@ function generateMinimalFallback(rfpData: RFPData): PRDResult {
     apiEndpoints: [],
     dataModel: [],
     competitorAnalysis: [],
+    approvalProcess: [],
+    qaStrategy: [],
   };
 }
 
