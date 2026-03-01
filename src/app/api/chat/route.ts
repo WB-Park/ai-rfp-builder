@@ -127,6 +127,7 @@ async function generateQuickResponse(
 - 💡 인사이트는 위시켓 프로젝트 데이터 기반 사실만
 - 예산/견적/비용/시장분석 관련 질문은 절대 하지 마세요
 - 한 번에 하나의 주제에 대해서만 질문하세요
+- question에는 물음표(?)가 정확히 1개만 있어야 합니다. "A인가요? B는요?" 같은 복합질문 절대 금지.
 
 [수집해야 할 정보]
 1. 프로젝트 개요 (필수)
@@ -152,7 +153,7 @@ ${missingInfo.length > 0 ? missingInfo.join(', ') : '(모든 필수 정보 수�
 [응답 형식 — 반드시 JSON만 출력]
 {
   "analysis": "고객 답변에 대한 서술형 피드백 (2~3문장). 💡 인사이트 1문장 포함. ⚠️ 물음표(?) 절대 금지. 서술문만 사용.",
-  "question": "딱 하나의 명확한 질문. 선택지/예시 포함.",
+  "question": "물음표(?)가 정확히 1개인 단일 질문. 복합질문 금지. 선택지/예시 포함.",
   "rfpUpdate": { "section": "overview|targetUsers|coreFeatures|techRequirements|referenceServices|additionalRequirements", "value": "추출한 값" } 또는 null,
   "quickReplies": ["선택지1", "선택지2"],
   "showFeatureSelector": false,
@@ -279,7 +280,10 @@ Deep Mode에서는 Quick Mode와 동일하게 대화형으로 시작하되, 각 
   ⚠️ analysis에는 물음표(?) 절대 금지. 질문처럼 보이는 표현도 금지. 오직 서술문/평서문만 사용.
   ✅ "~한 경향이 있습니다", "~점이 인상적입니다", "~를 고려해볼 수 있습니다"
   ❌ "~는 어떠세요?", "~하신 건가요?", "~해보셨나요?"
-- question: 딱 하나의 명확한 질문. 구체적 선택지/예시 포함. 유저가 "이것만 답하면 된다"고 바로 알 수 있게.
+- question: ⚠️ 반드시 물음표(?)가 정확히 1개인 단일 질문. "A인가요? 그리고 B는요?" 같은 복합질문 절대 금지.
+  ✅ "이 세 기능 중 가장 핵심이 되는 기능은 무엇인가요?" (물음표 1개)
+  ❌ "핵심 기능은 무엇인가요? 그리고 어떤 문제를 해결하고 싶으세요?" (물음표 2개 — 금지)
+  선택지/예시 포함. 유저가 "이것만 답하면 된다"고 바로 알 수 있게.
 - 제네릭 반응 금지 ("좋은 생각이시네요" ❌ → 구체적으로 짚기)
 - 예산/견적/비용 질문 절대 금지
 - 한 번에 하나의 주제에 집중 (토픽 점프 금지)
@@ -301,7 +305,7 @@ ${missingInfo.length > 0 ? missingInfo.join(', ') : '(모든 필수 정보 수�
 [응답 형식 — 반드시 JSON만 출력]
 {
   "analysis": "고객 답변에 대한 서술형 피드백 (2~4문장). 💡 인사이트 포함. ⚠️ 물음표(?) 절대 금지.",
-  "question": "딱 하나의 명확한 질문. 구체적 선택지/예시 포함.",
+  "question": "물음표(?)가 정확히 1개인 단일 질문. 복합질문 금지. 선택지/예시 포함.",
   "rfpUpdate": { "section": "overview|targetUsers|coreFeatures|techRequirements|referenceServices|additionalRequirements", "value": "추출한 값" } 또는 null,
   "quickReplies": ["선택지1", "선택지2", "선택지3"],
   "showFeatureSelector": false,
