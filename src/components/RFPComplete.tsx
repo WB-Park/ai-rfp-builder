@@ -13,6 +13,7 @@ interface RFPCompleteProps {
   sessionId?: string;
   preloadedPrd?: string; // JSON string of PRDResult — skips API call, renders directly
   readOnly?: boolean; // Hide editing features for share page
+  chatMessages?: { role: string; content: string }[]; // 대화 히스토리 → PRD 생성에 활용
 }
 
 interface PRDResult {
@@ -324,7 +325,7 @@ function SectionHeader({ number, title, subtitle }: { number: string; title: str
         </h2>
       </div>
       {subtitle && (
-        <p style={{ fontSize: 13, color: C.textTertiary, margin: '8px 0 0 54px', lineHeight: 1.6, fontWeight: 500 }}>{subtitle}</p>
+        <p style={{ fontSize: 14, color: C.textTertiary, margin: '8px 0 0 54px', lineHeight: 1.6, fontWeight: 500 }}>{subtitle}</p>
       )}
     </div>
   );
@@ -395,7 +396,7 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
           }}>{index}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <h5 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
+              <h5 style={{ fontSize: 16, fontWeight: 700, color: C.textPrimary, margin: 0 }}>{feature.name}</h5>
               {feature.estimatedManDays > 0 && (
                 <span style={{
                   fontSize: 10, fontWeight: 700, color: C.yellow, background: C.yellowBg,
@@ -404,7 +405,7 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
                 }}>⏱ {feature.estimatedManDays}MD</span>
               )}
             </div>
-            <p style={{ fontSize: 13, color: C.textTertiary, margin: '2px 0 0 0', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: expanded ? undefined : 1, WebkitBoxOrient: 'vertical' as any }}>
+            <p style={{ fontSize: 14, color: C.textTertiary, margin: '2px 0 0 0', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: expanded ? undefined : 1, WebkitBoxOrient: 'vertical' as any }}>
               {feature.description}
             </p>
           </div>
@@ -426,7 +427,7 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
         <div style={{ borderTop: `1px solid ${C.border}`, padding: '24px', background: '#FAFBFD' }}>
           {/* Description full */}
           {feature.description && (
-            <div style={{ marginBottom: 20, fontSize: 14, color: C.textSecondary, lineHeight: 1.8 }}>
+            <div style={{ marginBottom: 20, fontSize: 15, color: C.textSecondary, lineHeight: 1.8 }}>
               {formatTextContent(feature.description)}
             </div>
           )}
@@ -438,10 +439,10 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 24, height: 24, borderRadius: 6, background: C.blueBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🔧</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>하위 기능</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>하위 기능</span>
                   </div>
                   {feature.subFeatures.map((sf: string, i: number) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8, fontSize: 14, color: C.textSecondary, lineHeight: 1.6 }}>
                       <span style={{ color: C.blue, flexShrink: 0, marginTop: 2, fontSize: 8 }}>●</span>
                       {sf}
                     </div>
@@ -452,10 +453,10 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 24, height: 24, borderRadius: 6, background: C.greenBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>✅</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>수락 기준 (AC)</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>수락 기준 (AC)</span>
                   </div>
                   {feature.acceptanceCriteria.map((ac: string, i: number) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8, fontSize: 14, color: C.textSecondary, lineHeight: 1.6 }}>
                       <span style={{ color: C.green, flexShrink: 0, marginTop: 1 }}>✓</span>
                       {ac}
                     </div>
@@ -470,11 +471,11 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 6, background: C.purpleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🔄</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>사용자 흐름</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>사용자 흐름</span>
               </div>
               <pre style={{
                 background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
-                padding: '16px 20px', fontSize: 12, color: C.textSecondary,
+                padding: '16px 20px', fontSize: 13, color: C.textSecondary,
                 fontFamily: '"SF Mono", Monaco, Consolas, monospace',
                 overflow: 'auto', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap',
               }}>
@@ -488,7 +489,7 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 6, background: C.yellowBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📱</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>화면 명세</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>화면 명세</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                 {feature.screenSpecs.map((spec: any, i: number) => (
@@ -496,8 +497,8 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
                     background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
                     padding: '16px 18px', borderTop: `3px solid ${C.yellow}`,
                   }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{spec.name}</div>
-                    <div style={{ fontSize: 12, color: C.textTertiary, marginBottom: 10, lineHeight: 1.5 }}>{spec.purpose}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{spec.name}</div>
+                    <div style={{ fontSize: 13, color: C.textTertiary, marginBottom: 10, lineHeight: 1.5 }}>{spec.purpose}</div>
                     {spec.elements?.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {spec.elements.map((el: string, j: number) => (
@@ -521,10 +522,10 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 24, height: 24, borderRadius: 6, background: C.blueBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📋</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>비즈니스 규칙</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>비즈니스 규칙</span>
                   </div>
                   {feature.businessRules.map((rule: string, i: number) => (
-                    <div key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, lineHeight: 1.6, paddingLeft: 14, position: 'relative' }}>
+                    <div key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, lineHeight: 1.6, paddingLeft: 14, position: 'relative' }}>
                       <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>•</span>{rule}
                     </div>
                   ))}
@@ -534,10 +535,10 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 24, height: 24, borderRadius: 6, background: C.redBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>⚠️</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>에러 케이스</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>에러 케이스</span>
                   </div>
                   {feature.errorCases.map((ec: string, i: number) => (
-                    <div key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, lineHeight: 1.6, paddingLeft: 14, position: 'relative' }}>
+                    <div key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, lineHeight: 1.6, paddingLeft: 14, position: 'relative' }}>
                       <span style={{ position: 'absolute', left: 0, color: C.red }}>!</span>{ec}
                     </div>
                   ))}
@@ -551,7 +552,7 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 6, background: C.purpleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🗄️</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>데이터 엔티티</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, letterSpacing: 0.3 }}>데이터 엔티티</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {feature.dataEntities.map((entity: any, i: number) => (
@@ -580,7 +581,7 @@ function DetailSection({ title, items, icon }: { title: string; items: string[];
       </h6>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {items.map((item, i) => (
-          <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 6, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+          <li key={i} style={{ fontSize: 15, color: C.textSecondary, marginBottom: 6, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
             <span style={{ position: 'absolute', left: 0 }}>{icon || '•'}</span>
             {item}
           </li>
@@ -618,7 +619,7 @@ const ModuleCard = memo(function ModuleCard({ module, forceExpand }: { module: a
             <PriorityBadge priority={module.priority} label={module.priorityLabel} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 13, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
+            <span style={{ fontSize: 14, color: C.textTertiary }}>{module.features?.length || 0}개 기능 포함</span>
             {(() => { const totalMD = module.features?.reduce((s: number, f: any) => s + (f.estimatedManDays || 0), 0) || 0; return totalMD > 0 ? <span style={{ fontSize: 11, fontWeight: 600, color: C.yellow, background: C.yellowBg, padding: '2px 8px', borderRadius: 4 }}>총 {totalMD}MD</span> : null; })()}
           </div>
         </div>
@@ -1001,7 +1002,7 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
         )}
       </div>
       {subtitle && (
-        <p style={{ fontSize: 13, color: C.textTertiary, margin: '8px 0 0 54px', lineHeight: 1.6, fontWeight: 500 }}>{subtitle}</p>
+        <p style={{ fontSize: 14, color: C.textTertiary, margin: '8px 0 0 54px', lineHeight: 1.6, fontWeight: 500 }}>{subtitle}</p>
       )}
       <style>{`.section-header-group:hover button { opacity: 0.6 !important; }`}</style>
     </div>
@@ -1009,7 +1010,7 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
 }
 
 // ━━━━━ Main Component ━━━━━
-export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly }: RFPCompleteProps) {
+export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, chatMessages }: RFPCompleteProps) {
   // preloadedPrd가 있으면 바로 파싱해서 사용 (share 페이지)
   const initialPrd = useMemo(() => {
     if (preloadedPrd) {
@@ -1078,7 +1079,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         const res = await fetch('/api/generate-rfp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rfpData, sessionId }),
+          body: JSON.stringify({ rfpData, sessionId, chatMessages: chatMessages || [] }),
         });
         const data = await res.json();
         clearInterval(phaseTimer);
@@ -1636,7 +1637,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             {currentPhase.label}
           </div>
           <div style={{
-            fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 32,
+            fontSize: 14, color: C.textSecondary, lineHeight: 1.6, marginBottom: 32,
             animation: 'phaseIn 0.5s ease-out',
           }} key={`sub-${loadingPhase}`}>
             {currentPhase.sub}
@@ -1971,7 +1972,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                     }}>{i + 1}</span>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 2 }}>{g.goal}</div>
-                      <div style={{ fontSize: 13, color: C.textSecondary }}>📏 {g.metric}</div>
+                      <div style={{ fontSize: 14, color: C.textSecondary }}>📏 {g.metric}</div>
                     </div>
                   </div>
                 ))}
@@ -2023,10 +2024,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                         <div style={{ fontSize: 12, color: C.textTertiary }}>{p.role}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, color: C.textSecondary, marginBottom: 6 }}>
+                    <div style={{ fontSize: 14, color: C.textSecondary, marginBottom: 6 }}>
                       <strong>니즈:</strong> {p.needs}
                     </div>
-                    <div style={{ fontSize: 13, color: C.textSecondary }}>
+                    <div style={{ fontSize: 14, color: C.textSecondary }}>
                       <strong>불편사항:</strong> {p.painPoints}
                     </div>
                   </div>
@@ -2050,7 +2051,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               </h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.scopeInclusions?.map((s, i) => (
-                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+                  <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
                     <span style={{ position: 'absolute', left: 0, color: C.green }}>✓</span>
                     {s}
                   </li>
@@ -2064,12 +2065,12 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               </h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {(prdData.scopeExclusions?.length ?? 0) > 0 ? prdData.scopeExclusions!.map((s, i) => (
-                  <li key={i} style={{ fontSize: 13, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+                  <li key={i} style={{ fontSize: 14, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
                     <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>✗</span>
                     {s}
                   </li>
                 )) : (
-                  <li style={{ fontSize: 13, color: C.textTertiary, lineHeight: 1.6 }}>미포함 항목이 정의되지 않았습니다.</li>
+                  <li style={{ fontSize: 14, color: C.textTertiary, lineHeight: 1.6 }}>미포함 항목이 정의되지 않았습니다.</li>
                 )}
               </ul>
             </Card>
@@ -2408,7 +2409,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   </h3>
                   <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                     {nfr.items?.map((item, i) => (
-                      <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 14, position: 'relative', lineHeight: 1.5 }}>
+                      <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 14, position: 'relative', lineHeight: 1.5 }}>
                         <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>•</span>
                         {item}
                       </li>
@@ -2476,7 +2477,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.assumptions?.map((a, i) => (
-                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                  <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
                     <span style={{ position: 'absolute', left: 0 }}>•</span>{a}
                   </li>
                 ))}
@@ -2486,7 +2487,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>🚧 제약사항 (Constraints)</h3>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {prdData.constraints?.map((c, i) => (
-                  <li key={i} style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                  <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
                     <span style={{ position: 'absolute', left: 0 }}>•</span>{c}
                   </li>
                 ))}
@@ -2593,10 +2594,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                       </div>
                       <div style={{ flex: 1, paddingBottom: 4 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{ap.stage}</div>
-                        <div style={{ fontSize: 13, color: C.textSecondary, marginBottom: 2 }}>
+                        <div style={{ fontSize: 14, color: C.textSecondary, marginBottom: 2 }}>
                           <span style={{ fontWeight: 600 }}>승인자:</span> {ap.approver}
                         </div>
-                        <div style={{ fontSize: 13, color: C.textTertiary }}>
+                        <div style={{ fontSize: 14, color: C.textTertiary }}>
                           <span style={{ fontWeight: 600 }}>기준:</span> {ap.criteria}
                         </div>
                       </div>
@@ -2630,13 +2631,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: theme.bg, fontSize: 14 }}>{theme.icon}</span>
                         {qa.type}
                       </h3>
-                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
+                      <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
                         <strong>범위:</strong> {qa.scope}
                       </div>
-                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
+                      <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
                         <strong>도구:</strong> <span style={{ background: C.blueBg, padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{qa.tools}</span>
                       </div>
-                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                      <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6 }}>
                         <strong>통과 기준:</strong> {qa.criteria}
                       </div>
                     </Card>
@@ -2661,7 +2662,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                     minWidth: 90, fontFamily: '"SF Mono", Monaco, monospace',
                     background: C.blueBg, padding: '3px 8px', borderRadius: 4,
                   }}>{g.term}</span>
-                  <span style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, flex: 1 }}>{g.definition}</span>
+                  <span style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, flex: 1 }}>{g.definition}</span>
                 </div>
               ))}
             </div>
@@ -2759,15 +2760,15 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   <div style={{ padding: '20px 24px', display: 'grid', gap: 14 }}>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>💪 강점</div>
-                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, padding: '8px 12px', background: C.greenBg, borderRadius: 8 }}>{comp.strengths}</div>
+                      <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, padding: '8px 12px', background: C.greenBg, borderRadius: 8 }}>{comp.strengths}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>⚠️ 약점</div>
-                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, padding: '8px 12px', background: C.redBg, borderRadius: 8 }}>{comp.weaknesses}</div>
+                      <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, padding: '8px 12px', background: C.redBg, borderRadius: 8 }}>{comp.weaknesses}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>🎯 차별화 포인트</div>
-                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, padding: '8px 12px', background: C.blueBg, borderRadius: 8 }}>{comp.differentiation}</div>
+                      <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, padding: '8px 12px', background: C.blueBg, borderRadius: 8 }}>{comp.differentiation}</div>
                     </div>
                   </div>
                 </Card>
@@ -2780,13 +2781,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {prdData.referenceServices && prdData.referenceServices !== '해당 없음' && (
           <Card>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>참고 서비스</h3>
-            <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}>{prdData.referenceServices}</p>
+            <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}>{prdData.referenceServices}</p>
           </Card>
         )}
         {prdData.additionalRequirements && prdData.additionalRequirements !== '추가 요구사항 없음' && (
           <Card>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 8px 0' }}>추가 요구사항</h3>
-            <p style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}>{prdData.additionalRequirements}</p>
+            <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}>{prdData.additionalRequirements}</p>
           </Card>
         )}
 
