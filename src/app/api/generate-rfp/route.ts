@@ -90,10 +90,18 @@ async function generateFullAIPRD(rfpData: RFPData): Promise<PRDResult> {
   const featureList = features.map((f, i) => `${i + 1}. ${f.name} (${f.priority}) — ${f.description || '설명 없음'}`).join('\n');
   const now = new Date().toISOString().split('T')[0];
 
+  // 개별 API 호출에 타임아웃 적용 (45초)
+  function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error('API_TIMEOUT')), ms)),
+    ]);
+  }
+
   // ── Call A: 프로젝트 전략 + 분석 (텍스트 중심 필드) ──
   const callA = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
+    max_tokens: 2500,
     system: `당신은 위시켓 13년차 수석 IT외주 PM 컨설턴트입니다. 116,000건 프로젝트 경험 기반으로 PRD를 작성합니다.
 
 [절대 규칙]
@@ -130,7 +138,7 @@ JSON 형식으로 응답하세요:
   // ── Call B: 구조화 데이터 (배열/객체 중심 필드) ──
   const callB = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
+    max_tokens: 2500,
     system: `당신은 위시켓 13년차 수석 IT외주 PM 컨설턴트입니다. 이 프로젝트에 특화된 구체적 내용만 작성합니다.
 
 [절대 규칙]
@@ -190,7 +198,7 @@ budgetBreakdown: 핵심 기능별 예산 배분.`
   // ── Call C: 기능 상세 명세 (가장 중요) ──
   const callC = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
+    max_tokens: 2500,
     system: `당신은 시니어 소프트웨어 아키텍트입니다. 각 기능에 대해 개발사가 바로 WBS를 작성할 수 있을 정도로 상세한 명세를 작성합니다.
 
 [절대 규칙]
@@ -243,8 +251,12 @@ JSON 형식으로 응답:
     }],
   });
 
-  // 3개 호출 병렬 실행
-  const [resultA, resultB, resultC] = await Promise.allSettled([callA, callB, callC]);
+  // 3개 호출 병렬 실행 (각 45초 타임아웃)
+  const [resultA, resultB, resultC] = await Promise.allSettled([
+    withTimeout(callA, 45000),
+    withTimeout(callB, 45000),
+    withTimeout(callC, 45000),
+  ]);
 
   // 결과 파싱
   function parseResult(result: PromiseSettledResult<any>): Record<string, any> {
@@ -582,8 +594,13 @@ function generateMinimalFallback(rfpData: RFPData): PRDResult {
 // ═══════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
+  let rfpData: RFPData | null = null;
+  let sessionId: string | undefined;
+
   try {
-    const { rfpData, sessionId }: { rfpData: RFPData; sessionId?: string } = await req.json();
+    const body = await req.json();
+    rfpData = body.rfpData;
+    sessionId = body.sessionId;
 
     if (!rfpData || !rfpData.overview) {
       return NextResponse.json({ error: 'RFP 데이터가 필요합니다.' }, { status: 400 });
@@ -594,8 +611,8 @@ export async function POST(req: NextRequest) {
     if (HAS_API_KEY) {
       try {
         result = await generateFullAIPRD(rfpData);
-      } catch (aiError) {
-        console.error('AI PRD generation failed, using fallback:', aiError);
+      } catch (aiError: any) {
+        console.error('AI PRD generation failed, using fallback:', aiError?.message || aiError);
         result = generateMinimalFallback(rfpData);
       }
     } else {
@@ -604,7 +621,7 @@ export async function POST(req: NextRequest) {
 
     const rfpDocument = JSON.stringify(result);
 
-    // Save to Supabase
+    // Save to Supabase (fire-and-forget)
     if (sessionId) {
       supabase
         .from('rfp_sessions')
@@ -624,16 +641,15 @@ export async function POST(req: NextRequest) {
       rfpDocument,
       generatedAt: new Date().toISOString(),
     });
-  } catch (error) {
-    console.error('RFP generation error:', error);
-    try {
-      const body = await req.clone().json();
+  } catch (error: any) {
+    console.error('RFP generation error:', error?.message || error);
+    // rfpData가 이미 파싱됐으면 fallback 생성 가능
+    if (rfpData) {
       return NextResponse.json({
-        rfpDocument: JSON.stringify(generateMinimalFallback(body.rfpData)),
+        rfpDocument: JSON.stringify(generateMinimalFallback(rfpData)),
         generatedAt: new Date().toISOString(),
       });
-    } catch {
-      return NextResponse.json({ error: 'RFP 생성 중 오류가 발생했습니다.' }, { status: 500 });
     }
+    return NextResponse.json({ error: 'RFP 생성 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }
