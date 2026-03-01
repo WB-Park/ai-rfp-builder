@@ -1837,9 +1837,68 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             </svg>
             PRD · 제품 요구사항 정의서
           </div>
-          <h1 style={{ fontSize: 40, fontWeight: 900, margin: '0 0 14px 0', lineHeight: 1.15, letterSpacing: '-1px' }}>
-            {prdData.projectName}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: 40, fontWeight: 900, margin: '0 0 14px 0', lineHeight: 1.15, letterSpacing: '-1px', flex: '1 1 auto', minWidth: 0 }}>
+              {prdData.projectName}
+            </h1>
+            {!readOnly && (
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: 6 }}>
+                {/* 마크다운 복사 */}
+                <button
+                  onClick={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: copied ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${copied ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                    color: copied ? '#86efac' : C.textOnDarkSub,
+                    padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', backdropFilter: 'blur(12px)', transition: C.ease,
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => { if (!copied) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = '#fff'; }}}
+                  onMouseLeave={(e) => { if (!copied) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = C.textOnDarkSub; }}}
+                >
+                  {copied ? '✓ 복사됨' : '📋 마크다운'}
+                </button>
+                {/* PDF 다운로드 */}
+                <button
+                  onClick={handlePDF}
+                  disabled={pdfGenerating}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: pdfGenerating ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${pdfGenerating ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.12)'}`,
+                    color: pdfGenerating ? '#fca5a5' : C.textOnDarkSub,
+                    padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                    cursor: pdfGenerating ? 'wait' : 'pointer', backdropFilter: 'blur(12px)', transition: C.ease,
+                    whiteSpace: 'nowrap', opacity: pdfGenerating ? 0.7 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!pdfGenerating) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = '#fff'; }}}
+                  onMouseLeave={(e) => { if (!pdfGenerating) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = C.textOnDarkSub; }}}
+                >
+                  {pdfGenerating ? '⏳ 생성 중…' : '📄 PDF'}
+                </button>
+                {/* DOCX 다운로드 */}
+                <button
+                  onClick={handleDOCX}
+                  disabled={docxGenerating}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: docxGenerating ? 'rgba(37,99,235,0.15)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${docxGenerating ? 'rgba(37,99,235,0.3)' : 'rgba(255,255,255,0.12)'}`,
+                    color: docxGenerating ? '#93c5fd' : C.textOnDarkSub,
+                    padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                    cursor: docxGenerating ? 'wait' : 'pointer', backdropFilter: 'blur(12px)', transition: C.ease,
+                    whiteSpace: 'nowrap', opacity: docxGenerating ? 0.7 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!docxGenerating) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = '#fff'; }}}
+                  onMouseLeave={(e) => { if (!docxGenerating) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = C.textOnDarkSub; }}}
+                >
+                  {docxGenerating ? '⏳ 생성 중…' : '📝 DOCX'}
+                </button>
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 13, color: C.textOnDarkSub, marginTop: 18, fontWeight: 500 }}>
             <span>📅 {prdData.documentMeta?.createdAt || '-'}</span>
             <span>📋 v{prdData.documentMeta?.version || '1.0'}</span>
