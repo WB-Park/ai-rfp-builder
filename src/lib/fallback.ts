@@ -13,6 +13,8 @@ interface SelectableFeature {
 
 interface FallbackResponse {
   message: string;
+  analysisMessage?: string;
+  questionMessage?: string;
   rfpUpdate: {
     section: string;
     value: string | { name: string; description: string; priority: string }[];

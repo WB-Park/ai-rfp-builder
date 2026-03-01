@@ -273,14 +273,39 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setThinkingLabel(data.thinkingLabel);
       }
 
-      const assistantMsg: ChatMessage = {
-        role: 'assistant' as const,
-        content: data.message,
-        timestamp: Date.now(),
-        selectableFeatures: data.selectableFeatures || undefined,
-        inlineOptions: data.inlineOptions || undefined,
-      };
-      const finalMessages: ChatMessage[] = [...newMessages, assistantMsg];
+      // 분석 메시지와 질문 메시지 분리 렌더링
+      const hasAnalysis = data.analysisMessage && data.analysisMessage.trim();
+      const hasQuestion = data.questionMessage && data.questionMessage.trim();
+
+      let finalMessages: ChatMessage[];
+
+      if (hasAnalysis && hasQuestion) {
+        // 분석 메시지 먼저
+        const analysisMsg: ChatMessage = {
+          role: 'assistant' as const,
+          content: data.analysisMessage,
+          timestamp: Date.now(),
+        };
+        // 질문 메시지 (selectableFeatures, inlineOptions는 질문 메시지에 붙임)
+        const questionMsg: ChatMessage = {
+          role: 'assistant' as const,
+          content: data.questionMessage,
+          timestamp: Date.now() + 1,
+          selectableFeatures: data.selectableFeatures || undefined,
+          inlineOptions: data.inlineOptions || undefined,
+        };
+        finalMessages = [...newMessages, analysisMsg, questionMsg];
+      } else {
+        // 분리 실패 시 기존처럼 단일 메시지
+        const assistantMsg: ChatMessage = {
+          role: 'assistant' as const,
+          content: data.message,
+          timestamp: Date.now(),
+          selectableFeatures: data.selectableFeatures || undefined,
+          inlineOptions: data.inlineOptions || undefined,
+        };
+        finalMessages = [...newMessages, assistantMsg];
+      }
       setMessages(finalMessages);
 
       // 🆕 selectableFeatures가 있으면 초기 선택 상태 설정 (must=선택, recommended=미선택)
