@@ -49,12 +49,18 @@ interface PRDResult {
   timeline: { phase: string; duration: string; deliverables: string[] }[];
   assumptions: string[];
   constraints: string[];
-  risks: { risk: string; impact: string; mitigation: string }[];
+  risks: { risk: string; impact: string; mitigation: string; probability?: string }[];
   glossary: { term: string; definition: string }[];
   expertInsight: string;
   informationArchitecture: {
     sitemap: { id: string; label: string; children?: { id: string; label: string; children?: { id: string; label: string }[] }[] }[];
   };
+  // FORGE v2 — New Fields
+  originalDescription?: string;
+  budgetBreakdown?: { feature: string; percentage: number; estimatedCost: string; effort: string }[];
+  apiEndpoints?: { method: string; path: string; description: string; feature: string }[];
+  dataModel?: { entity: string; fields: string[]; relationships: string[] }[];
+  competitorAnalysis?: { name: string; strengths: string; weaknesses: string; differentiation: string }[];
 }
 
 // ━━━━━ Design Tokens ━━━━━
@@ -943,7 +949,16 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     { num: '11', title: '전제 조건 & 제약사항', id: 'sec-assumptions' },
     { num: '12', title: '리스크 관리', id: 'sec-risks' },
     ...(prdData.expertInsight ? [{ num: '13', title: '전문가 인사이트', id: 'sec-expert' }] : []),
-    { num: prdData.expertInsight ? '14' : '13', title: '용어 정의', id: 'sec-glossary' },
+    ...(() => {
+      let n = prdData.expertInsight ? 14 : 13;
+      const extra: { num: string; title: string; id: string }[] = [];
+      extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
+      if ((prdData.budgetBreakdown?.length ?? 0) > 0) extra.push({ num: String(n++), title: '예산 상세 분해', id: 'sec-budget' });
+      if ((prdData.apiEndpoints?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'API 명세', id: 'sec-api' });
+      if ((prdData.dataModel?.length ?? 0) > 0) extra.push({ num: String(n++), title: '데이터 모델', id: 'sec-datamodel' });
+      if ((prdData.competitorAnalysis?.length ?? 0) > 0) extra.push({ num: String(n++), title: '경쟁 서비스 분석', id: 'sec-competitor' });
+      return extra;
+    })(),
   ];
 
   const totalFeatures = prdData.featureModules?.reduce((sum, m) => sum + (m.features?.length || 0), 0) || 0;
@@ -1451,7 +1466,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
 
         {/* 13. Glossary */}
         <div id="sec-glossary">
-          <SectionHeader number={prdData.expertInsight ? '14' : '13'} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" />
+          <SectionHeader number={String(tocSections.find(s => s.id === 'sec-glossary')?.num || '14')} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" />
           <Card>
             <div style={{ display: 'grid', gap: 8 }}>
               {prdData.glossary?.map((g, i) => (
@@ -1466,6 +1481,126 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             </div>
           </Card>
         </div>
+
+        {/* ━━ FORGE v2: Budget Breakdown ━━ */}
+        {(prdData.budgetBreakdown?.length ?? 0) > 0 && (
+          <div id="sec-budget">
+            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-budget')?.num || '15')} title="예산 상세 분해" subtitle="기능별 예산 배분 및 공수 추정" />
+            <Card>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {prdData.budgetBreakdown!.map((b, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, minWidth: 140 }}>{b.feature}</span>
+                    <div style={{ flex: 1, height: 24, background: C.borderLight, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ width: `${b.percentage}%`, height: '100%', background: `linear-gradient(90deg, ${C.blue}, ${C.blueLight})`, borderRadius: 12, transition: 'width 0.8s ease' }} />
+                      <span style={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: b.percentage > 15 ? '#fff' : C.textPrimary }}>{b.percentage}%</span>
+                    </div>
+                    <span style={{ fontSize: 12, color: C.textSecondary, minWidth: 80, textAlign: 'right' }}>{b.estimatedCost}</span>
+                    <span style={{ fontSize: 11, color: C.textTertiary, minWidth: 50 }}>{b.effort}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* ━━ FORGE v2: API Endpoints ━━ */}
+        {(prdData.apiEndpoints?.length ?? 0) > 0 && (
+          <div id="sec-api">
+            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-api')?.num || '16')} title="API 명세" subtitle="핵심 API 엔드포인트 목록" />
+            <Card>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary }}>메소드</th>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary }}>엔드포인트</th>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary }}>설명</th>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: C.textPrimary }}>기능</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prdData.apiEndpoints!.map((ep, i) => {
+                      const methodColors: Record<string, string> = { GET: '#22C55E', POST: '#3B82F6', PUT: '#F59E0B', DELETE: '#EF4444', PATCH: '#8B5CF6', WS: '#06B6D4' };
+                      const color = methodColors[ep.method] || C.textSecondary;
+                      return (
+                        <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                          <td style={{ padding: '8px 12px' }}>
+                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, color: '#fff', background: color, fontFamily: 'monospace' }}>{ep.method}</span>
+                          </td>
+                          <td style={{ padding: '8px 12px', fontFamily: '"SF Mono", Monaco, monospace', fontSize: 12, color: C.blue }}>{ep.path}</td>
+                          <td style={{ padding: '8px 12px', color: C.textSecondary }}>{ep.description}</td>
+                          <td style={{ padding: '8px 12px', color: C.textTertiary, fontSize: 12 }}>{ep.feature}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* ━━ FORGE v2: Data Model / ERD ━━ */}
+        {(prdData.dataModel?.length ?? 0) > 0 && (
+          <div id="sec-datamodel">
+            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-datamodel')?.num || '17')} title="데이터 모델" subtitle="핵심 엔티티 및 관계도" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {prdData.dataModel!.map((entity, i) => (
+                <Card key={i}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${C.purple}, ${C.blue})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700 }}>
+                      {entity.entity.charAt(0)}
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{entity.entity}</span>
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.textTertiary, marginBottom: 4 }}>필드</div>
+                    {entity.fields.map((f, j) => (
+                      <div key={j} style={{ fontSize: 12, color: C.textSecondary, padding: '2px 0', fontFamily: '"SF Mono", Monaco, monospace' }}>• {f}</div>
+                    ))}
+                  </div>
+                  {entity.relationships.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.textTertiary, marginBottom: 4 }}>관계</div>
+                      {entity.relationships.map((r, j) => (
+                        <div key={j} style={{ fontSize: 12, color: C.blue, padding: '2px 0' }}>↔ {r}</div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ━━ FORGE v2: Competitor Analysis ━━ */}
+        {(prdData.competitorAnalysis?.length ?? 0) > 0 && (
+          <div id="sec-competitor">
+            <SectionHeader number={String(tocSections.find(s => s.id === 'sec-competitor')?.num || '18')} title="경쟁 서비스 분석" subtitle="주요 경쟁 서비스 비교 분석" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+              {prdData.competitorAnalysis!.map((comp, i) => (
+                <Card key={i}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, marginBottom: 12, paddingBottom: 8, borderBottom: `2px solid ${C.blue}` }}>{comp.name}</div>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.green, marginBottom: 4 }}>💪 강점</div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>{comp.strengths}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.red, marginBottom: 4 }}>⚠️ 약점</div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>{comp.weaknesses}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.blue, marginBottom: 4 }}>🎯 차별화 포인트</div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>{comp.differentiation}</div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Reference & Additional */}
         {prdData.referenceServices && prdData.referenceServices !== '해당 없음' && (
