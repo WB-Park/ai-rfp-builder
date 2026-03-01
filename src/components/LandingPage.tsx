@@ -206,7 +206,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               boxShadow: `0 4px 20px ${C.blueGlow}`,
               transition: 'all 0.2s',
             }}>
-              {loading ? '...' : '기획서 만들기 →'}
+              {loading ? '...' : '5분 안에 전문가 수준 RFP 받기 →'}
             </button>
           </form>
 
@@ -214,23 +214,22 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <p style={{ color: '#EF4444', fontSize: 13, marginTop: 4, marginBottom: 4 }}>{error}</p>
           )}
 
-          {/* [MIRROR:제약인정] 이메일 없이 시작 옵션 */}
+          {/* 이메일 가치 설명 */}
+          <p style={{ fontSize: 13, color: C.blueSoft, marginTop: 8, fontWeight: 500 }}>
+            📩 완성된 기획서를 PDF로 이메일에 바로 보내드립니다
+          </p>
+
+          {/* [MIRROR:제약인정] 이메일 없이 시작 옵션 — 시각적으로 약화 */}
           <button onClick={handleGuestStart} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: C.gray400, fontSize: 14, padding: '8px 16px',
-            textDecoration: 'underline', textUnderlineOffset: '3px',
+            color: C.gray600, fontSize: 13, padding: '6px 16px', marginTop: 4,
             transition: 'color 0.2s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.white; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.gray400; }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.gray400; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.gray600; }}
           >
-            이메일 없이 바로 시작하기
+            또는 이메일 없이 시작하기
           </button>
-
-          {/* 이메일 동기 설명 */}
-          <p style={{ fontSize: 12, color: C.gray500, marginTop: 8 }}>
-            📩 완성된 기획서를 PDF로 이메일에 보내드립니다 · 스팸 없음 · 언제든 해지
-          </p>
 
           {/* Trust chips */}
           <div style={{
@@ -255,10 +254,10 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             gap: 6, marginTop: 36, flexWrap: 'wrap',
           }}>
             {[
-              { n: '1', t: '아이디어 입력' },
-              { n: '2', t: 'AI 질문 응답' },
-              { n: '3', t: 'RFP 자동 생성' },
-              { n: '4', t: 'PDF 다운로드' },
+              { n: '1', t: '아이디어 입력 (1분)' },
+              { n: '2', t: 'AI 질문 응답 (3분)' },
+              { n: '3', t: 'RFP 자동 생성 (1분)' },
+              { n: '4', t: 'PDF 다운로드 (즉시)' },
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{
