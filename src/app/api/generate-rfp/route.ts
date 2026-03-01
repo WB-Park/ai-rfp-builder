@@ -452,6 +452,100 @@ const FEATURE_DB: Record<string, FeatureBlueprintData> = {
   },
 };
 
+// ═══════════════════════════════════════════
+// API Endpoints DB
+// ═══════════════════════════════════════════
+
+const API_ENDPOINTS_DB: Record<string, { method: string; path: string; description: string }[]> = {
+  '로그인': [
+    { method: 'POST', path: '/api/auth/login', description: '이메일/비밀번호 로그인' },
+    { method: 'POST', path: '/api/auth/register', description: '신규 사용자 회원가입' },
+    { method: 'POST', path: '/api/auth/refresh', description: 'JWT Refresh Token 갱신' },
+  ],
+  '회원': [
+    { method: 'GET', path: '/api/users/:id', description: '사용자 프로필 조회' },
+    { method: 'PUT', path: '/api/users/:id', description: '사용자 정보 수정' },
+    { method: 'DELETE', path: '/api/users/:id', description: '회원 탈퇴' },
+  ],
+  '결제': [
+    { method: 'POST', path: '/api/payments', description: '결제 요청' },
+    { method: 'GET', path: '/api/payments/:id', description: '결제 정보 조회' },
+    { method: 'POST', path: '/api/payments/:id/refund', description: '환불 요청' },
+  ],
+  '채팅': [
+    { method: 'GET', path: '/api/chats', description: '채팅 목록 조회' },
+    { method: 'POST', path: '/api/chats/:id/messages', description: '메시지 전송' },
+    { method: 'WebSocket', path: '/ws/chat/:roomId', description: '실시간 채팅 연결' },
+  ],
+  '검색': [
+    { method: 'GET', path: '/api/search', description: '키워드 검색' },
+    { method: 'GET', path: '/api/search/filters', description: '검색 필터 옵션 조회' },
+    { method: 'GET', path: '/api/search/autocomplete', description: '자동완성 제안' },
+  ],
+  '관리자': [
+    { method: 'GET', path: '/api/admin/dashboard', description: '관리자 대시보드 데이터' },
+    { method: 'GET', path: '/api/admin/users', description: '회원 목록 조회' },
+    { method: 'POST', path: '/api/admin/logs', description: '관리 활동 로그 기록' },
+  ],
+  '알림': [
+    { method: 'GET', path: '/api/notifications', description: '알림 목록 조회' },
+    { method: 'PUT', path: '/api/notifications/:id/read', description: '알림 읽음 처리' },
+    { method: 'POST', path: '/api/notifications/subscribe', description: '푸시 알림 구독' },
+  ],
+  '지도': [
+    { method: 'GET', path: '/api/locations', description: '위치 목록 조회' },
+    { method: 'GET', path: '/api/locations/nearby', description: '주변 위치 검색' },
+    { method: 'POST', path: '/api/locations', description: '위치 추가' },
+  ],
+  'AI': [
+    { method: 'POST', path: '/api/ai/generate', description: 'AI 응답 생성 요청' },
+    { method: 'GET', path: '/api/ai/usage', description: 'AI API 사용량 조회' },
+    { method: 'POST', path: '/api/ai/feedback', description: 'AI 응답 피드백' },
+  ],
+  '추천': [
+    { method: 'GET', path: '/api/recommendations', description: '개인화 추천 조회' },
+    { method: 'POST', path: '/api/recommendations/feedback', description: '추천 피드백' },
+    { method: 'GET', path: '/api/recommendations/trending', description: '인기 추천 조회' },
+  ],
+};
+
+// ═══════════════════════════════════════════
+// Competitor Analysis DB
+// ═══════════════════════════════════════════
+
+const COMPETITOR_DB: Record<string, { name: string; strengths: string; weaknesses: string; differentiation: string }[]> = {
+  '모바일 앱': [
+    { name: 'Kakao Map', strengths: '정확한 국내 지도, 강력한 POI DB, 대규모 사용자 기반', weaknesses: '높은 API 비용, 기능 커스터마이징 제한', differentiation: '오픈 소스 기반 더 저렴한 지도 라이브러리, 고급 필터링 기능' },
+    { name: 'Naver App', strengths: '통합 에코시스템, 높은 검색 정확도', weaknesses: '무거운 앱 크기, 배터리 소모 많음', differentiation: '경량 앱 구조, 배터리 최적화, 더 빠른 로딩 속도' },
+    { name: 'Toss App', strengths: '직관적 UX, 금융 기능 강화', weaknesses: '제한된 기능, 확장성 부족', differentiation: '더 많은 커스터마이징 옵션, 모듈화 아키텍처' },
+  ],
+  '웹 서비스': [
+    { name: 'Airbnb', strengths: '글로벌 규모, 강력한 신뢰 시스템, 풍부한 기능', weaknesses: '복잡한 인터페이스, 높은 수수료', differentiation: '심플한 UI/UX, 저렴한 수수료 정책, 로컬 맞춤형 기능' },
+    { name: 'Booking.com', strengths: '대규모 인벤토리, 다국어 지원', weaknesses: '느린 로딩, 모바일 UX 미흡', differentiation: '극빠른 페이지 로딩, 모바일 최적화, AI 기반 추천' },
+    { name: 'Expedia', strengths: '통합 예약 시스템, 높은 신뢰도', weaknesses: '복잡한 결제 프로세스, 높은 가격', differentiation: '간단한 예약 프로세스, 투명한 가격, 지역 할인 프로그램' },
+  ],
+  '이커머스 플랫폼': [
+    { name: '쿠팡', strengths: '빠른 배송, 대규모 상품, 강한 브랜드', weaknesses: '높은 배송료, 판매자 기준 엄격', differentiation: '소상공인 친화적 정책, 저배송료, 유연한 판매자 조건' },
+    { name: '네이버 쇼핑', strengths: '검색 유입 강함, 광고 시스템 발달', weaknesses: '수수료 높음, 시스템 복잡함', differentiation: '간단한 판매자 대시보드, 저수수료, 자동화 도구' },
+    { name: '당근마켓', strengths: '로컬 커뮤니티, 신뢰 시스템', weaknesses: '제한된 상품군, 느린 배송', differentiation: '글로벌 배송 지원, 더 많은 카테고리, 빠른 배송 네트워크' },
+  ],
+  '플랫폼': [
+    { name: '당근마켓', strengths: '로컬 네트워크, 강한 커뮤니티', weaknesses: '지역 한정, 상품 다양성 부족', differentiation: '글로벌 확장, 더 많은 카테고리, 높은 신뢰도' },
+    { name: '오늘의 집', strengths: '디자인 피드, 시공업체 연결', weaknesses: '가격 범위 제한, 지역 제한', differentiation: '전국 서비스, AI 인테리어 추천, 저가 옵션' },
+    { name: '무시옥', strengths: '맞춤형 매칭, 프리미엄 이미지', weaknesses: '높은 수수료, 제한된 시장', differentiation: '저수수료, 더 큰 시장, AI 매칭 알고리즘' },
+  ],
+  'SaaS': [
+    { name: 'Notion', strengths: '유연한 데이터베이스, 강력한 커뮤니티', weaknesses: '높은 학습곡선, 느린 성능', differentiation: '빠른 성능, 간단한 인터페이스, 더 나은 협업 도구' },
+    { name: 'Monday.com', strengths: '직관적 UI, 풍부한 통합', weaknesses: '높은 가격, 과도한 기능', differentiation: '저렴한 가격, 심플한 기능, 빠른 온보딩' },
+    { name: 'Asana', strengths: '강력한 프로젝트 관리, 대규모 팀 지원', weaknesses: '복잡한 UI, 높은 러닝 커브', differentiation: '간단한 작업 관리, 직관적 인터페이스, AI 자동화' },
+  ],
+  '매칭 플랫폼': [
+    { name: '크몽', strengths: '대규모 프리랜서 풀, 강한 신뢰 시스템', weaknesses: '높은 수수료, 느린 매칭', differentiation: '저수수료, AI 기반 빠른 매칭, 더 나은 커뮤니케이션' },
+    { name: '숨고', strengths: '지역 기반, 신뢰도 높음', weaknesses: '제한된 카테고리, 느린 응답', differentiation: '더 많은 서비스 카테고리, 빠른 응답, 가격 비교 기능' },
+    { name: '오늘의집', strengths: '높은 품질, 인기 기업', weaknesses: '높은 가격, 제한된 선택지', differentiation: '경제적 가격, 더 많은 선택지, AI 추천' },
+  ],
+};
+
 function analyzeFeature(feature: FeatureItem): FeatureAnalysis {
   const name = feature.name;
   const lower = name.toLowerCase();
@@ -1001,12 +1095,19 @@ interface PRDResult {
   timeline: { phase: string; duration: string; deliverables: string[] }[];
   assumptions: string[];
   constraints: string[];
-  risks: { risk: string; impact: string; mitigation: string }[];
+  risks: { risk: string; impact: string; mitigation: string; probability?: string }[];
   glossary: { term: string; definition: string }[];
   expertInsight: string;
   informationArchitecture: {
     sitemap: { id: string; label: string; children?: { id: string; label: string; children?: { id: string; label: string }[] }[] }[];
   };
+
+  // FORGE Quality Upgrade — New Fields
+  originalDescription: string;
+  budgetBreakdown: { feature: string; percentage: number; estimatedCost: string; effort: string }[];
+  apiEndpoints: { method: string; path: string; description: string; feature: string }[];
+  dataModel: { entity: string; fields: string[]; relationships: string[] }[];
+  competitorAnalysis: { name: string; strengths: string; weaknesses: string; differentiation: string }[];
 }
 
 function generateFallbackRFP(rfpData: RFPData): string {
@@ -1338,6 +1439,199 @@ function generateFallbackRFP(rfpData: RFPData): string {
 
   const informationArchitecture = generateSitemap();
 
+  // ═══════════════════════════════════════════
+  // FORGE Quality Upgrade — New Fields
+  // ═══════════════════════════════════════════
+
+  // C2 — Original Description
+  const originalDescription = rfpData.overview || '프로젝트 개요가 제공되지 않았습니다.';
+
+  // H1 — Budget Breakdown
+  const budgetBreakdown: PRDResult['budgetBreakdown'] = [];
+  let totalComplexity = 0;
+  const featureComplexities = analyzedFeatures.map(f => {
+    const blueprint = getFeatureBlueprint(f.name);
+    const complexity = blueprint?.complexity || 3;
+    totalComplexity += complexity;
+    return { name: f.name, complexity };
+  });
+
+  for (const fc of featureComplexities) {
+    const percentage = Math.round((fc.complexity / totalComplexity) * 100);
+    const baseAmount = projectInfo.avgBudget.match(/[\d,]+/g)?.[0]?.replace(/,/g, '') || '3000';
+    const estimatedAmount = Math.round((parseInt(baseAmount) * percentage) / 100);
+    const effort = fc.complexity <= 2 ? '1~2주' : fc.complexity <= 3 ? '2~3주' : fc.complexity <= 4 ? '3~4주' : '4~6주';
+    budgetBreakdown.push({
+      feature: fc.name,
+      percentage,
+      estimatedCost: `${estimatedAmount.toLocaleString()}만원`,
+      effort,
+    });
+  }
+
+  // H3 — API Endpoints
+  const apiEndpoints: PRDResult['apiEndpoints'] = [];
+  for (const feature of features) {
+    const endpoints = API_ENDPOINTS_DB[feature.name] || [];
+    for (const ep of endpoints) {
+      apiEndpoints.push({
+        ...ep,
+        feature: feature.name,
+      });
+    }
+  }
+
+  // If no endpoints generated from specific features, add generic CRUD endpoints
+  if (apiEndpoints.length === 0) {
+    for (const [i, feature] of features.slice(0, 5).entries()) {
+      apiEndpoints.push(
+        { method: 'GET', path: `/api/${feature.name.toLowerCase().replace(/ /g, '-')}`, description: `${feature.name} 목록 조회`, feature: feature.name },
+        { method: 'POST', path: `/api/${feature.name.toLowerCase().replace(/ /g, '-')}`, description: `${feature.name} 생성/요청`, feature: feature.name },
+        { method: 'PUT', path: `/api/${feature.name.toLowerCase().replace(/ /g, '-')}/:id`, description: `${feature.name} 수정`, feature: feature.name }
+      );
+    }
+  }
+
+  // H4 — Data Model
+  const dataModel: PRDResult['dataModel'] = [];
+  const processedEntities = new Set<string>();
+
+  for (const feature of features) {
+    const blueprint = getFeatureBlueprint(feature.name);
+    if (blueprint?.dataEntities) {
+      for (const entity of blueprint.dataEntities) {
+        if (!processedEntities.has(entity.name)) {
+          processedEntities.add(entity.name);
+          const fields = entity.fields.split(',').map(f => f.trim());
+          const relationships: string[] = [];
+
+          // Infer relationships based on field names
+          if (fields.some(f => f.includes('user'))) relationships.push('User와 다대일 관계');
+          if (fields.some(f => f.includes('id') && f !== 'id')) {
+            const relatedTo = fields.find(f => f.includes('_id') && f !== 'id');
+            if (relatedTo) relationships.push(`${relatedTo.replace('_id', '').replace(/_/g, ' ')}과 연관`);
+          }
+          if (fields.some(f => f.includes('created'))) relationships.push('타임스탬프 추적');
+
+          dataModel.push({
+            entity: entity.name,
+            fields,
+            relationships: relationships.length > 0 ? relationships : ['독립 엔티티'],
+          });
+        }
+      }
+    }
+  }
+
+  // M3 — Enhanced risks with probability
+  const probabilityMap: Record<string, string> = {};
+  for (const risk of projectInfo.keyRisks) {
+    const riskLower = risk.toLowerCase();
+    if (riskLower.includes('높음') || riskLower.includes('critical') || riskLower.includes('심각')) {
+      probabilityMap[risk] = '높음';
+    } else if (riskLower.includes('중간') || riskLower.includes('medium')) {
+      probabilityMap[risk] = '중간';
+    } else {
+      probabilityMap[risk] = '낮음';
+    }
+  }
+
+  const risksWithProbability: PRDResult['risks'] = risks.map(r => ({
+    ...r,
+    probability: r.impact === '높음' ? '높음' : r.impact === '중간' ? '중간' : '낮음',
+  }));
+
+  // M6 — Competitor Analysis
+  let competitorAnalysis: PRDResult['competitorAnalysis'] = [];
+  const competitors = COMPETITOR_DB[projectInfo.type] || [];
+  if (competitors.length > 0) {
+    competitorAnalysis = competitors.slice(0, 3);
+  } else {
+    // Fallback: Generate generic competitors based on project type
+    competitorAnalysis = [
+      { name: '경쟁사 A', strengths: '기존 대규모 사용자 기반', weaknesses: '낮은 기술 혁신', differentiation: '최신 기술 적용, 더 나은 UX' },
+      { name: '경쟁사 B', strengths: '강한 마케팅 및 브랜드', weaknesses: '복잡한 인터페이스', differentiation: '간단한 사용성, 빠른 속도' },
+      { name: '경쟁사 C', strengths: '다양한 기능', weaknesses: '높은 가격대', differentiation: '저렴한 가격, 핵심 기능 집중' },
+    ];
+  }
+
+  // M4 — Enhanced assumptions and constraints (minimum 5 each)
+  while (assumptions.length < 5) {
+    const additionalAssumptions = [
+      '데이터 마이그레이션은 필요하지 않거나 간단한 초기화 수준으로 가정',
+      '제3자 라이브러리/서비스는 안정적으로 제공될 것으로 가정',
+      '사용자 교육/문서는 개발팀이 기본 수준으로 제공 (심화 교육은 별도 계약)',
+      '보안 감시/24시간 모니터링은 출시 후 추가 구성',
+      '멀티테넌시/화이트라벨은 추후 버전에서 지원',
+      '국제화(i18n) 지원은 MVP 이후 고려',
+    ];
+    for (const assumption of additionalAssumptions) {
+      if (assumptions.length < 5 && !assumptions.includes(assumption)) {
+        assumptions.push(assumption);
+      }
+    }
+    break;
+  }
+
+  while (constraints.length < 5) {
+    const additionalConstraints = [
+      '모바일 OS 지원: iOS 14+, Android 11+ 최소 지원',
+      'API 응답 시간: 평균 200ms, 99th percentile 1초 이내',
+      '동시 사용자: 예상 피크 기준 1,000명 이상 처리 가능',
+      '데이터 보관: 한국 내 데이터센터 기본, 해외 백업은 별도 계약',
+      '배포 환경: Docker + Kubernetes 기반 클라우드 인프라 필수',
+    ];
+    for (const constraint of additionalConstraints) {
+      if (constraints.length < 5 && !constraints.includes(constraint)) {
+        constraints.push(constraint);
+      }
+    }
+    break;
+  }
+
+  // M5 — Enhanced glossary (minimum 10 terms)
+  const glossaryTerms: Record<string, string> = {
+    'MVP': 'Minimum Viable Product, 최소 기능 제품. 핵심 기능만으로 시장 검증하는 첫 번째 버전',
+    'P0/P1/P2': '우선순위 등급. P0=필수(MVP), P1=우선(2차), P2=선택(향후)',
+    'PRD': 'Product Requirements Document, 제품 요구사항 정의서',
+    'NFR': 'Non-Functional Requirements, 비기능 요구사항 (성능, 보안, 접근성 등)',
+    'UAT': 'User Acceptance Testing, 사용자 인수 테스트',
+    'API': 'Application Programming Interface, 소프트웨어 간 통신 규약',
+    'REST': 'Representational State Transfer, HTTP 기반 API 아키텍처',
+    'JWT': 'JSON Web Token, 상태 비저장 인증 방식',
+    'CRUD': 'Create, Read, Update, Delete, 기본 데이터 조작 작업',
+    'QA': 'Quality Assurance, 품질 보증 및 테스트',
+    'CI/CD': 'Continuous Integration/Continuous Deployment, 지속적 통합/배포',
+    'SLA': 'Service Level Agreement, 서비스 수준 약정 (가용성/응답시간 등)',
+  };
+
+  const enhancedGlossary: PRDResult['glossary'] = [];
+  for (const [term, definition] of Object.entries(glossaryTerms)) {
+    enhancedGlossary.push({ term, definition });
+  }
+
+  // Add domain-specific terms from features
+  for (const feature of features.slice(0, 5)) {
+    const featureLower = feature.name.toLowerCase();
+    const additionalTerms: Record<string, Record<string, string>> = {
+      '로그인': { 'OAuth': 'Open Authorization, 소셜 로그인 표준 프로토콜', 'Refresh Token': 'JWT 갱신용 토큰, 보안성을 위해 장기 보관' },
+      '결제': { 'PG': 'Payment Gateway, 결제 대행사', 'TID': 'Transaction ID, 결제 거래 고유 번호' },
+      '채팅': { 'WebSocket': '양방향 실시간 통신 프로토콜', 'Message Queue': '비동기 메시지 처리 시스템' },
+      '검색': { 'ElasticSearch': '전문 검색 엔진, 대규모 데이터 검색 최적화', 'Tokenization': '텍스트를 의미있는 단위로 분할' },
+      '관리자': { 'RBAC': 'Role-Based Access Control, 역할 기반 접근 제어', 'Audit Log': '시스템 활동 기록' },
+    };
+
+    for (const [key, terms] of Object.entries(additionalTerms)) {
+      if (featureLower.includes(key.toLowerCase())) {
+        for (const [term, definition] of Object.entries(terms)) {
+          if (!enhancedGlossary.find(g => g.term === term)) {
+            enhancedGlossary.push({ term, definition });
+          }
+        }
+      }
+    }
+  }
+
   const result: PRDResult = {
     projectName,
     documentMeta,
@@ -1357,10 +1651,16 @@ function generateFallbackRFP(rfpData: RFPData): string {
     timeline,
     assumptions,
     constraints,
-    risks,
-    glossary,
+    risks: risksWithProbability,
+    glossary: enhancedGlossary,
     expertInsight: '',
     informationArchitecture,
+    // FORGE Quality Upgrade Fields
+    originalDescription,
+    budgetBreakdown,
+    apiEndpoints,
+    dataModel,
+    competitorAnalysis,
   };
 
   return JSON.stringify(result);
@@ -1584,7 +1884,11 @@ Q6: 절대로 사용자의 입력 요구사항에 직접적으로 관련 없는 
                 parsed.timeline = aiEnhancement.timeline;
               }
               if (aiEnhancement.risks && Array.isArray(aiEnhancement.risks)) {
-                parsed.risks = aiEnhancement.risks;
+                // M3: Add probability field to Claude-generated risks if not present
+                parsed.risks = aiEnhancement.risks.map((r: any) => ({
+                  ...r,
+                  probability: r.probability || (r.impact === '높음' ? '높음' : r.impact === '중간' ? '중간' : '낮음'),
+                }));
               }
               if (aiEnhancement.assumptions && Array.isArray(aiEnhancement.assumptions)) {
                 parsed.assumptions = aiEnhancement.assumptions;
@@ -1598,6 +1902,11 @@ Q6: 절대로 사용자의 입력 요구사항에 직접적으로 관련 없는 
               if (aiEnhancement.expertInsight) {
                 parsed.expertInsight = aiEnhancement.expertInsight;
               }
+
+              // M7: Preserve FORGE Quality Upgrade fields from server-side generation
+              // (These are never provided by Claude API, only generated server-side)
+              // Note: originalDescription, budgetBreakdown, apiEndpoints, dataModel, competitorAnalysis
+              // are already in 'parsed' from generateFallbackRFP call, so they persist through merge
 
               rfpDocument = JSON.stringify(parsed);
             }

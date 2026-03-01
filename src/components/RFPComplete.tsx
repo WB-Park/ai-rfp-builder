@@ -264,7 +264,7 @@ function PriorityBadge({ priority, label }: { priority: string; label: string })
 // ━━━━━ Feature Detail ━━━━━
 function FeatureDetail({ feature, index }: { feature: any; index: string }) {
   const [expanded, setExpanded] = useState(false);
-  const hasDetail = (feature.subFeatures?.length > 0) || feature.userFlow || (feature.screenSpecs?.length > 0) || (feature.acceptanceCriteria?.length > 0);
+  const hasDetail = ((feature.subFeatures?.length ?? 0) > 0) || feature.userFlow || ((feature.screenSpecs?.length ?? 0) > 0) || ((feature.acceptanceCriteria?.length ?? 0) > 0);
 
   return (
     <div style={{
@@ -303,10 +303,10 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
 
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px', background: C.blueBg }}>
-          {feature.subFeatures?.length > 0 && (
+          {(feature.subFeatures?.length ?? 0) > 0 && (
             <DetailSection title="하위 기능" items={feature.subFeatures} />
           )}
-          {feature.acceptanceCriteria?.length > 0 && (
+          {(feature.acceptanceCriteria?.length ?? 0) > 0 && (
             <DetailSection title="수락 기준 (AC)" items={feature.acceptanceCriteria} icon="✅" />
           )}
           {feature.userFlow && feature.userFlow !== '(사용자 흐름 미정의)' && (
@@ -323,7 +323,7 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
               </pre>
             </div>
           )}
-          {feature.screenSpecs?.length > 0 && (
+          {(feature.screenSpecs?.length ?? 0) > 0 && (
             <div style={{ marginBottom: 14 }}>
               <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 화면 명세
@@ -350,13 +350,13 @@ function FeatureDetail({ feature, index }: { feature: any; index: string }) {
               </div>
             </div>
           )}
-          {feature.businessRules?.length > 0 && (
+          {(feature.businessRules?.length ?? 0) > 0 && (
             <DetailSection title="비즈니스 규칙" items={feature.businessRules} icon="📋" />
           )}
-          {feature.errorCases?.length > 0 && (
+          {(feature.errorCases?.length ?? 0) > 0 && (
             <DetailSection title="에러 케이스" items={feature.errorCases} icon="⚠️" />
           )}
-          {feature.dataEntities?.length > 0 && (
+          {(feature.dataEntities?.length ?? 0) > 0 && (
             <div>
               <h6 style={{ fontSize: 11, fontWeight: 700, color: C.textPrimary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 데이터 엔티티
@@ -656,7 +656,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         sections.push(new Paragraph({ text: '3. 문제 정의 & 프로젝트 목표', heading: HeadingLevel.HEADING_1 }));
         sections.push(new Paragraph({ text: d.problemStatement, spacing: { after: 200 } }));
       }
-      if (d.projectGoals?.length > 0) {
+      if ((d.projectGoals?.length ?? 0) > 0) {
         d.projectGoals.forEach((g, i) => {
           sections.push(new Paragraph({ children: [
             new TextRun({ text: `목표 ${i + 1}: `, bold: true }),
@@ -670,7 +670,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       // 타겟 사용자
       sections.push(new Paragraph({ text: '4. 타겟 사용자 & 페르소나', heading: HeadingLevel.HEADING_1 }));
       sections.push(new Paragraph({ text: d.targetUsers, spacing: { after: 200 } }));
-      if (d.userPersonas?.length > 0) {
+      if ((d.userPersonas?.length ?? 0) > 0) {
         d.userPersonas.forEach(p => {
           sections.push(new Paragraph({ children: [
             new TextRun({ text: `${p.name} (${p.role})`, bold: true }),
@@ -711,7 +711,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       });
 
       // 기술 스택
-      if (d.techStack?.length > 0) {
+      if ((d.techStack?.length ?? 0) > 0) {
         sections.push(new Paragraph({ text: '7. 기술 스택 권장안', heading: HeadingLevel.HEADING_1 }));
         const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
         const techTable = new Table({
@@ -736,7 +736,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       }
 
       // 비기능 요구사항
-      if (d.nonFunctionalRequirements?.length > 0) {
+      if ((d.nonFunctionalRequirements?.length ?? 0) > 0) {
         sections.push(new Paragraph({ text: '8. 비기능 요구사항', heading: HeadingLevel.HEADING_1 }));
         d.nonFunctionalRequirements.forEach(n => {
           sections.push(new Paragraph({ text: n.category, heading: HeadingLevel.HEADING_2 }));
@@ -747,7 +747,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       }
 
       // 리스크
-      if (d.risks?.length > 0) {
+      if ((d.risks?.length ?? 0) > 0) {
         sections.push(new Paragraph({ text: '11. 리스크 관리', heading: HeadingLevel.HEADING_1 }));
         d.risks.forEach(r => {
           sections.push(new Paragraph({ children: [
@@ -793,7 +793,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
     md += `## 4. 프로젝트 목표\n`;
     d.projectGoals?.forEach((g, i) => { md += `${i + 1}. **${g.goal}** — 성공 지표: ${g.metric}\n`; });
     md += `\n## 5. 타겟 사용자\n${d.targetUsers}\n\n`;
-    if (d.userPersonas?.length > 0) {
+    if ((d.userPersonas?.length ?? 0) > 0) {
       md += `### 사용자 페르소나\n`;
       d.userPersonas.forEach(p => { md += `- **${p.name}** (${p.role}): 니즈 — ${p.needs} / 문제점 — ${p.painPoints}\n`; });
       md += '\n';
@@ -1046,7 +1046,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               />
             </Card>
           )}
-          {prdData.projectGoals?.length > 0 && (
+          {(prdData.projectGoals?.length ?? 0) > 0 && (
             <Card>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📊 프로젝트 목표 & 성공 지표</h3>
               <div style={{ display: 'grid', gap: 10 }}>
@@ -1081,7 +1081,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
               style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.8, margin: '0 0 16px 0', whiteSpace: 'pre-wrap' }}
               sectionKey="targetUsers" sectionTitle="타겟 사용자" projectContext={projectCtx}
             />
-            {prdData.userPersonas?.length > 0 && (
+            {(prdData.userPersonas?.length ?? 0) > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
                 {prdData.userPersonas.map((p, i) => (
                   <div key={i} style={{
@@ -1143,7 +1143,7 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
         </div>
 
         {/* 6. Information Architecture */}
-        {prdData.informationArchitecture?.sitemap?.length > 0 && (
+        {(prdData.informationArchitecture?.sitemap?.length ?? 0) > 0 && (
           <div id="sec-ia">
             <SectionHeader number="6" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" />
             <Card>
