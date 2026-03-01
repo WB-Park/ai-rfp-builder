@@ -1,9 +1,9 @@
-// AI RFP Builder — Chat API v8
-// 전체 대화를 Claude가 주도. fallback은 UI 구조 + 데이터 파싱만.
+// AI PRD Builder — Chat API v9 (Fully AI-Driven Dynamic Conversation)
+// 고정형 질문 완전 제거. Claude가 대화 맥락을 분석하여 다음 질문을 직접 생성.
+// 예산 질문 제거. 기능/타겟/기술 요구사항에 집중.
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { generateFallbackResponse } from '@/lib/fallback';
-import { STEP_TO_TOPIC } from '@/types/rfp';
+import { RFPData, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
 
 export const maxDuration = 60;
 
@@ -20,9 +20,9 @@ interface SelectableFeature {
   category: 'must' | 'recommended';
 }
 
-/**
- * Claude가 서비스 설명 분석 → 맞춤 기능 리스트 생성
- */
+// ═══════════════════════════════════════════════
+//  Claude가 기능 리스트 생성 (기존 유지)
+// ═══════════════════════════════════════════════
 async function generateAIFeatures(overview: string): Promise<SelectableFeature[] | null> {
   if (!process.env.ANTHROPIC_API_KEY || !overview || overview.length < 2) return null;
 
@@ -69,115 +69,192 @@ JSON 배열만 출력:
   }
 }
 
-/**
- * Claude가 대화 메시지 생성 — 분석 + 질문을 분리하여 반환
- */
-async function generateAIMessage(
+// ═══════════════════════════════════════════════
+//  핵심: Claude가 대화 전체를 주도하는 메인 엔진
+// ═══════════════════════════════════════════════
+async function generateDynamicResponse(
   messages: ChatMessage[],
-  currentTopicId: string,
-  nextTopicId: string,
-  overview: string,
-  hasFeatures: boolean
-): Promise<{ analysis: string; question: string } | null> {
+  rfpData: RFPData,
+): Promise<{
+  analysis: string;
+  question: string;
+  rfpUpdate: { section: string; value: string | object } | null;
+  quickReplies: string[];
+  showFeatureSelector: boolean;
+  completionReady: boolean;
+  progressPercent: number;
+  thinkingLabel: string;
+} | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
+  // 대화 히스토리 구성 (최근 12턴)
   const conversationContext = messages
-    .slice(-8)
+    .slice(-12)
     .map(m => `${m.role === 'user' ? '고객' : 'AI'}: ${m.content}`)
     .join('\n');
 
-  const topicNames: Record<string, string> = {
-    overview: '프로젝트 설명',
-    coreFeatures: '핵심 기능',
-    targetUsers: '타겟 사용자',
-    referenceServices: '참고 서비스',
-    techRequirements: '기술 요구사항 (웹/앱)',
-    budgetTimeline: '예산과 일정',
-    additionalRequirements: '추가 요구사항',
-  };
+  // 현재 수집된 정보 요약
+  const collectedInfo = [];
+  if (rfpData.overview) collectedInfo.push(`프로젝트 개요: ${rfpData.overview}`);
+  if (rfpData.targetUsers) collectedInfo.push(`타겟 사용자: ${rfpData.targetUsers}`);
+  if (rfpData.coreFeatures.length > 0) collectedInfo.push(`핵심 기능: ${rfpData.coreFeatures.map(f => f.name).join(', ')}`);
+  if (rfpData.referenceServices) collectedInfo.push(`참고 서비스: ${rfpData.referenceServices}`);
+  if (rfpData.techRequirements) collectedInfo.push(`기술 요구사항: ${rfpData.techRequirements}`);
+  if (rfpData.additionalRequirements) collectedInfo.push(`추가 요구사항: ${rfpData.additionalRequirements}`);
 
-  // 프로젝트 유형 감지 → 맥락 인식 힌트 생성
-  const overviewLower = overview.toLowerCase();
-  let contextHint = '';
-  if (/쇼핑|커머스|마켓|이커머스|쇼핑몰/.test(overviewLower)) {
-    contextHint = '\n[맥락: 이커머스 프로젝트 → 결제 연동, 상품 관리, 주문/배송 추적, 리뷰 시스템 등이 핵심. PG사 수수료, 재고 관리 방식 확인 필요]';
-  } else if (/예약|병원|식당|호텔|숙박|렌탈/.test(overviewLower)) {
-    contextHint = '\n[맥락: 예약 서비스 → 실시간 가용성, 알림/리마인더, 노쇼 방지, 캘린더 연동이 핵심. 동시 예약 충돌 처리 중요]';
-  } else if (/배달|O2O|매칭|중개/.test(overviewLower)) {
-    contextHint = '\n[맥락: O2O/매칭 플랫폼 → 공급자/수요자 양면 시장, 실시간 위치, 결제 에스크로, 리뷰/평점이 핵심. 초기 공급자 확보 전략 중요]';
-  } else if (/교육|LMS|강의|학습|이러닝/.test(overviewLower)) {
-    contextHint = '\n[맥락: 에듀테크 → 콘텐츠 관리, 진도 추적, 퀴즈/평가, 인증서 발급이 핵심. 동영상 스트리밍 인프라 비용 확인 필요]';
-  } else if (/SNS|소셜|커뮤니티|채팅/.test(overviewLower)) {
-    contextHint = '\n[맥락: 소셜/커뮤니티 → 실시간 피드, 알림, 메시징, 콘텐츠 모더레이션이 핵심. 초기 유저 확보와 리텐션 전략 중요]';
-  } else if (/ERP|CRM|관리|백오피스|대시보드/.test(overviewLower)) {
-    contextHint = '\n[맥락: B2B/관리 시스템 → 권한 관리, 데이터 시각화, 엑셀 연동, 리포트 자동화가 핵심. 기존 시스템 연동 범위 확인 필요]';
-  }
+  const missingInfo = [];
+  if (!rfpData.overview) missingInfo.push('프로젝트 개요 (필수)');
+  if (!rfpData.targetUsers) missingInfo.push('타겟 사용자');
+  if (rfpData.coreFeatures.length === 0) missingInfo.push('핵심 기능 (필수)');
+  if (!rfpData.referenceServices) missingInfo.push('참고 서비스/벤치마크');
+  if (!rfpData.techRequirements) missingInfo.push('기술 요구사항 (웹/앱)');
+  if (!rfpData.additionalRequirements) missingInfo.push('추가 요구사항');
+
+  const isFirstMessage = messages.filter(m => m.role === 'user').length <= 1;
+  const messageCount = messages.filter(m => m.role === 'user').length;
 
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 800,
+      max_tokens: 1200,
       system: `당신은 위시켓에서 116,000건 이상의 IT 외주 프로젝트를 분석한 수석 PM 컨설턴트입니다.
-고객의 프로젝트 기획을 돕는 PRD 정보수집 대화를 진행합니다.
+고객과 자연스러운 대화를 통해 PRD(제품 요구사항 문서)에 필요한 정보를 수집합니다.
 
 [핵심 원칙]
 - 존댓말 필수
-- 고객 답변에서 모호하거나 구체성이 부족한 부분을 정확히 짚어주기
-- 제네릭한 반응 금지 (예: "좋은 생각이시네요" → 금지. 대신 구체적으로 뭐가 좋은지 짚기)
-- 💡 인사이트는 위시켓 프로젝트 데이터 기반 사실만 (예: "위시켓 유사 프로젝트에서 이 기능은 평균 N주 소요")
-- 견적/비용/시장분석/코칭/교육/조언은 언급 금지
+- 고정된 질문 순서 없음. 고객의 답변 맥락에 따라 가장 자연스럽고 중요한 다음 질문을 생성
+- 고객이 한 번에 여러 정보를 제공하면 모두 반영하고, 부족한 부분만 추가 질문
+- 제네릭한 반응 금지. "좋은 생각이시네요" 대신 구체적으로 짚기
+- 💡 인사이트는 위시켓 프로젝트 데이터 기반 사실만
+- 예산/견적/비용/시장분석 관련 질문은 절대 하지 마세요. 예산은 PRD 결과에서 AI가 산출합니다.
+- 한 번에 하나의 주제에 대해서만 질문하세요 (질문 폭탄 금지)
 
-[중요: 응답 형식]
-반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
+[수집해야 할 정보 - 우선순위순]
+1. 프로젝트 개요: 어떤 서비스인지 (필수, 첫 번째로 수집)
+2. 핵심 기능: 어떤 기능이 필요한지 (필수, 개요 파악 후 기능 선택 UI 제안)
+3. 타겟 사용자: 누가 사용하는지
+4. 기술 요구사항: 웹/앱/둘 다
+5. 참고 서비스: 벤치마크할 서비스
+6. 추가 요구사항: 소스코드 귀속, 디자인 포함 등
 
+[중요 규칙]
+- 개요를 파악한 직후에는 반드시 showFeatureSelector=true로 설정하여 기능 선택 UI를 표시하세요
+- 기능 선택이 완료된 후에는 맥락상 가장 중요한 정보를 물어보세요
+- overview + coreFeatures + 1개 추가 정보가 수집되면 completionReady=true
+- 5개 이상 정보가 수집되면 자연스럽게 완료를 제안하세요
+- 사용자가 "건너뛰기"라고 하면 해당 토픽은 넘기고 다음으로
+- 사용자가 기능을 JSON 배열로 보내면 (UI 선택 결과) rfpUpdate에 coreFeatures로 반영
+
+[현재 수집 상태]
+${collectedInfo.length > 0 ? collectedInfo.join('\n') : '(아직 수집된 정보 없음)'}
+
+[미수집 항목]
+${missingInfo.length > 0 ? missingInfo.join(', ') : '(모든 필수 정보 수집 완료)'}
+
+대화 턴 수: ${messageCount}
+
+[응답 형식 — 반드시 아래 JSON만 출력]
 {
-  "analysis": "고객 답변에 대한 구체적 피드백 (2~3문장). 답변의 구체적 장점을 짚되, 부족한 부분이 있다면 '예를 들어...' 형태로 구체화 방향 안내. 💡 인사이트 한 문장 (위시켓 데이터 기반).",
-  "question": "다음 토픽에 대한 자연스러운 질문 (1~2문장). 선택지를 포함하거나 예시를 들어 답변하기 쉽게."
+  "analysis": "고객 답변에 대한 맥락적 피드백 (2~3문장). 구체적으로 짚되, 💡 인사이트 1문장 포함.",
+  "question": "다음 질문 (1~2문장). 선택지/예시를 포함하여 답변하기 쉽게.",
+  "rfpUpdate": { "section": "overview|targetUsers|coreFeatures|techRequirements|referenceServices|additionalRequirements", "value": "추출한 값" } 또는 null,
+  "quickReplies": ["선택지1", "선택지2"],
+  "showFeatureSelector": false,
+  "completionReady": false,
+  "progressPercent": 0~100,
+  "thinkingLabel": "분석 중 표시할 레이블"
 }
 
-고객 서비스: ${overview || '(미입력)'}
-방금 답변한 항목: ${topicNames[currentTopicId] || currentTopicId}
-다음 질문할 항목: ${topicNames[nextTopicId] || nextTopicId}${contextHint}${hasFeatures ? '\n\n[주의: 기능 리스트는 별도로 UI에 표시됩니다. 메시지에서는 기능을 나열하지 마세요. "아래에서 필요한 기능을 선택해주세요" 정도만 안내하세요.]' : ''}`,
+rfpUpdate.section은 반드시 위 6개 중 하나여야 합니다.
+rfpUpdate.value는:
+- coreFeatures일 때: 기능 배열 [{"name":"...", "description":"...", "priority":"P1|P2|P3"}]
+- 그 외: 문자열
+
+progressPercent 계산: 수집된 항목 수 / 6 * 100 (overview, targetUsers, coreFeatures, techRequirements, referenceServices, additionalRequirements)`,
       messages: [{
         role: 'user',
-        content: `대화 히스토리:\n${conversationContext}\n\n위 대화를 바탕으로, 고객의 마지막 답변에 대한 분석(analysis)과 다음 질문(question)을 JSON으로 분리하여 응답하세요.`
+        content: `대화 히스토리:\n${conversationContext}\n\n고객의 마지막 답변을 분석하고, 맥락에 맞는 다음 질문을 생성하세요. 반드시 JSON 형식으로만 응답하세요.`
       }],
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
     if (!text) return null;
 
-    // JSON 파싱 시도
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.analysis && parsed.question) {
-          return { analysis: parsed.analysis, question: parsed.question };
-        }
-      } catch { /* fallback below */ }
-    }
+    if (!jsonMatch) return null;
 
-    // JSON 파싱 실패 시 텍스트를 분리 시도 (줄바꿈 기준)
-    const lines = text.split('\n').filter(l => l.trim());
-    if (lines.length >= 2) {
-      const midPoint = Math.ceil(lines.length * 0.6);
-      return {
-        analysis: lines.slice(0, midPoint).join('\n'),
-        question: lines.slice(midPoint).join('\n'),
-      };
-    }
-
-    return { analysis: text, question: '' };
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      analysis: parsed.analysis || '',
+      question: parsed.question || '',
+      rfpUpdate: parsed.rfpUpdate || null,
+      quickReplies: parsed.quickReplies || [],
+      showFeatureSelector: parsed.showFeatureSelector || false,
+      completionReady: parsed.completionReady || false,
+      progressPercent: parsed.progressPercent || 0,
+      thinkingLabel: parsed.thinkingLabel || '분석 중...',
+    };
   } catch (error) {
-    console.error('AI message error:', error);
+    console.error('Dynamic response error:', error);
     return null;
   }
 }
 
+// ═══════════════════════════════════════════════
+//  간단한 fallback (API 실패 시)
+// ═══════════════════════════════════════════════
+function generateSimpleFallback(rfpData: RFPData, userMessage: string): {
+  message: string;
+  rfpUpdate: { section: string; value: string } | null;
+  quickReplies: string[];
+  completionReady: boolean;
+  progressPercent: number;
+} {
+  // 어떤 정보가 빠져있는지 확인
+  if (!rfpData.overview) {
+    return {
+      message: '어떤 서비스를 만들고 싶으신가요?',
+      rfpUpdate: { section: 'overview', value: userMessage.trim() },
+      quickReplies: [],
+      completionReady: false,
+      progressPercent: 0,
+    };
+  }
+  if (rfpData.coreFeatures.length === 0) {
+    return {
+      message: '이 서비스에 어떤 기능이 필요한가요?',
+      rfpUpdate: null,
+      quickReplies: [],
+      completionReady: false,
+      progressPercent: 17,
+    };
+  }
+  if (!rfpData.targetUsers) {
+    return {
+      message: '주 사용자는 누구인가요?',
+      rfpUpdate: { section: 'targetUsers', value: userMessage.trim() },
+      quickReplies: ['20~30대 직장인', '전 연령 일반 사용자', '기업 고객 (B2B)'],
+      completionReady: false,
+      progressPercent: 33,
+    };
+  }
+
+  const covered = getTopicsCovered(rfpData);
+  return {
+    message: '추가 정보가 있으시면 알려주세요. 없으시면 아래 버튼으로 PRD를 생성하실 수 있습니다.',
+    rfpUpdate: null,
+    quickReplies: [],
+    completionReady: isReadyToComplete(rfpData),
+    progressPercent: Math.round((covered.length / 6) * 100),
+  };
+}
+
+// ═══════════════════════════════════════════════
+//  POST Handler
+// ═══════════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
-    const { messages, currentStep, rfpData } = await req.json();
+    const { messages, rfpData: clientRfpData } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: '메시지가 필요합니다.' }, { status: 400 });
@@ -186,61 +263,117 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = messages.filter((m: { role: string }) => m.role === 'user').pop();
     const userText = lastUserMessage?.content || '';
 
-    if (userText === '바로 RFP 생성하기') {
+    // rfpData 초기화
+    const rfpData: RFPData = clientRfpData || {
+      overview: '', targetUsers: '', coreFeatures: [],
+      referenceServices: '', techRequirements: '', budgetTimeline: '', additionalRequirements: '',
+    };
+
+    // "바로 PRD 생성하기" 명령
+    if (userText === '바로 RFP 생성하기' || userText === '바로 PRD 생성하기') {
       return NextResponse.json({
         message: '지금까지 수집된 정보로 PRD 기획서를 생성합니다.\n\n아래 버튼을 눌러 완성하세요.',
-        rfpUpdate: null, nextAction: 'complete', nextStep: null,
-        topicsCovered: [], progress: 100, canComplete: true,
+        rfpUpdate: null, nextAction: 'complete',
+        topicsCovered: getTopicsCovered(rfpData),
+        progress: 100, canComplete: true,
       });
     }
 
-    // 1. fallback 엔진 → UI 구조 (rfpUpdate, nextStep, progress, quickReplies)
-    const fallback = generateFallbackResponse(userText, currentStep, rfpData);
-
-    const overview = (rfpData?.overview as string) || userText; // 첫 단계면 userText가 overview
-    const currentTopicId = STEP_TO_TOPIC[currentStep] || 'overview';
-    const nextTopicId = fallback.nextStep ? (STEP_TO_TOPIC[fallback.nextStep] || '') : '';
-    const hasFeatures = !!(fallback.selectableFeatures && fallback.selectableFeatures.length > 0);
-
-    // 2. 기능 리스트 → Claude가 새로 생성
-    if (hasFeatures && overview.length >= 2) {
-      const aiFeatures = await generateAIFeatures(overview);
-      if (aiFeatures && aiFeatures.length >= 3) {
-        fallback.selectableFeatures = aiFeatures;
-      }
-    }
-
-    // 3. 대화 메시지 → Claude가 분석 + 질문 분리 생성
-    if (nextTopicId || hasFeatures) {
-      const aiResult = await generateAIMessage(
-        messages as ChatMessage[],
-        currentTopicId,
-        nextTopicId || 'coreFeatures',
-        overview,
-        hasFeatures
-      );
+    // 건너뛰기 처리
+    if (userText === '건너뛰기') {
+      // Claude에게 건너뛰기를 알리고 다음 질문 생성
+      const aiResult = await generateDynamicResponse(messages as ChatMessage[], rfpData);
       if (aiResult) {
-        fallback.analysisMessage = aiResult.analysis;
-        fallback.questionMessage = aiResult.question;
-        // 기존 message 필드도 유지 (호환성) — 질문 메시지만
-        fallback.message = aiResult.question || aiResult.analysis;
+        const covered = getTopicsCovered(rfpData);
+        return NextResponse.json({
+          analysisMessage: '',
+          questionMessage: aiResult.question,
+          message: aiResult.question,
+          rfpUpdate: null,
+          nextAction: aiResult.completionReady ? 'complete' : 'continue',
+          quickReplies: aiResult.quickReplies,
+          inlineOptions: aiResult.quickReplies,
+          selectableFeatures: null,
+          thinkingLabel: aiResult.thinkingLabel,
+          topicsCovered: covered,
+          progress: aiResult.progressPercent,
+          canComplete: aiResult.completionReady,
+        });
       }
     }
 
-    return NextResponse.json(fallback);
+    // ═══ 메인 플로우: Claude 동적 응답 ═══
+    const aiResult = await generateDynamicResponse(messages as ChatMessage[], rfpData);
+
+    if (aiResult) {
+      // rfpUpdate 처리
+      let rfpUpdate = aiResult.rfpUpdate;
+
+      // 사용자가 JSON 기능 배열을 보낸 경우 (기능 선택 UI에서)
+      if (!rfpUpdate) {
+        try {
+          const parsed = JSON.parse(userText);
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
+            rfpUpdate = {
+              section: 'coreFeatures',
+              value: parsed.map((f: { name: string; desc?: string; category?: string }, i: number) => ({
+                name: f.name,
+                description: f.desc || f.name,
+                priority: f.category === 'must' ? 'P1' : i < 4 ? 'P2' : 'P3',
+              })),
+            };
+          }
+        } catch { /* not JSON */ }
+      }
+
+      // 기능 선택 UI 표시 여부 결정
+      let selectableFeatures: SelectableFeature[] | null = null;
+      if (aiResult.showFeatureSelector && rfpData.overview) {
+        const aiFeatures = await generateAIFeatures(rfpData.overview || userText);
+        if (aiFeatures && aiFeatures.length >= 3) {
+          selectableFeatures = aiFeatures;
+        }
+      }
+
+      // 완료 여부
+      const isComplete = aiResult.completionReady;
+
+      const covered = getTopicsCovered(rfpData);
+
+      return NextResponse.json({
+        analysisMessage: aiResult.analysis,
+        questionMessage: aiResult.question,
+        message: aiResult.question || aiResult.analysis,
+        rfpUpdate,
+        nextAction: isComplete ? 'complete' : 'continue',
+        quickReplies: selectableFeatures ? [] : aiResult.quickReplies,
+        inlineOptions: selectableFeatures ? [] : aiResult.quickReplies,
+        selectableFeatures,
+        thinkingLabel: aiResult.thinkingLabel,
+        topicsCovered: covered,
+        progress: aiResult.progressPercent,
+        canComplete: isComplete || isReadyToComplete(rfpData),
+      });
+    }
+
+    // ═══ Fallback: API 실패 시 ═══
+    const fallback = generateSimpleFallback(rfpData, userText);
+    return NextResponse.json({
+      message: fallback.message,
+      rfpUpdate: fallback.rfpUpdate,
+      nextAction: fallback.completionReady ? 'complete' : 'continue',
+      quickReplies: fallback.quickReplies,
+      inlineOptions: fallback.quickReplies,
+      topicsCovered: getTopicsCovered(rfpData),
+      progress: fallback.progressPercent,
+      canComplete: fallback.completionReady,
+    });
 
   } catch (error) {
     console.error('Chat API error:', error);
-    try {
-      const body = await req.clone().json();
-      const userMsg = body.messages?.filter((m: { role: string }) => m.role === 'user').pop()?.content || '';
-      const fallback = generateFallbackResponse(userMsg, body.currentStep || 1, body.rfpData);
-      return NextResponse.json(fallback);
-    } catch {
-      return NextResponse.json({
-        message: '잠시 문제가 발생했습니다. 다시 시도해주세요.',
-        rfpUpdate: null, nextAction: 'continue', nextStep: null,
-      });
-    }
+    return NextResponse.json({
+      message: '잠시 문제가 발생했습니다. 다시 시도해주세요.',
+      rfpUpdate: null, nextAction: 'continue',
+    });
   }
 }

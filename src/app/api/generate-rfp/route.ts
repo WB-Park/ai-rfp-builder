@@ -58,7 +58,6 @@ interface PRDResult {
     sitemap: { id: string; label: string; children?: { id: string; label: string; children?: { id: string; label: string }[] }[] }[];
   };
   originalDescription?: string;
-  budgetBreakdown?: { feature: string; percentage: number; estimatedCost: string; effort: string }[];
   apiEndpoints?: { method: string; path: string; description: string; feature: string }[];
   dataModel?: { entity: string; fields: string[]; relationships: string[] }[];
   competitorAnalysis?: { name: string; strengths: string; weaknesses: string; differentiation: string }[];
@@ -120,13 +119,12 @@ async function generateFullAIPRD(rfpData: RFPData): Promise<PRDResult> {
 - 핵심 기능:\n${featureList || '(미입력)'}
 - 참고 서비스: ${rfpData.referenceServices || '없음'}
 - 기술 요구사항: ${rfpData.techRequirements || '없음'}
-- 예산/일정: ${rfpData.budgetTimeline || '미정'}
 - 추가 요구사항: ${rfpData.additionalRequirements || '없음'}
 
 JSON 형식으로 응답하세요:
 {
   "projectName": "서비스 성격이 드러나는 프로젝트명 15자 이내 (예: '펫케어 매칭 플랫폼')",
-  "executiveSummary": "300자 이상. 이 프로젝트가 뭔지, 왜 필요한지, 핵심 차별점은 뭔지를 C레벨이 30초 안에 파악 가능하도록. 관련 국내 시장 규모와 성장률 포함. 핵심 기능 수, 예상 기간, 예상 예산 범위 포함.",
+  "executiveSummary": "300자 이상. 이 프로젝트가 뭔지, 왜 필요한지, 핵심 차별점은 뭔지를 C레벨이 30초 안에 파악 가능하도록. 관련 국내 시장 규모와 성장률 포함. 핵심 기능 수, 예상 기간 포함.",
   "projectOverview": "500자 이상. (1) 시장 기회: 관련 국내 시장 규모와 트렌드 2~3가지 (2) 서비스 컨셉: 이 서비스가 정확히 무엇을 해결하는지 (3) 핵심 가치 제안: 기존 대안 대비 구체적 장점 3가지 (4) 수익 모델: 어떻게 돈을 벌 것인지",
   "problemStatement": "400자 이상. (1) 타겟 사용자가 현재 겪는 구체적 문제 3가지 — 각각 빈도, 비용, 감정적 불만 포함 (2) 기존 대안(실제 서비스명)의 한계 2~3가지 (3) Before→After 비교 3항목 — 각각 정량적 개선 수치 포함",
   "targetUsersAnalysis": "400자 이상. (1) Primary 사용자: 인구통계 + 핵심 Pain Point 3개 (2) Secondary 사용자 1그룹 (3) 사용자 여정 핵심 5단계별 이탈 방지 포인트",
@@ -155,7 +153,6 @@ JSON 형식으로 응답하세요:
 - 핵심 기능:\n${featureList || '(미입력)'}
 - 참고 서비스: ${rfpData.referenceServices || '없음'}
 - 기술: ${rfpData.techRequirements || '없음'}
-- 예산/일정: ${rfpData.budgetTimeline || '미정'}
 
 JSON 형식으로 응답하세요:
 {
@@ -179,9 +176,6 @@ JSON 형식으로 응답하세요:
   "competitorAnalysis": [
     {"name": "실제 경쟁 서비스명", "strengths": "강점", "weaknesses": "약점", "differentiation": "우리 서비스의 차별점"}
   ],
-  "budgetBreakdown": [
-    {"feature": "기능명", "percentage": 25, "estimatedCost": "예상 비용", "effort": "예상 공수(주)"}
-  ],
   "scopeExclusions": ["1차 MVP에서 제외할 기능/범위 5개 — 각각 제외 이유 포함"]
 }
 
@@ -190,8 +184,7 @@ userPersonas: 정확히 3명. 최소 1명은 서비스 운영자/관리자.
 timeline: 정확히 5단계 (기획설계/UI디자인/MVP개발/추가기능/QA출시).
 risks: 정확히 5개. 기술/비즈니스/운영 골고루.
 techStack: 4~6개. 프론트엔드, 백엔드, DB, 인프라 필수.
-competitorAnalysis: 3개. 실제 한국 서비스명 사용.
-budgetBreakdown: 핵심 기능별 예산 배분.`
+competitorAnalysis: 3개. 실제 한국 서비스명 사용.`
     }],
   });
 
@@ -504,7 +497,6 @@ JSON 형식으로 응답:
     expertInsight: dataA.expertInsight || '',
     informationArchitecture,
     originalDescription: rfpData.overview || '',
-    budgetBreakdown: dataB.budgetBreakdown || [],
     apiEndpoints,
     dataModel,
     competitorAnalysis: dataB.competitorAnalysis || [],
@@ -582,7 +574,6 @@ function generateMinimalFallback(rfpData: RFPData): PRDResult {
     expertInsight: '',
     informationArchitecture: { sitemap: [] },
     originalDescription: rfpData.overview || '',
-    budgetBreakdown: [],
     apiEndpoints: [],
     dataModel: [],
     competitorAnalysis: [],

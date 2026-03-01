@@ -1,11 +1,11 @@
 'use client';
 
-// AI RFP Builder — Chat Interface v8 (Dynamic Conversation)
-// 동적 질문 시스템: 토픽 기반 프로그레스, 맥락 인지 질문 순서
-// 고정 X/7 → 토픽 커버리지 기반 프로그레스
+// AI PRD Builder — Chat Interface v9 (Fully AI-Driven)
+// 고정형 질문 완전 제거. Claude가 대화 맥락 기반으로 다음 질문 생성.
+// 토픽 기반 프로그레스 → AI 평가 프로그레스
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { RFPData, emptyRFPData, TOPICS, TopicId, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
+import { RFPData, emptyRFPData, getTopicsCovered, isReadyToComplete } from '@/types/rfp';
 
 interface SelectableFeature {
   name: string;
@@ -19,12 +19,9 @@ interface ChatMessage {
   timestamp?: number;
   selectableFeatures?: SelectableFeature[];
   inlineOptions?: string[];
-  isAnalysis?: boolean; // 분석 메시지 여부 (시각적 구분)
-  // 롤백용 상태 스냅샷 (user 메시지 전송 직전 상태)
+  isAnalysis?: boolean;
   snapshot?: {
     rfpData: RFPData;
-    currentStep: number;
-    topicsCovered: TopicId[];
     progressPercent: number;
   };
 }
@@ -44,7 +41,6 @@ function renderMarkdown(text: string) {
     .replace(/\n/g, '<br/>');
 }
 
-// 시간 포맷
 function formatTime(ts: number): string {
   const d = new Date(ts);
   const h = d.getHours();
@@ -54,19 +50,16 @@ function formatTime(ts: number): string {
   return `${ampm} ${hour}:${m}`;
 }
 
-// 단계별 컨텍스트 인식 씽킹 라벨
-const STEP_THINKING_LABELS: Record<number, string[]> = {
-  1: ['프로젝트 아이디어를 분석하고 있어요...', '유사 서비스 사례를 검색하고 있어요...'],
-  2: ['핵심 기능을 분류하고 우선순위를 매기고 있어요...', '위시켓 116,000건 데이터에서 유사 기능을 조회 중...'],
-  3: ['타겟 사용자 페르소나를 구성하고 있어요...', '사용자 세그먼트를 분석하고 있어요...'],
-  4: ['참고 서비스를 벤치마킹하고 있어요...', '경쟁 서비스 차별점을 분석 중...'],
-  5: ['기술 스택 적합성을 분석하고 있어요...', '최적의 기술 아키텍처를 설계 중...'],
-  6: ['예산 범위를 유사 프로젝트 기반으로 추정 중...', '시장 데이터 기반 일정을 계산하고 있어요...'],
-  7: ['추가 요구사항을 정리하고 있어요...', '최종 검토사항을 확인 중...'],
-};
-function getThinkingLabel(step: number): string {
-  const msgs = STEP_THINKING_LABELS[step] || STEP_THINKING_LABELS[1];
-  return msgs[Math.floor(Math.random() * msgs.length)];
+// 동적 thinking 라벨
+const THINKING_LABELS = [
+  '프로젝트를 분석하고 있어요...',
+  '맞춤 질문을 구성하고 있어요...',
+  '위시켓 116,000건 데이터에서 인사이트를 찾고 있어요...',
+  '최적의 다음 질문을 결정하고 있어요...',
+  '답변을 분석하고 있어요...',
+];
+function getThinkingLabel(): string {
+  return THINKING_LABELS[Math.floor(Math.random() * THINKING_LABELS.length)];
 }
 
 export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
@@ -74,30 +67,23 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     {
       role: 'assistant',
       content: email.startsWith('guest@')
-        ? `안녕하세요! 위시켓 AI RFP Builder입니다.\n\n소프트웨어 외주 기획서(RFP)를 함께 작성해볼까요? 대화하듯 답변해주시면 **AI가 맞춤형 질문**을 이어갑니다.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`
-        : `안녕하세요! **${email.split('@')[0]}**님, 위시켓 AI RFP Builder입니다.\n\n대화하듯 답변해주시면 **AI가 맞춤형 질문**을 이어갑니다. 핵심 정보만 수집하면 바로 완성할 수 있어요.\n\n첫 번째 질문입니다.\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
+        ? `안녕하세요! 위시켓 **AI PRD 빌더**입니다.\n\n대화 몇 번이면 **전문 기획서(PRD)**가 완성됩니다. AI가 맥락에 맞는 질문을 이어갈게요.\n\n💡 이메일을 등록하시면 완성된 기획서를 PDF로 받아보실 수 있습니다.\n\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`
+        : `안녕하세요! **${email.split('@')[0]}**님, 위시켓 **AI PRD 빌더**입니다.\n\n대화 몇 번이면 **전문 기획서(PRD)**가 완성됩니다. AI가 맥락에 맞는 질문을 이어갈게요.\n\n**어떤 서비스를 만들고 싶으신가요?** 한 줄이면 충분해요.`,
       timestamp: Date.now(),
     },
   ]);
   const [input, setInput] = useState('');
-  const [currentStep, setCurrentStep] = useState(1);
   const [rfpData, setRfpData] = useState<RFPData>(emptyRFPData);
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [quickReplies, setQuickReplies] = useState<string[]>([]);
+  const [canComplete, setCanComplete] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState('');
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  // 동적 토픽 추적
-  const [topicsCovered, setTopicsCovered] = useState<TopicId[]>([]);
   const [progressPercent, setProgressPercent] = useState(0);
-  const [canComplete, setCanComplete] = useState(false);
-  // 🆕 복수선택 기능 UI
+  // 기능 선택 UI
   const [featureSelection, setFeatureSelection] = useState<Record<string, boolean>>({});
-  // F1: 이전 답변 수정
-  const [editingMsgIndex, setEditingMsgIndex] = useState<number | null>(null);
-  const [editingMsgDraft, setEditingMsgDraft] = useState('');
   // F7: 문서 업로드
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,14 +99,11 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // 스크롤 투 바텀
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
   // 스크롤 위치 감지
   useEffect(() => {
@@ -134,33 +117,30 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // F2: 자동저장 (30초 간격)
+  // 자동저장
   const autosaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
 
   useEffect(() => {
     if (!sessionId) return;
     autosaveTimerRef.current = setInterval(() => {
-      const snapshot = JSON.stringify({ rfpData, currentStep, msgCount: messages.length });
+      const snapshot = JSON.stringify({ rfpData, msgCount: messages.length });
       if (snapshot !== lastSavedRef.current && messages.length > 1) {
         lastSavedRef.current = snapshot;
         fetch('/api/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sessionId,
-            email,
+            sessionId, email,
             messages: messages.map(m => ({ role: m.role, content: m.content })),
-            currentStep,
-            rfpData,
+            currentStep: 1, rfpData,
           }),
-        }).catch(() => { /* silent */ });
+        }).catch(() => {});
       }
     }, 30000);
     return () => { if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current); };
-  }, [sessionId, email, messages, currentStep, rfpData]);
+  }, [sessionId, email, messages, rfpData]);
 
-  // textarea 자동 높이
   const adjustTextareaHeight = useCallback(() => {
     const textarea = inputRef.current;
     if (textarea) {
@@ -169,11 +149,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     }
   }, []);
 
-  // Supabase 세션 저장
   const saveSession = useCallback(async (
     updatedRfpData: RFPData,
     updatedMessages: ChatMessage[],
-    step: number,
     completed: boolean
   ) => {
     if (!sessionId) return;
@@ -185,7 +163,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           sessionId,
           rfpData: updatedRfpData,
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
-          currentStep: step,
+          currentStep: 1,
           completed,
         }),
       });
@@ -197,23 +175,19 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const sendMessage = async (userMessage: string) => {
     if (!userMessage.trim() || loading) return;
 
-    // 롤백용 스냅샷: 메시지 전송 직전 상태 저장
     const userMsg: ChatMessage = {
       role: 'user' as const,
       content: userMessage,
       timestamp: Date.now(),
       snapshot: {
         rfpData: JSON.parse(JSON.stringify(rfpData)),
-        currentStep,
-        topicsCovered: [...topicsCovered],
         progressPercent,
       },
     };
     const newMessages: ChatMessage[] = [...messages, userMsg];
     setMessages(newMessages);
     setLoading(true);
-    setQuickReplies([]);
-    setThinkingLabel(getThinkingLabel(currentStep));
+    setThinkingLabel(getThinkingLabel());
 
     try {
       const res = await fetch('/api/chat', {
@@ -221,7 +195,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          currentStep,
           rfpData,
         }),
       });
@@ -229,19 +202,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       const data = await res.json();
 
       let updatedRfpData = rfpData;
-      let updatedStep = currentStep;
       let completed = false;
 
+      // rfpUpdate 반영
       if (data.rfpUpdate) {
         updatedRfpData = { ...rfpData };
         const { section, value } = data.rfpUpdate;
         if (section && value !== undefined) {
           if (section === 'coreFeatures') {
-            // 항상 배열로 정규화
             if (Array.isArray(value)) {
               updatedRfpData.coreFeatures = value;
             } else if (typeof value === 'string') {
-              // 문자열이면 파싱 시도
               try {
                 const parsed = JSON.parse(value);
                 updatedRfpData.coreFeatures = Array.isArray(parsed) ? parsed : [];
@@ -249,30 +220,11 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 updatedRfpData.coreFeatures = [];
               }
             }
-            // 그 외 타입은 무시 (기존 배열 유지)
-          } else if (section in updatedRfpData) {
+          } else if (section in updatedRfpData && section !== 'budgetTimeline') {
             (updatedRfpData as unknown as Record<string, unknown>)[section] = value;
           }
         }
         setRfpData(updatedRfpData);
-      }
-
-      // 동적 스텝 업데이트
-      if (data.nextStep) {
-        updatedStep = data.nextStep;
-        setCurrentStep(data.nextStep);
-      } else if (data.nextAction !== 'clarify') {
-        updatedStep = Math.min(currentStep + 1, 8);
-        setCurrentStep(updatedStep);
-      }
-
-      // 토픽 커버리지 업데이트
-      if (data.topicsCovered && Array.isArray(data.topicsCovered)) {
-        setTopicsCovered(data.topicsCovered);
-      } else {
-        // 수동 계산
-        const covered = getTopicsCovered(updatedRfpData);
-        setTopicsCovered(covered);
       }
 
       // 프로그레스 업데이트
@@ -280,7 +232,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setProgressPercent(data.progress);
       } else {
         const covered = getTopicsCovered(updatedRfpData);
-        setProgressPercent(Math.round((covered.length / TOPICS.length) * 100));
+        setProgressPercent(Math.round((covered.length / 6) * 100));
       }
 
       // 완료 가능 여부
@@ -295,17 +247,15 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         setIsComplete(true);
       }
 
-      // 서버에서 thinkingLabel이 오면 사용
       if (data.thinkingLabel) {
         setThinkingLabel(data.thinkingLabel);
       }
 
-      // 분석 메시지와 질문 메시지 분리 렌더링 (시간차 효과)
+      // 분석 메시지와 질문 메시지 분리 렌더링
       const hasAnalysis = data.analysisMessage && data.analysisMessage.trim();
       const hasQuestion = data.questionMessage && data.questionMessage.trim();
 
       if (hasAnalysis && hasQuestion) {
-        // ① 분석 메시지 먼저 표시
         const analysisMsg: ChatMessage = {
           role: 'assistant' as const,
           content: data.analysisMessage,
@@ -314,9 +264,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         };
         const withAnalysis = [...newMessages, analysisMsg];
         setMessages(withAnalysis);
-        setLoading(false); // 로딩 해제하여 분석 메시지 보이게
+        setLoading(false);
 
-        // ② 500ms 후 질문 메시지 추가 (타이핑 느낌)
         await new Promise(r => setTimeout(r, 500));
         const questionMsg: ChatMessage = {
           role: 'assistant' as const,
@@ -328,24 +277,19 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         const finalMessages = [...withAnalysis, questionMsg];
         setMessages(finalMessages);
 
-        // selectableFeatures / quickReplies
         if (data.selectableFeatures && data.selectableFeatures.length > 0) {
           const initialSelection: Record<string, boolean> = {};
           for (const f of data.selectableFeatures) {
             initialSelection[f.name] = f.category === 'must';
           }
           setFeatureSelection(initialSelection);
-          setQuickReplies([]);
-        } else if (data.quickReplies && data.quickReplies.length > 0) {
-          setQuickReplies(data.quickReplies);
         }
 
-        saveSession(updatedRfpData, finalMessages, updatedStep, completed);
+        saveSession(updatedRfpData, finalMessages, completed);
       } else {
-        // 분리 실패 시 기존처럼 단일 메시지
         const assistantMsg: ChatMessage = {
           role: 'assistant' as const,
-          content: data.message,
+          content: data.message || data.questionMessage || data.analysisMessage || '계속 진행해볼까요?',
           timestamp: Date.now(),
           selectableFeatures: data.selectableFeatures || undefined,
           inlineOptions: data.inlineOptions || undefined,
@@ -359,12 +303,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             initialSelection[f.name] = f.category === 'must';
           }
           setFeatureSelection(initialSelection);
-          setQuickReplies([]);
-        } else if (data.quickReplies && data.quickReplies.length > 0) {
-          setQuickReplies(data.quickReplies);
         }
 
-        saveSession(updatedRfpData, finalMessages, updatedStep, completed);
+        saveSession(updatedRfpData, finalMessages, completed);
       }
 
     } catch {
@@ -388,46 +329,27 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     await sendMessage(msg);
   };
 
-  // ── 대화 롤백: 특정 사용자 메시지 시점으로 되돌리기 ──
+  // 대화 롤백
   const handleRollback = (msgIndex: number) => {
     if (loading) return;
     const targetMsg = messages[msgIndex];
     if (!targetMsg || targetMsg.role !== 'user') return;
 
-    // 해당 메시지 이전까지 잘라내기 (해당 user 메시지 자체도 제거)
     const truncated = messages.slice(0, msgIndex);
     setMessages(truncated);
 
-    // 스냅샷이 있으면 상태 복원
     if (targetMsg.snapshot) {
       setRfpData(targetMsg.snapshot.rfpData);
-      setCurrentStep(targetMsg.snapshot.currentStep);
-      setTopicsCovered(targetMsg.snapshot.topicsCovered);
       setProgressPercent(targetMsg.snapshot.progressPercent);
     }
 
-    // 롤백된 메시지 내용을 입력창에 넣어서 수정 후 다시 보낼 수 있게
     setInput(targetMsg.content);
-    setQuickReplies([]);
     setCanComplete(false);
     setIsComplete(false);
     inputRef.current?.focus();
   };
 
-  const handleQuickReply = async (text: string) => {
-    if (loading) return;
-    setInput('');
-    await sendMessage(text);
-  };
-
-  const handleSkip = () => {
-    // 필수 토픽(overview, coreFeatures)은 건너뛸 수 없음
-    const currentTopicId = TOPICS.find(t => t.stepNumber === currentStep)?.id;
-    if (currentTopicId === 'overview' || currentTopicId === 'coreFeatures') return;
-    sendMessage('건너뛰기');
-  };
-
-  // F7: 문서 업로드 분석
+  // F7: 문서 업로드
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -435,12 +357,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 
     try {
       let text = '';
-      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
-        text = await file.text();
-      } else {
-        // 기타 파일은 텍스트로 읽기 시도
-        text = await file.text();
-      }
+      text = await file.text();
 
       if (text.length < 20) {
         setMessages(prev => [...prev, {
@@ -451,7 +368,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         return;
       }
 
-      // 업로드 사실을 메시지로 추가
       setMessages(prev => [...prev, {
         role: 'user', content: `📄 기존 기획서 업로드: ${file.name}`,
         timestamp: Date.now(),
@@ -466,7 +382,6 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       const data = await res.json();
       if (data.analysis) {
         const a = data.analysis;
-        // rfpData에 분석 결과 채우기
         const updated = { ...rfpData };
         if (a.overview) updated.overview = a.overview;
         if (a.targetUsers) updated.targetUsers = a.targetUsers;
@@ -480,15 +395,13 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         if (a.additionalRequirements) updated.additionalRequirements = a.additionalRequirements;
         setRfpData(updated);
 
-        // 토픽 커버리지 업데이트
         const covered = getTopicsCovered(updated);
-        setTopicsCovered(covered);
-        setProgressPercent(Math.round((covered.length / TOPICS.length) * 100));
+        setProgressPercent(Math.round((covered.length / 6) * 100));
         setCanComplete(isReadyToComplete(updated));
 
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `📋 **기존 문서 분석 완료!**\n\n${a.summary || '문서에서 핵심 정보를 추출했습니다.'}\n\n추출된 정보가 우측 미리보기에 자동으로 채워졌습니다. 부족한 부분은 대화를 통해 보완해 드리겠습니다.\n\n**확인해주세요:** 추출된 내용이 정확한가요? 수정이 필요하면 말씀해주세요.`,
+          content: `📋 **기존 문서 분석 완료!**\n\n${a.summary || '문서에서 핵심 정보를 추출했습니다.'}\n\n추출된 정보가 우측 미리보기에 자동으로 채워졌습니다. 부족한 부분은 대화를 통해 보완해 드리겠습니다.`,
           timestamp: Date.now(),
         }]);
       }
@@ -510,16 +423,15 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     }
   };
 
-  // 현재 토픽 라벨
-  const currentTopic = TOPICS.find(t => t.stepNumber === currentStep);
-  const currentTopicLabel = currentTopic ? `${currentTopic.icon} ${currentTopic.label}` : 'RFP 작성';
-  const canSkipCurrent = currentTopic ? !currentTopic.required : false;
+  // 수집된 항목 수
+  const coveredItems = [
+    rfpData.overview, rfpData.targetUsers,
+    rfpData.coreFeatures.length > 0 ? 'yes' : '',
+    rfpData.techRequirements, rfpData.referenceServices,
+    rfpData.additionalRequirements,
+  ].filter(Boolean).length;
 
-  // 커버된 토픽 수 / 전체
-  const coveredCount = topicsCovered.length;
-  const totalTopics = TOPICS.length;
-
-  // 모바일에서 RFP 프리뷰 패널
+  // 미리보기 패널
   const previewPanel = (
     <div style={{
       width: isMobile ? '100%' : '50%',
@@ -527,37 +439,24 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       overflowY: 'auto',
       ...(isMobile ? {
         position: 'fixed' as const,
-        top: 0,
-        left: showPreview ? 0 : '100%',
-        right: 0,
-        bottom: 0,
-        zIndex: 50,
+        top: 0, left: showPreview ? 0 : '100%',
+        right: 0, bottom: 0, zIndex: 50,
         transition: 'left 0.3s ease-out',
       } : {}),
     }}>
-      {/* 모바일 닫기 버튼 */}
       {isMobile && (
         <div style={{
           padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           borderBottom: '1px solid var(--border-default)',
           background: 'var(--surface-0)',
-          position: 'sticky' as const,
-          top: 0,
-          zIndex: 2,
+          position: 'sticky' as const, top: 0, zIndex: 2,
         }}>
-          <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>RFP 미리보기</span>
-          <button
-            onClick={() => setShowPreview(false)}
-            style={{
-              background: 'none', border: 'none', fontSize: 20,
-              color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px 8px',
-            }}
-          >
-            ✕
-          </button>
+          <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>PRD 미리보기</span>
+          <button onClick={() => setShowPreview(false)} style={{
+            background: 'none', border: 'none', fontSize: 20,
+            color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px 8px',
+          }}>✕</button>
         </div>
       )}
       <div style={{ padding: isMobile ? '16px' : 'var(--space-xl)' }}>
@@ -576,7 +475,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               borderBottom: '1px solid var(--border-default)',
             }}>
               <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: 'var(--letter-tight)' }}>
-                RFP 미리보기
+                PRD 미리보기
               </h2>
               <span style={{
                 fontSize: 12, color: 'var(--text-quaternary)',
@@ -588,25 +487,27 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             </div>
           )}
 
-          {/* 토픽 커버리지 칩 */}
-          <div style={{
-            display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--space-lg)',
-          }}>
-            {TOPICS.map(topic => {
-              const isCovered = topicsCovered.includes(topic.id);
-              return (
-                <span key={topic.id} style={{
-                  fontSize: 11, fontWeight: 500,
-                  padding: '4px 10px', borderRadius: 'var(--radius-full)',
-                  background: isCovered ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
-                  color: isCovered ? 'var(--color-primary)' : 'var(--text-quaternary)',
-                  border: `1px solid ${isCovered ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent'}`,
-                  transition: 'all 0.3s ease',
-                }}>
-                  {isCovered ? '✓' : ''} {topic.icon} {topic.label}
-                </span>
-              );
-            })}
+          {/* 수집 상태 칩 */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--space-lg)' }}>
+            {[
+              { label: '프로젝트 개요', filled: !!rfpData.overview, icon: '📋' },
+              { label: '타겟 사용자', filled: !!rfpData.targetUsers, icon: '👥' },
+              { label: '핵심 기능', filled: rfpData.coreFeatures.length > 0, icon: '⚙️' },
+              { label: '기술 요구사항', filled: !!rfpData.techRequirements, icon: '💻' },
+              { label: '참고 서비스', filled: !!rfpData.referenceServices, icon: '🔍' },
+              { label: '추가 요구사항', filled: !!rfpData.additionalRequirements, icon: '📝' },
+            ].map(item => (
+              <span key={item.label} style={{
+                fontSize: 11, fontWeight: 500,
+                padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                background: item.filled ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
+                color: item.filled ? 'var(--color-primary)' : 'var(--text-quaternary)',
+                border: `1px solid ${item.filled ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent'}`,
+                transition: 'all 0.3s ease',
+              }}>
+                {item.filled ? '✓' : ''} {item.icon} {item.label}
+              </span>
+            ))}
           </div>
 
           {rfpData.overview ? (
@@ -636,19 +537,16 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               )}
               {rfpData.referenceServices && <RFPSection title="참고 서비스" icon="🔍" content={rfpData.referenceServices} />}
               {rfpData.techRequirements && <RFPSection title="기술 요구사항" icon="💻" content={rfpData.techRequirements} />}
-              {rfpData.budgetTimeline && <RFPSection title="예산 및 일정" icon="💰" content={rfpData.budgetTimeline} />}
               {rfpData.additionalRequirements && <RFPSection title="추가 요구사항" icon="📝" content={rfpData.additionalRequirements} />}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
-              <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>
-                📝
-              </div>
+              <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>📝</div>
               <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
                 아직 작성된 내용이 없어요
               </p>
               <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
-                AI와 대화하면 여기에 RFP가 실시간으로 채워집니다
+                AI와 대화하면 여기에 PRD가 실시간으로 채워집니다
               </p>
             </div>
           )}
@@ -662,8 +560,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       {/* Left: Chat Panel */}
       <div style={{
         width: isMobile ? '100%' : '50%',
-        display: 'flex',
-        flexDirection: 'column',
+        display: 'flex', flexDirection: 'column',
         borderRight: isMobile ? 'none' : '1px solid var(--border-default)',
       }}>
         {/* Header */}
@@ -680,7 +577,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   : '0 0 8px rgba(var(--color-primary-rgb), 0.4)',
               }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                {isComplete ? 'RFP 완성 준비' : currentTopicLabel}
+                {isComplete ? 'PRD 완성 준비' : 'AI PRD 빌더'}
               </span>
               {canComplete && !isComplete && (
                 <span className="animate-fade-in" style={{
@@ -694,56 +591,28 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* 모바일: RFP 미리보기 버튼 */}
               {isMobile && rfpData.overview && (
-                <button
-                  onClick={() => setShowPreview(true)}
-                  style={{
-                    fontSize: 12, fontWeight: 600, color: 'var(--color-primary)',
-                    background: 'var(--color-primary-alpha)', border: 'none',
-                    padding: '4px 12px', borderRadius: 'var(--radius-full)',
-                    cursor: 'pointer',
-                  }}
-                >
+                <button onClick={() => setShowPreview(true)} style={{
+                  fontSize: 12, fontWeight: 600, color: 'var(--color-primary)',
+                  background: 'var(--color-primary-alpha)', border: 'none',
+                  padding: '4px 12px', borderRadius: 'var(--radius-full)',
+                  cursor: 'pointer',
+                }}>
                   미리보기
                 </button>
               )}
               <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>
-                {coveredCount}/{totalTopics} 토픽
+                {coveredItems}/6 항목
               </span>
             </div>
           </div>
 
-          {/* Progress bar — 토픽 커버리지 기반 */}
+          {/* Progress bar */}
           <div className="progress-bar">
             <div className="progress-bar__fill" style={{
               width: `${progressPercent}%`,
               transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
             }} />
-          </div>
-
-          {/* 토픽 인디케이터 */}
-          <div style={{
-            display: 'flex', gap: 4, marginTop: 8, overflowX: 'auto',
-            scrollbarWidth: 'none',
-          }}>
-            {TOPICS.map(topic => {
-              const isCovered = topicsCovered.includes(topic.id);
-              const isCurrent = topic.stepNumber === currentStep;
-              return (
-                <span key={topic.id} style={{
-                  fontSize: 11, whiteSpace: 'nowrap',
-                  padding: '3px 8px', borderRadius: 'var(--radius-full)',
-                  background: isCurrent ? 'var(--color-primary)' : isCovered ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
-                  color: isCurrent ? 'white' : isCovered ? 'var(--color-primary)' : 'var(--text-quaternary)',
-                  fontWeight: isCurrent ? 600 : 400,
-                  transition: 'all 0.3s ease',
-                  flexShrink: 0,
-                }}>
-                  {isCovered && !isCurrent ? '✓ ' : ''}{topic.icon}
-                </span>
-              );
-            })}
           </div>
         </div>
 
@@ -751,28 +620,21 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         <div
           ref={messagesContainerRef}
           style={{
-            flex: 1,
-            overflowY: 'auto',
+            flex: 1, overflowY: 'auto',
             padding: isMobile ? '16px' : '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-md)',
+            display: 'flex', flexDirection: 'column', gap: 'var(--space-md)',
             scrollBehavior: 'smooth',
           }}
         >
           {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                animationDelay: `${i * 0.05}s`,
-              }}
-            >
+            <div key={i} style={{
+              display: 'flex',
+              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              animationDelay: `${i * 0.05}s`,
+            }}>
               {msg.role === 'assistant' && (
                 <div style={{
-                  width: 32, height: 32,
-                  borderRadius: 'var(--radius-sm)',
+                  width: 32, height: 32, borderRadius: 'var(--radius-sm)',
                   background: 'var(--color-primary-alpha)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   marginRight: 'var(--space-sm)', flexShrink: 0, marginTop: 2,
@@ -783,128 +645,22 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 </div>
               )}
               <div style={{ maxWidth: msg.role === 'user' ? '80%' : '85%' }}>
-                {/* F1: 사용자 메시지 편집 모드 */}
-                {msg.role === 'user' && editingMsgIndex === i ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-                    <textarea
-                      value={editingMsgDraft}
-                      onChange={(e) => setEditingMsgDraft(e.target.value)}
-                      autoFocus
-                      style={{
-                        width: '100%', minWidth: 260, minHeight: 60, padding: '10px 14px',
-                        borderRadius: 12, border: '2px solid var(--color-primary)',
-                        fontSize: 14, fontFamily: 'var(--font-kr)', resize: 'none',
-                        outline: 'none', background: 'rgba(37,99,235,0.04)',
-                        color: 'var(--text-primary)', lineHeight: 1.6,
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          if (editingMsgDraft.trim()) {
-                            // 롤백 후 수정된 메시지로 다시 전송
-                            const targetMsg = messages[i];
-                            const truncated = messages.slice(0, i);
-                            setMessages(truncated);
-                            if (targetMsg?.snapshot) {
-                              setRfpData(targetMsg.snapshot.rfpData);
-                              setCurrentStep(targetMsg.snapshot.currentStep);
-                              setTopicsCovered(targetMsg.snapshot.topicsCovered);
-                              setProgressPercent(targetMsg.snapshot.progressPercent);
-                            }
-                            setEditingMsgIndex(null);
-                            setEditingMsgDraft('');
-                            setTimeout(() => sendMessage(editingMsgDraft.trim()), 100);
-                          }
-                        }
-                        if (e.key === 'Escape') { setEditingMsgIndex(null); setEditingMsgDraft(''); }
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => { setEditingMsgIndex(null); setEditingMsgDraft(''); }} style={{
-                        padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
-                        background: 'var(--surface-0)', fontSize: 12, cursor: 'pointer', color: 'var(--text-secondary)',
-                        fontFamily: 'var(--font-kr)',
-                      }}>취소</button>
-                      <button onClick={() => {
-                        if (editingMsgDraft.trim()) {
-                          const targetMsg = messages[i];
-                          const truncated = messages.slice(0, i);
-                          setMessages(truncated);
-                          if (targetMsg?.snapshot) {
-                            setRfpData(targetMsg.snapshot.rfpData);
-                            setCurrentStep(targetMsg.snapshot.currentStep);
-                            setTopicsCovered(targetMsg.snapshot.topicsCovered);
-                            setProgressPercent(targetMsg.snapshot.progressPercent);
-                          }
-                          setEditingMsgIndex(null);
-                          setEditingMsgDraft('');
-                          setTimeout(() => sendMessage(editingMsgDraft.trim()), 100);
-                        }
-                      }} style={{
-                        padding: '6px 14px', borderRadius: 8, border: 'none',
-                        background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600,
-                        cursor: 'pointer', fontFamily: 'var(--font-kr)',
-                      }}>수정 후 다시 보내기</button>
-                    </div>
-                  </div>
-                ) : (
-                <>
                 <div className={`${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'} animate-fade-in-up`}
                   style={{
                     position: 'relative',
                     ...(msg.isAnalysis ? {
                       borderLeft: '3px solid var(--color-primary)',
                       background: 'var(--surface-1)',
-                      paddingLeft: 16,
-                      opacity: 0.92,
-                      fontSize: '14px',
+                      paddingLeft: 16, opacity: 0.92, fontSize: '14px',
                     } : {}),
                   }}
-                  onMouseEnter={(e) => {
-                    if (msg.role === 'user' && !loading) {
-                      const btn = e.currentTarget.querySelector('.edit-msg-btn') as HTMLElement;
-                      if (btn) btn.style.opacity = '1';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const btn = e.currentTarget.querySelector('.edit-msg-btn') as HTMLElement;
-                    if (btn) btn.style.opacity = '0';
-                  }}
                 >
-                  {/* F1: 수정 버튼 (user 메시지에만, 호버 시 표시) */}
-                  {msg.role === 'user' && !loading && i > 0 && (
-                    <button
-                      className="edit-msg-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingMsgIndex(i);
-                        setEditingMsgDraft(msg.content);
-                      }}
-                      style={{
-                        position: 'absolute', top: -8, right: -8,
-                        width: 26, height: 26, borderRadius: '50%',
-                        background: 'var(--surface-0)', border: '1px solid var(--border-default)',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', opacity: 0, transition: 'opacity 0.15s',
-                        zIndex: 2,
-                      }}
-                      title="답변 수정"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                  )}
                   {msg.role === 'assistant' ? (
-                    <div
-                      style={{ margin: 0, lineHeight: 1.7 }}
+                    <div style={{ margin: 0, lineHeight: 1.7 }}
                       dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
                     />
                   ) : (
                     (() => {
-                      // Detect JSON feature selection and render nicely
                       try {
                         const parsed = JSON.parse(msg.content);
                         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
@@ -916,15 +672,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                 {parsed.map((f: {name: string}, idx: number) => (
                                   <span key={idx} style={{
-                                    display: 'inline-block',
-                                    padding: '3px 10px',
-                                    borderRadius: 12,
-                                    background: 'rgba(255,255,255,0.15)',
-                                    fontSize: 12,
-                                    color: 'rgba(255,255,255,0.9)',
-                                  }}>
-                                    {f.name}
-                                  </span>
+                                    display: 'inline-block', padding: '3px 10px', borderRadius: 12,
+                                    background: 'rgba(255,255,255,0.15)', fontSize: 12, color: 'rgba(255,255,255,0.9)',
+                                  }}>{f.name}</span>
                                 ))}
                               </div>
                             </div>
@@ -935,134 +685,83 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     })()
                   )}
                 </div>
-                {/* Inline options for assistant messages */}
+
+                {/* Inline options */}
                 {msg.role === 'assistant' && msg.inlineOptions && msg.inlineOptions.length > 0 && i === messages.length - 1 && !loading && (
                   <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {msg.inlineOptions.map((option, oi) => (
-                      <button
-                        key={oi}
-                        onClick={() => sendMessage(option)}
-                        style={{
-                          padding: '7px 14px',
-                          borderRadius: 20,
-                          border: '1.5px solid var(--color-primary)',
-                          background: 'transparent',
-                          color: 'var(--color-primary)',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          fontFamily: 'var(--font-kr)',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--color-primary)';
-                          e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = 'var(--color-primary)';
-                        }}
-                      >
-                        {option}
-                      </button>
+                      <button key={oi} onClick={() => sendMessage(option)} style={{
+                        padding: '7px 14px', borderRadius: 20,
+                        border: '1.5px solid var(--color-primary)',
+                        background: 'transparent', color: 'var(--color-primary)',
+                        fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-primary)'; e.currentTarget.style.color = 'white'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+                      >{option}</button>
                     ))}
                   </div>
                 )}
-                {/* 타임스탬프 + 롤백 버튼 */}
+
+                {/* 타임스탬프 + 롤백 */}
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: 'flex', alignItems: 'center',
                   justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  gap: 8,
-                  marginTop: 4,
+                  gap: 8, marginTop: 4,
                 }}>
                   {msg.timestamp && (
-                    <span style={{
-                      fontSize: 11,
-                      color: 'var(--text-quaternary)',
+                    <span style={{ fontSize: 11, color: 'var(--text-quaternary)',
                       paddingLeft: msg.role === 'assistant' ? 4 : 0,
                       paddingRight: msg.role === 'user' ? 4 : 0,
-                    }}>
-                      {formatTime(msg.timestamp)}
-                    </span>
+                    }}>{formatTime(msg.timestamp)}</span>
                   )}
-                  {/* 롤백 버튼: user 메시지 + 과거 메시지(마지막 아닌 것) + 로딩 아닐 때 */}
                   {msg.role === 'user' && i > 0 && i < messages.length - 1 && !loading && (
-                    <button
-                      onClick={() => handleRollback(i)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        fontSize: 11, color: 'var(--text-quaternary)',
-                        padding: '2px 6px', borderRadius: 4,
-                        transition: 'all 0.15s',
-                        display: 'flex', alignItems: 'center', gap: 3,
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.color = 'var(--color-primary)';
-                        e.currentTarget.style.background = 'rgba(37,99,235,0.06)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.color = 'var(--text-quaternary)';
-                        e.currentTarget.style.background = 'none';
-                      }}
-                      title="이 답변을 수정하고 다시 진행합니다"
+                    <button onClick={() => handleRollback(i)} style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 11, color: 'var(--text-quaternary)',
+                      padding: '2px 6px', borderRadius: 4, transition: 'all 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 3,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(37,99,235,0.06)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-quaternary)'; e.currentTarget.style.background = 'none'; }}
+                    title="이 답변을 수정하고 다시 진행합니다"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                        <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                       </svg>
                       여기서 다시하기
                     </button>
                   )}
                 </div>
-                {/* 🆕 복수선택 기능 UI — 마지막 assistant 메시지에만 */}
+
+                {/* 기능 선택 UI */}
                 {msg.role === 'assistant' && msg.selectableFeatures && msg.selectableFeatures.length > 0 && i === messages.length - 1 && !loading && (
                   <div style={{
-                    marginTop: 12,
-                    background: 'var(--surface-1)',
+                    marginTop: 12, background: 'var(--surface-1)',
                     borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-default)',
-                    overflow: 'hidden',
+                    border: '1px solid var(--border-default)', overflow: 'hidden',
                   }}>
-                    {/* 전체 선택/해제 바 */}
                     <div style={{
-                      padding: '10px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'var(--surface-0)',
-                      borderBottom: '1px solid var(--border-default)',
+                      padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: 'var(--surface-0)', borderBottom: '1px solid var(--border-default)',
                     }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                         기능 선택 ({Object.values(featureSelection).filter(Boolean).length}/{msg.selectableFeatures.length})
                       </span>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={() => {
-                            const all: Record<string, boolean> = {};
-                            msg.selectableFeatures!.forEach(f => { all[f.name] = true; });
-                            setFeatureSelection(all);
-                          }}
-                          style={{
-                            fontSize: 12, fontWeight: 500, color: 'var(--color-primary)',
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            padding: '2px 6px', fontFamily: 'var(--font-kr)',
-                          }}
-                        >
+                        <button onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          msg.selectableFeatures!.forEach(f => { all[f.name] = true; });
+                          setFeatureSelection(all);
+                        }} style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', fontFamily: 'var(--font-kr)' }}>
                           전체 선택
                         </button>
-                        <button
-                          onClick={() => {
-                            const none: Record<string, boolean> = {};
-                            msg.selectableFeatures!.forEach(f => { none[f.name] = false; });
-                            setFeatureSelection(none);
-                          }}
-                          style={{
-                            fontSize: 12, fontWeight: 500, color: 'var(--text-tertiary)',
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            padding: '2px 6px', fontFamily: 'var(--font-kr)',
-                          }}
-                        >
+                        <button onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          msg.selectableFeatures!.forEach(f => { none[f.name] = false; });
+                          setFeatureSelection(none);
+                        }} style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', fontFamily: 'var(--font-kr)' }}>
                           전체 해제
                         </button>
                       </div>
@@ -1074,104 +773,28 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       </div>
                     )}
                     {msg.selectableFeatures.filter(f => f.category === 'must').map((feat) => (
-                      <button
-                        key={feat.name}
-                        onClick={() => setFeatureSelection(prev => ({ ...prev, [feat.name]: !prev[feat.name] }))}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 14px',
-                          border: 'none',
-                          borderBottom: '1px solid var(--border-default)',
-                          background: featureSelection[feat.name] ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'background 0.15s',
-                          fontFamily: 'var(--font-kr)',
-                        }}
-                      >
-                        <span style={{
-                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                          border: featureSelection[feat.name] ? 'none' : '2px solid var(--border-strong)',
-                          background: featureSelection[feat.name] ? 'var(--color-primary)' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          transition: 'all 0.15s',
-                        }}>
-                          {featureSelection[feat.name] && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{feat.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{feat.desc}</div>
-                        </div>
-                      </button>
+                      <FeatureButton key={feat.name} feat={feat} selected={!!featureSelection[feat.name]}
+                        onToggle={() => setFeatureSelection(prev => ({ ...prev, [feat.name]: !prev[feat.name] }))} />
                     ))}
-                    {/* 추천 기능 */}
                     {msg.selectableFeatures.filter(f => f.category === 'recommended').length > 0 && (
                       <div style={{ padding: '10px 14px 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
                         🟡 추천 기능 ({msg.selectableFeatures.filter(f => f.category === 'recommended').length}개)
                       </div>
                     )}
                     {msg.selectableFeatures.filter(f => f.category === 'recommended').map((feat) => (
-                      <button
-                        key={feat.name}
-                        onClick={() => setFeatureSelection(prev => ({ ...prev, [feat.name]: !prev[feat.name] }))}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 14px',
-                          border: 'none',
-                          borderBottom: '1px solid var(--border-default)',
-                          background: featureSelection[feat.name] ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'background 0.15s',
-                          fontFamily: 'var(--font-kr)',
-                        }}
-                      >
-                        <span style={{
-                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                          border: featureSelection[feat.name] ? 'none' : '2px solid var(--border-strong)',
-                          background: featureSelection[feat.name] ? 'var(--color-primary)' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          transition: 'all 0.15s',
-                        }}>
-                          {featureSelection[feat.name] && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{feat.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{feat.desc}</div>
-                        </div>
-                      </button>
+                      <FeatureButton key={feat.name} feat={feat} selected={!!featureSelection[feat.name]}
+                        onToggle={() => setFeatureSelection(prev => ({ ...prev, [feat.name]: !prev[feat.name] }))} />
                     ))}
-                    {/* 선택 개수 + 확인 버튼 */}
                     <div style={{
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       background: 'var(--surface-0)',
                     }}>
-                      <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-                        💡 필요한 기능만 선택하세요
-                      </span>
+                      <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>💡 필요한 기능만 선택하세요</span>
                       <button
                         onClick={() => {
                           const selected = msg.selectableFeatures!.filter(f => featureSelection[f.name]);
                           if (selected.length === 0) return;
                           const payload = JSON.stringify(selected.map(f => ({ name: f.name, desc: f.desc, category: f.category })));
-                          // 메시지에서 selectableFeatures 제거 (UI 정리)
                           setMessages(prev => prev.map((m, idx) =>
                             idx === prev.length - 1 ? { ...m, selectableFeatures: undefined } : m
                           ));
@@ -1179,16 +802,13 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                           sendMessage(payload);
                         }}
                         style={{
-                          padding: '8px 24px',
-                          borderRadius: 'var(--radius-full)',
+                          padding: '8px 24px', borderRadius: 'var(--radius-full)',
                           border: 'none',
                           background: Object.values(featureSelection).filter(Boolean).length > 0
                             ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))'
                             : 'var(--border-default)',
                           color: Object.values(featureSelection).filter(Boolean).length > 0 ? 'white' : 'var(--text-quaternary)',
-                          fontSize: 14,
-                          fontWeight: 600,
-                          fontFamily: 'var(--font-kr)',
+                          fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-kr)',
                           cursor: Object.values(featureSelection).filter(Boolean).length > 0 ? 'pointer' : 'default',
                           transition: 'all 0.2s',
                         }}
@@ -1198,21 +818,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     </div>
                   </div>
                 )}
-                </>
-                )}
               </div>
             </div>
           ))}
 
-          {/* AI 분석 중 표시 */}
+          {/* Loading */}
           {loading && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-sm)' }}>
               <div style={{
-                width: 32, height: 32,
-                borderRadius: 'var(--radius-sm)',
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)',
                 background: 'var(--color-primary-alpha)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
@@ -1221,14 +837,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               <div className="chat-bubble-assistant animate-fade-in">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 5 }}>
-                    <span className="typing-dot" />
-                    <span className="typing-dot" />
-                    <span className="typing-dot" />
+                    <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
                   </div>
                   {thinkingLabel && (
-                    <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>
-                      {thinkingLabel}
-                    </span>
+                    <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>{thinkingLabel}</span>
                   )}
                 </div>
               </div>
@@ -1237,26 +849,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 스크롤 투 바텀 버튼 */}
+        {/* Scroll to bottom */}
         {showScrollBtn && (
-          <button
-            onClick={scrollToBottom}
-            style={{
-              position: 'absolute',
-              bottom: isMobile ? 170 : 140,
-              left: isMobile ? '50%' : '25%',
-              transform: 'translateX(-50%)',
-              width: 36, height: 36,
-              borderRadius: '50%',
-              background: 'var(--surface-0)',
-              border: '1px solid var(--border-strong)',
-              boxShadow: 'var(--shadow-md)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 5,
-              transition: 'all var(--duration-fast)',
-            }}
-          >
+          <button onClick={scrollToBottom} style={{
+            position: 'absolute', bottom: isMobile ? 170 : 140,
+            left: isMobile ? '50%' : '25%', transform: 'translateX(-50%)',
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'var(--surface-0)', border: '1px solid var(--border-strong)',
+            boxShadow: 'var(--shadow-md)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 5, transition: 'all var(--duration-fast)',
+          }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 12 15 18 9" />
             </svg>
@@ -1274,15 +877,10 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               onClick={() => onComplete(rfpData)}
               className="animate-bounce-in"
               style={{
-                width: '100%',
-                height: 'var(--btn-height)',
-                borderRadius: 'var(--btn-radius)',
-                border: 'none',
+                width: '100%', height: 'var(--btn-height)',
+                borderRadius: 'var(--btn-radius)', border: 'none',
                 background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
-                color: 'white',
-                fontWeight: 600,
-                fontSize: 16,
-                fontFamily: 'var(--font-kr)',
+                color: 'white', fontWeight: 600, fontSize: 16, fontFamily: 'var(--font-kr)',
                 cursor: 'pointer',
                 boxShadow: '0 4px 12px rgba(var(--color-primary-rgb), 0.3)',
                 transition: 'all var(--duration-normal) var(--ease-out)',
@@ -1304,26 +902,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    adjustTextareaHeight();
-                  }}
+                  onChange={(e) => { setInput(e.target.value); adjustTextareaHeight(); }}
                   onKeyDown={handleKeyDown}
                   placeholder="답변을 입력하세요..."
                   rows={1}
                   disabled={loading}
                   style={{
-                    width: '100%',
-                    minHeight: 48,
-                    maxHeight: 120,
-                    padding: '12px 16px',
-                    borderRadius: 'var(--radius-md)',
+                    width: '100%', minHeight: 48, maxHeight: 120,
+                    padding: '12px 16px', borderRadius: 'var(--radius-md)',
                     border: '1.5px solid var(--border-strong)',
-                    outline: 'none',
-                    resize: 'none',
-                    fontSize: 15,
-                    fontFamily: 'var(--font-kr)',
-                    color: 'var(--text-primary)',
+                    outline: 'none', resize: 'none', fontSize: 15,
+                    fontFamily: 'var(--font-kr)', color: 'var(--text-primary)',
                     background: 'var(--surface-0)',
                     transition: 'border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)',
                   }}
@@ -1338,28 +927,17 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 />
               </div>
 
-              {/* F7: 파일 업로드 */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.md,.csv,.json"
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading || uploading}
+              {/* File upload */}
+              <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json" onChange={handleFileUpload} style={{ display: 'none' }} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={loading || uploading}
                 title="기존 기획서 업로드"
                 style={{
-                  width: 48, height: 48,
-                  borderRadius: 'var(--radius-md)',
-                  border: '1.5px solid var(--border-strong)',
-                  background: 'var(--surface-0)',
+                  width: 48, height: 48, borderRadius: 'var(--radius-md)',
+                  border: '1.5px solid var(--border-strong)', background: 'var(--surface-0)',
                   color: uploading ? 'var(--color-primary)' : 'var(--text-tertiary)',
                   cursor: loading || uploading ? 'wait' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all var(--duration-fast)',
-                  flexShrink: 0,
+                  transition: 'all var(--duration-fast)', flexShrink: 0,
                 }}
               >
                 {uploading ? (
@@ -1374,38 +952,29 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               </button>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <button
-                  onClick={handleSend}
-                  disabled={loading || !input.trim()}
-                  style={{
-                    width: 48, height: 48,
-                    borderRadius: 'var(--radius-md)',
-                    border: 'none',
-                    background: input.trim() ? 'var(--color-primary)' : 'var(--surface-2)',
-                    color: input.trim() ? 'white' : 'var(--text-quaternary)',
-                    cursor: loading || !input.trim() ? 'default' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all var(--duration-fast) var(--ease-out)',
-                  }}
-                >
+                <button onClick={handleSend} disabled={loading || !input.trim()} style={{
+                  width: 48, height: 48, borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: input.trim() ? 'var(--color-primary)' : 'var(--surface-2)',
+                  color: input.trim() ? 'white' : 'var(--text-quaternary)',
+                  cursor: loading || !input.trim() ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all var(--duration-fast) var(--ease-out)',
+                }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </button>
-                {canSkipCurrent && !isComplete && (
-                  <button
-                    onClick={handleSkip}
-                    disabled={loading}
+                {canComplete && !isComplete && (
+                  <button onClick={() => setIsComplete(true)} disabled={loading}
                     style={{
                       background: 'none', border: 'none',
-                      fontSize: 12, color: 'var(--text-quaternary)',
-                      cursor: 'pointer', padding: '4px',
+                      fontSize: 11, color: '#F59E0B', fontWeight: 600,
+                      cursor: 'pointer', padding: '4px', whiteSpace: 'nowrap',
                       transition: 'color var(--duration-fast)',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-quaternary)'; }}
                   >
-                    건너뛰기
+                    완성하기
                   </button>
                 )}
               </div>
@@ -1414,7 +983,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         </div>
       </div>
 
-      {/* Right: RFP Preview Panel */}
+      {/* Right: Preview Panel */}
       {!isMobile && previewPanel}
       {isMobile && previewPanel}
     </div>
@@ -1422,17 +991,45 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
 }
 
 /* Sub-components */
+function FeatureButton({ feat, selected, onToggle }: { feat: SelectableFeature; selected: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      width: '100%', padding: '10px 14px', border: 'none',
+      borderBottom: '1px solid var(--border-default)',
+      background: selected ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+      cursor: 'pointer', textAlign: 'left',
+      transition: 'background 0.15s', fontFamily: 'var(--font-kr)',
+    }}>
+      <span style={{
+        width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+        border: selected ? 'none' : '2px solid var(--border-strong)',
+        background: selected ? 'var(--color-primary)' : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all 0.15s',
+      }}>
+        {selected && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{feat.name}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{feat.desc}</div>
+      </div>
+    </button>
+  );
+}
+
 function SectionLabel({ title, icon }: { title: string; icon: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
       <span style={{
         width: 24, height: 24, borderRadius: 'var(--radius-sm)',
         background: 'var(--color-primary-alpha)', color: 'var(--color-primary)',
-        fontSize: 13,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {icon}
-      </span>
+        fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{icon}</span>
       <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h3>
     </div>
   );
@@ -1443,15 +1040,11 @@ function RFPSection({ title, icon, content }: { title: string; icon: string; con
     <div>
       <SectionLabel title={title} icon={icon} />
       <p style={{
-        font: 'var(--text-body)',
-        color: 'var(--text-secondary)',
+        font: 'var(--text-body)', color: 'var(--text-secondary)',
         marginTop: 'var(--space-sm)',
         paddingLeft: 'calc(24px + var(--space-sm))',
-        whiteSpace: 'pre-wrap',
-        lineHeight: 1.6,
-      }}>
-        {content}
-      </p>
+        whiteSpace: 'pre-wrap', lineHeight: 1.6,
+      }}>{content}</p>
     </div>
   );
 }

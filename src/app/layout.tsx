@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI RFP Builder | 위시켓",
-  description: "AI가 5분 만에 완성하는 소프트웨어 외주 기획서(RFP). 대화만 하면 개발사에 바로 전달 가능한 기획서가 완성됩니다.",
-  keywords: ["RFP", "기획서", "소프트웨어 외주", "AI", "위시켓"],
+  title: "AI PRD 빌더 | 위시켓",
+  description: "AI가 대화 몇 번으로 완성하는 전문 기획서(PRD). 아이디어만 말하면 개발사에 바로 전달 가능한 기획서가 완성됩니다.",
+  keywords: ["PRD", "기획서", "소프트웨어 외주", "AI", "위시켓", "제품 요구사항"],
   openGraph: {
-    title: "AI RFP Builder — 5분 만에 완성하는 외주 기획서",
-    description: "대화만 하면 개발사에 바로 전달 가능한 기획서가 완성됩니다",
+    title: "AI PRD 빌더 — 대화만으로 완성하는 전문 기획서",
+    description: "아이디어만 말하면 개발사에 바로 전달 가능한 기획서가 완성됩니다",
     type: "website",
   },
 };

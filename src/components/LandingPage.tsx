@@ -1,6 +1,6 @@
 'use client';
 
-// AI RFP Builder — Landing Page v3
+// AI PRD Builder — Landing Page v4
 // MIRROR/PROBE/FORGE 적용: 블루 톤, Hero 직접 CTA, 이메일 동기 부여
 // 위시켓 AI 진단과 차별화: 블루 프라이머리, "빌더" 느낌
 
@@ -112,7 +112,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20, fontWeight: 800, color: C.white }}>wishket</span>
             <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)' }} />
-            <span style={{ fontSize: 14, color: C.textLight, fontWeight: 500 }}>AI RFP Builder</span>
+            <span style={{ fontSize: 14, color: C.textLight, fontWeight: 500 }}>AI PRD 빌더</span>
           </div>
           <button onClick={handleGuestStart} style={{
             padding: '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
@@ -156,8 +156,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             color: C.white, lineHeight: 1.25, letterSpacing: '-0.03em',
             marginBottom: 16,
           }}>
-            소프트웨어 외주 기획서,<br />
-            <span style={{ color: C.blueSoft }}>AI와 대화하면 5분이면 끝</span>
+            소프트웨어 기획서(PRD),<br />
+            <span style={{ color: C.blueSoft }}>AI와 대화 몇 번이면 끝</span>
           </h1>
 
           {/* Sub */}
@@ -165,7 +165,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
             lineHeight: 1.7, marginBottom: 36, maxWidth: 560, margin: '0 auto 36px',
           }}>
-            아이디어만 말하세요. 개발사에 <strong style={{ color: C.blueSoft }}>바로 전달 가능한 RFP 기획서</strong>를
+            아이디어만 말하세요. 개발사에 <strong style={{ color: C.blueSoft }}>바로 전달 가능한 PRD 기획서</strong>를
             {' '}AI가 무료로 작성하고, <strong style={{ color: C.blueSoft }}>PDF로 이메일에 보내드립니다.</strong>
           </p>
 

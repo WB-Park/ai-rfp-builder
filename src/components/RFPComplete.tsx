@@ -57,7 +57,6 @@ interface PRDResult {
   };
   // FORGE v2 — New Fields
   originalDescription?: string;
-  budgetBreakdown?: { feature: string; percentage: number; estimatedCost: string; effort: string }[];
   apiEndpoints?: { method: string; path: string; description: string; feature: string }[];
   dataModel?: { entity: string; fields: string[]; relationships: string[] }[];
   competitorAnalysis?: { name: string; strengths: string; weaknesses: string; differentiation: string }[];
@@ -801,20 +800,14 @@ function KPISummary({ prdData }: { prdData: PRDResult }) {
     const m = t.duration.match(/(\d+)/);
     return s + (m ? parseInt(m[1]) : 0);
   }, 0) || 0;
-  const totalBudget = prdData.budgetBreakdown?.reduce((s, b) => {
-    const m = b.estimatedCost?.match(/([\d,]+)/);
-    return s + (m ? parseInt(m[1].replace(/,/g, '')) : 0);
-  }, 0) || 0;
-
   const cards = [
     { label: '총 기능', value: `${totalFeatures}개`, sub: `P0: ${p0Count} / P1: ${p1Count}`, icon: '⚙️', color: C.blue },
     { label: '예상 기간', value: totalDuration > 0 ? `${totalDuration}~${Math.round(totalDuration * 1.4)}주` : '-', sub: `${prdData.timeline?.length || 0}개 페이즈`, icon: '📅', color: C.green },
-    { label: '예상 예산', value: totalBudget > 0 ? `${totalBudget.toLocaleString()}만원~` : prdData.budgetBreakdown ? '산출 중' : '-', sub: '기능별 분해 기준', icon: '💰', color: C.yellow },
     { label: 'NFR 항목', value: `${prdData.nonFunctionalRequirements?.reduce((s, n) => s + (n.items?.length || 0), 0) || 0}개`, sub: `${prdData.nonFunctionalRequirements?.length || 0}개 카테고리`, icon: '🛡️', color: C.purple },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 32 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
       {cards.map((c, i) => (
         <div key={i} style={{
           background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 16px',
@@ -1530,7 +1523,6 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
       let n = prdData.expertInsight ? 14 : 13;
       const extra: { num: string; title: string; id: string }[] = [];
       extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
-      if ((prdData.budgetBreakdown?.length ?? 0) > 0) extra.push({ num: String(n++), title: '예산 상세 분해', id: 'sec-budget' });
       if ((prdData.apiEndpoints?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'API 명세', id: 'sec-api' });
       if ((prdData.dataModel?.length ?? 0) > 0) extra.push({ num: String(n++), title: '데이터 모델', id: 'sec-datamodel' });
       if ((prdData.competitorAnalysis?.length ?? 0) > 0) extra.push({ num: String(n++), title: '경쟁 서비스 분석', id: 'sec-competitor' });
@@ -2186,34 +2178,6 @@ export default function RFPComplete({ rfpData, email, sessionId }: RFPCompletePr
             </div>
           </Card>
         </div>
-
-        {(prdData.budgetBreakdown?.length ?? 0) > 0 && <SectionDivider />}
-
-        {/* ━━ FORGE v2: Budget Breakdown ━━ */}
-        {(prdData.budgetBreakdown?.length ?? 0) > 0 && (
-          <div id="sec-budget">
-            <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-budget')?.num || '15')} title="예산 상세 분해" subtitle="기능별 예산 배분 및 공수 추정" id="sec-budget" />
-            <Card style={{ padding: '28px 32px' }}>
-              <div style={{ display: 'grid', gap: 16 }}>
-                {prdData.budgetBreakdown!.map((b, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>{b.feature}</span>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, color: C.textSecondary, background: C.borderLight, padding: '2px 8px', borderRadius: 4 }}>{b.estimatedCost}</span>
-                        <span style={{ fontSize: 11, color: C.textTertiary }}>{b.effort}</span>
-                      </div>
-                    </div>
-                    <div style={{ height: 28, background: C.borderLight, borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ width: `${Math.max(b.percentage, 3)}%`, height: '100%', background: `linear-gradient(90deg, ${C.blue}, ${C.blueLight})`, borderRadius: 8, transition: 'width 0.8s ease' }} />
-                      <span style={{ position: 'absolute', top: '50%', left: b.percentage > 12 ? 10 : undefined, right: b.percentage <= 12 ? -36 : undefined, transform: 'translateY(-50%)', fontSize: 12, fontWeight: 700, color: b.percentage > 12 ? '#fff' : C.blue }}>{b.percentage}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )}
 
         {(prdData.apiEndpoints?.length ?? 0) > 0 && <SectionDivider />}
 

@@ -1,7 +1,7 @@
 'use client';
 
-// AI RFP Builder — Main App Flow
-// PRD 화면 플로우: 랜딩페이지 → 대화형 RFP 작성 → RFP 완성/상담
+// AI PRD Builder — Main App Flow
+// 플로우: 랜딩페이지 → 대화형 PRD 작성 → PRD 완성/상담
 
 import { useState } from 'react';
 import { RFPData } from '@/types/rfp';
