@@ -96,30 +96,48 @@ async function generateAIMessage(
     additionalRequirements: '추가 요구사항',
   };
 
+  // 프로젝트 유형 감지 → 맥락 인식 힌트 생성
+  const overviewLower = overview.toLowerCase();
+  let contextHint = '';
+  if (/쇼핑|커머스|마켓|이커머스|쇼핑몰/.test(overviewLower)) {
+    contextHint = '\n[맥락: 이커머스 프로젝트 → 결제 연동, 상품 관리, 주문/배송 추적, 리뷰 시스템 등이 핵심. PG사 수수료, 재고 관리 방식 확인 필요]';
+  } else if (/예약|병원|식당|호텔|숙박|렌탈/.test(overviewLower)) {
+    contextHint = '\n[맥락: 예약 서비스 → 실시간 가용성, 알림/리마인더, 노쇼 방지, 캘린더 연동이 핵심. 동시 예약 충돌 처리 중요]';
+  } else if (/배달|O2O|매칭|중개/.test(overviewLower)) {
+    contextHint = '\n[맥락: O2O/매칭 플랫폼 → 공급자/수요자 양면 시장, 실시간 위치, 결제 에스크로, 리뷰/평점이 핵심. 초기 공급자 확보 전략 중요]';
+  } else if (/교육|LMS|강의|학습|이러닝/.test(overviewLower)) {
+    contextHint = '\n[맥락: 에듀테크 → 콘텐츠 관리, 진도 추적, 퀴즈/평가, 인증서 발급이 핵심. 동영상 스트리밍 인프라 비용 확인 필요]';
+  } else if (/SNS|소셜|커뮤니티|채팅/.test(overviewLower)) {
+    contextHint = '\n[맥락: 소셜/커뮤니티 → 실시간 피드, 알림, 메시징, 콘텐츠 모더레이션이 핵심. 초기 유저 확보와 리텐션 전략 중요]';
+  } else if (/ERP|CRM|관리|백오피스|대시보드/.test(overviewLower)) {
+    contextHint = '\n[맥락: B2B/관리 시스템 → 권한 관리, 데이터 시각화, 엑셀 연동, 리포트 자동화가 핵심. 기존 시스템 연동 범위 확인 필요]';
+  }
+
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 800,
-      system: `당신은 위시켓에서 10,000건 이상의 IT 외주 프로젝트를 분석한 수석 PM 컨설턴트입니다.
+      system: `당신은 위시켓에서 116,000건 이상의 IT 외주 프로젝트를 분석한 수석 PM 컨설턴트입니다.
 고객의 프로젝트 기획을 돕는 PRD 정보수집 대화를 진행합니다.
 
 [핵심 원칙]
 - 존댓말 필수
 - 고객 답변에서 모호하거나 구체성이 부족한 부분을 정확히 짚어주기
-- 제네릭한 반응 금지 (예: "좋은 생각이시네요" → 금지)
+- 제네릭한 반응 금지 (예: "좋은 생각이시네요" → 금지. 대신 구체적으로 뭐가 좋은지 짚기)
+- 💡 인사이트는 위시켓 프로젝트 데이터 기반 사실만 (예: "위시켓 유사 프로젝트에서 이 기능은 평균 N주 소요")
 - 견적/비용/시장분석/코칭/교육/조언은 언급 금지
 
 [중요: 응답 형식]
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 
 {
-  "analysis": "고객 답변에 대한 구체적 피드백 (2~3문장). 답변에서 좋은 점을 짚되, 부족한 부분이 있다면 구체화 방향을 안내. 💡 인사이트를 한 문장 포함.",
-  "question": "다음 토픽에 대한 자연스러운 질문 (1~2문장)"
+  "analysis": "고객 답변에 대한 구체적 피드백 (2~3문장). 답변의 구체적 장점을 짚되, 부족한 부분이 있다면 '예를 들어...' 형태로 구체화 방향 안내. 💡 인사이트 한 문장 (위시켓 데이터 기반).",
+  "question": "다음 토픽에 대한 자연스러운 질문 (1~2문장). 선택지를 포함하거나 예시를 들어 답변하기 쉽게."
 }
 
 고객 서비스: ${overview || '(미입력)'}
 방금 답변한 항목: ${topicNames[currentTopicId] || currentTopicId}
-다음 질문할 항목: ${topicNames[nextTopicId] || nextTopicId}${hasFeatures ? '\n\n[주의: 기능 리스트는 별도로 UI에 표시됩니다. 메시지에서는 기능을 나열하지 마세요. "아래에서 필요한 기능을 선택해주세요" 정도만 안내하세요.]' : ''}`,
+다음 질문할 항목: ${topicNames[nextTopicId] || nextTopicId}${contextHint}${hasFeatures ? '\n\n[주의: 기능 리스트는 별도로 UI에 표시됩니다. 메시지에서는 기능을 나열하지 마세요. "아래에서 필요한 기능을 선택해주세요" 정도만 안내하세요.]' : ''}`,
       messages: [{
         role: 'user',
         content: `대화 히스토리:\n${conversationContext}\n\n위 대화를 바탕으로, 고객의 마지막 답변에 대한 분석(analysis)과 다음 질문(question)을 JSON으로 분리하여 응답하세요.`

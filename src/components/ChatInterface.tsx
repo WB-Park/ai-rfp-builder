@@ -47,13 +47,20 @@ function formatTime(ts: number): string {
   return `${ampm} ${hour}:${m}`;
 }
 
-// 분석 중 메시지 (컨텍스트별)
-const THINKING_MESSAGES = [
-  '프로젝트를 분석하고 있어요...',
-  '위시켓 데이터를 조회하고 있어요...',
-  '최적의 답변을 준비하고 있어요...',
-  '유사 프로젝트 사례를 검색하고 있어요...',
-];
+// 단계별 컨텍스트 인식 씽킹 라벨
+const STEP_THINKING_LABELS: Record<number, string[]> = {
+  1: ['프로젝트 아이디어를 분석하고 있어요...', '유사 서비스 사례를 검색하고 있어요...'],
+  2: ['핵심 기능을 분류하고 우선순위를 매기고 있어요...', '위시켓 116,000건 데이터에서 유사 기능을 조회 중...'],
+  3: ['타겟 사용자 페르소나를 구성하고 있어요...', '사용자 세그먼트를 분석하고 있어요...'],
+  4: ['참고 서비스를 벤치마킹하고 있어요...', '경쟁 서비스 차별점을 분석 중...'],
+  5: ['기술 스택 적합성을 분석하고 있어요...', '최적의 기술 아키텍처를 설계 중...'],
+  6: ['예산 범위를 유사 프로젝트 기반으로 추정 중...', '시장 데이터 기반 일정을 계산하고 있어요...'],
+  7: ['추가 요구사항을 정리하고 있어요...', '최종 검토사항을 확인 중...'],
+};
+function getThinkingLabel(step: number): string {
+  const msgs = STEP_THINKING_LABELS[step] || STEP_THINKING_LABELS[1];
+  return msgs[Math.floor(Math.random() * msgs.length)];
+}
 
 export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -187,7 +194,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
     setMessages(newMessages);
     setLoading(true);
     setQuickReplies([]);
-    setThinkingLabel(THINKING_MESSAGES[Math.floor(Math.random() * THINKING_MESSAGES.length)]);
+    setThinkingLabel(getThinkingLabel(currentStep));
 
     try {
       const res = await fetch('/api/chat', {
