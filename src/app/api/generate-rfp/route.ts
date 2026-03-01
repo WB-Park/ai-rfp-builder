@@ -270,6 +270,40 @@ JSON 형식으로 응답:
   const p1Features = features.filter(f => f.priority === 'P2');
   const p2Features = features.filter(f => f.priority === 'P3');
 
+  // Fuzzy matching: 슬래시, 공백, 특수문자 제거 후 비교 + 핵심 키워드 2글자 이상 매칭
+  function normalize(s: string): string {
+    return (s || '').replace(/[\s\/\-·,.()\[\]]/g, '').toLowerCase();
+  }
+  function fuzzyMatch(a: string, b: string): boolean {
+    const na = normalize(a);
+    const nb = normalize(b);
+    if (!na || !nb) return false;
+    // 정규화 후 포함 관계
+    if (na.includes(nb) || nb.includes(na)) return true;
+    // 핵심 키워드 2글자 이상 매칭 (예: "회원가입" in "회원가입/로그인")
+    const keywords = a.split(/[\s\/\-·,.]+/).filter(k => k.length >= 2);
+    for (const kw of keywords) {
+      if (nb.includes(normalize(kw))) return true;
+    }
+    return false;
+  }
+
+  function findBestSpec(featureName: string): Record<string, any> {
+    // 1차: 정확히 일치
+    let spec = featureSpecs.find((s: any) => s.name === featureName);
+    if (spec) return spec;
+    // 2차: 정규화 후 일치
+    spec = featureSpecs.find((s: any) => normalize(s.name) === normalize(featureName));
+    if (spec) return spec;
+    // 3차: fuzzy 매칭
+    spec = featureSpecs.find((s: any) => fuzzyMatch(s.name, featureName));
+    if (spec) return spec;
+    // 4차: _mappedName 기반 (인덱스 매핑된 경우)
+    spec = featureSpecs.find((s: any) => s._mappedName === featureName);
+    if (spec) return spec;
+    return {};
+  }
+
   function buildFeatureModule(
     id: number, name: string, priority: 'P0' | 'P1' | 'P2', label: string, feats: FeatureItem[]
   ) {
@@ -277,26 +311,44 @@ JSON 형식으로 응답:
     featureModules.push({
       id, name, priority, priorityLabel: label,
       features: feats.map((f, i) => {
-        // AI가 생성한 상세 명세 매칭
-        const spec = featureSpecs.find((s: any) =>
-          s.name === f.name ||
-          s.name?.includes(f.name) ||
-          f.name?.includes(s.name)
-        ) || {};
+        // AI가 생성한 상세 명세 매칭 (개선된 fuzzy matching)
+        const spec = findBestSpec(f.name);
         return {
           id: `${priority}-${i + 1}`,
           name: f.name,
           description: spec.description || f.description || `${f.name} 기능 구현`,
-          subFeatures: spec.subFeatures || [`${f.name} 기본 기능`, '관련 UI/UX 설계', 'QA/테스트'],
-          acceptanceCriteria: spec.acceptanceCriteria || [`${f.name} 기능 정상 동작`],
+          subFeatures: Array.isArray(spec.subFeatures) && spec.subFeatures.length > 0
+            ? spec.subFeatures
+            : [`${f.name} 기본 기능`, '관련 UI/UX 설계', 'QA/테스트'],
+          acceptanceCriteria: Array.isArray(spec.acceptanceCriteria) && spec.acceptanceCriteria.length > 0
+            ? spec.acceptanceCriteria
+            : [`${f.name} 기능 정상 동작`],
           userFlow: spec.userFlow || '',
-          screenSpecs: spec.screenSpecs || [],
-          businessRules: spec.businessRules || [],
-          dataEntities: spec.dataEntities || [],
-          errorCases: spec.errorCases || [],
+          screenSpecs: Array.isArray(spec.screenSpecs) ? spec.screenSpecs : [],
+          businessRules: Array.isArray(spec.businessRules) ? spec.businessRules : [],
+          dataEntities: Array.isArray(spec.dataEntities) ? spec.dataEntities : [],
+          errorCases: Array.isArray(spec.errorCases) ? spec.errorCases : [],
         };
       }),
     });
+  }
+
+  // featureSpecs가 featureList와 동일 순서인 경우를 위한 인덱스 매핑 보강
+  // AI가 이름을 약간 변형해 생성한 경우에도 순서 기반으로 매칭
+  if (featureSpecs.length > 0 && featureSpecs.length === features.length) {
+    // 매칭 안 된 스펙이 많으면 인덱스 기반으로 전체 매핑
+    const matchedCount = features.filter(f => {
+      const spec = findBestSpec(f.name);
+      return spec && Object.keys(spec).length > 0;
+    }).length;
+    if (matchedCount < features.length * 0.5) {
+      // 이름 매칭률이 50% 미만이면, 인덱스 기반 매핑 (AI가 순서대로 생성)
+      features.forEach((f, i) => {
+        if (featureSpecs[i] && !findBestSpec(f.name).description) {
+          featureSpecs[i]._mappedName = f.name;
+        }
+      });
+    }
   }
 
   buildFeatureModule(1, 'MVP 필수 기능', 'P0', 'MVP 필수', p0Features);

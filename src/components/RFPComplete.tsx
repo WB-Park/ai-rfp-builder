@@ -564,7 +564,7 @@ function KPISummary({ prdData }: { prdData: PRDResult }) {
   const cards = [
     { label: '총 기능', value: `${totalFeatures}개`, sub: `P0: ${p0Count} / P1: ${p1Count}`, icon: '⚙️', color: C.blue },
     { label: '예상 기간', value: totalDuration > 0 ? `${totalDuration}~${Math.round(totalDuration * 1.4)}주` : '-', sub: `${prdData.timeline?.length || 0}개 페이즈`, icon: '📅', color: C.green },
-    { label: '예상 예산', value: totalBudget > 0 ? `${(totalBudget / 10000).toFixed(0)}만원~` : prdData.budgetBreakdown ? '산출 중' : '-', sub: '기능별 분해 기준', icon: '💰', color: C.yellow },
+    { label: '예상 예산', value: totalBudget > 0 ? `${totalBudget.toLocaleString()}만원~` : prdData.budgetBreakdown ? '산출 중' : '-', sub: '기능별 분해 기준', icon: '💰', color: C.yellow },
     { label: 'NFR 항목', value: `${prdData.nonFunctionalRequirements?.reduce((s, n) => s + (n.items?.length || 0), 0) || 0}개`, sub: `${prdData.nonFunctionalRequirements?.length || 0}개 카테고리`, icon: '🛡️', color: C.purple },
   ];
 
