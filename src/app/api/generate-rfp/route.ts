@@ -244,7 +244,7 @@ JSON 형식으로 응답하세요:
   "competitorAnalysis": [
     {"name": "실제 경쟁 서비스명", "strengths": "강점", "weaknesses": "약점", "differentiation": "우리 서비스의 차별점"}
   ],
-  "scopeExclusions": ["1차 MVP에서 제외할 기능/범위 5개 — 각각 제외 이유 포함"],
+  "scopeExclusions": ["★ 대화에서 사용자가 명시적으로 '이건 빼주세요', '이건 필요없어요'라고 언급한 항목만. 사용자가 제외를 언급하지 않았으면 빈 배열 [] 반환. 절대 임의로 생성하지 마세요."],
   "approvalProcess": [
     {"stage": "단계명 (예: 기획 승인, 디자인 리뷰, QA 통과)", "approver": "담당자/역할", "criteria": "승인 기준 구체적으로"}
   ],
@@ -564,7 +564,7 @@ ${hasConversation ? '⚠️ 중요: 위 대화 내용에서 고객이 언급한 
     targetUsers: dataA.targetUsersAnalysis || rfpData.targetUsers || '',
     userPersonas: dataB.userPersonas || [],
     scopeInclusions,
-    scopeExclusions: dataB.scopeExclusions || ['다국어 지원 — 1차 제외', '오프라인 모드 — 1차 제외'],
+    scopeExclusions: dataB.scopeExclusions || [],
     techStack: dataB.techStack || [
       { category: '프론트엔드', tech: 'Next.js', rationale: '빠른 개발과 SEO' },
       { category: '백엔드', tech: 'NestJS', rationale: '안정적 API 구현' },
@@ -666,7 +666,7 @@ function generateMinimalFallback(rfpData: RFPData): PRDResult {
     targetUsers: rfpData.targetUsers || '',
     userPersonas: [],
     scopeInclusions: features.map(f => f.name),
-    scopeExclusions: ['다국어 지원', '오프라인 모드'],
+    scopeExclusions: [],
     techStack: [
       { category: '프론트엔드', tech: 'Next.js', rationale: '빠른 개발' },
       { category: '백엔드', tech: 'NestJS', rationale: '안정적 API' },

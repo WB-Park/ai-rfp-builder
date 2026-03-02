@@ -1313,8 +1313,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       body.push(h1('3', '프로젝트 범위'));
       body.push(h2('포함 범위 (In-Scope)'));
       d.scopeInclusions?.forEach(s => body.push(bullet(s, '✓')));
-      body.push(h2('미포함 범위 (Out-of-Scope)'));
-      d.scopeExclusions?.forEach(s => body.push(bullet(s, '✗')));
+      if ((d.scopeExclusions?.length ?? 0) > 0) {
+        body.push(h2('미포함 범위 (Out-of-Scope)'));
+        d.scopeExclusions?.forEach(s => body.push(bullet(s, '✗')));
+      }
       body.push(new Paragraph({ spacing: { after: 200 } }));
 
       // 4. 정보 구조
@@ -1564,8 +1566,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     }
     md += `## 3. 프로젝트 범위\n### 포함 범위 (In-Scope)\n`;
     d.scopeInclusions?.forEach(s => { md += `- ✅ ${s}\n`; });
-    md += `### 미포함 범위 (Out-of-Scope)\n`;
-    d.scopeExclusions?.forEach(s => { md += `- ❌ ${s}\n`; });
+    if ((d.scopeExclusions?.length ?? 0) > 0) {
+      md += `### 미포함 범위 (Out-of-Scope)\n`;
+      d.scopeExclusions?.forEach(s => { md += `- ❌ ${s}\n`; });
+    }
     md += '\n';
     // 4. IA (if exists)
     if ((d.informationArchitecture?.sitemap?.length ?? 0) > 0) {
@@ -2058,22 +2062,23 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 ))}
               </ul>
             </Card>
-            <Card style={{ borderLeft: `4px solid ${C.textTertiary}`, borderRadius: 16 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textTertiary, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.borderLight, fontSize: 13 }}>🚫</span>
-                미포함 범위 (Out-of-Scope)
-              </h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {(prdData.scopeExclusions?.length ?? 0) > 0 ? prdData.scopeExclusions!.map((s, i) => (
-                  <li key={i} style={{ fontSize: 14, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
-                    <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>✗</span>
-                    {s}
-                  </li>
-                )) : (
-                  <li style={{ fontSize: 14, color: C.textTertiary, lineHeight: 1.6 }}>미포함 항목이 정의되지 않았습니다.</li>
-                )}
-              </ul>
-            </Card>
+            {/* ★ 미포함 범위: 사용자가 명시적으로 제외한 항목이 있을 때만 표시 */}
+            {(prdData.scopeExclusions?.length ?? 0) > 0 && (
+              <Card style={{ borderLeft: `4px solid ${C.textTertiary}`, borderRadius: 16 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textTertiary, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.borderLight, fontSize: 13 }}>🚫</span>
+                  미포함 범위 (Out-of-Scope)
+                </h3>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {prdData.scopeExclusions!.map((s, i) => (
+                    <li key={i} style={{ fontSize: 14, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative', lineHeight: 1.6 }}>
+                      <span style={{ position: 'absolute', left: 0, color: C.textTertiary }}>✗</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
           </div>
         </div>
 

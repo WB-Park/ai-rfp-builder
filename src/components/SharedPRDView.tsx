@@ -568,16 +568,18 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
               ))}
             </ul>
           </Card>
-          <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textTertiary, margin: '0 0 12px 0' }}>❌ 미포함</h3>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-              {prdData.scopeExclusions?.map((s, i) => (
-                <li key={i} style={{ fontSize: 12, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 0 }}>—</span>{s}
-                </li>
-              ))}
-            </ul>
-          </Card>
+          {(prdData.scopeExclusions?.length ?? 0) > 0 && (
+            <Card style={{ borderLeft: `4px solid ${C.textTertiary}` }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textTertiary, margin: '0 0 12px 0' }}>❌ 미포함</h3>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {prdData.scopeExclusions!.map((s, i) => (
+                  <li key={i} style={{ fontSize: 12, color: C.textTertiary, marginBottom: 8, paddingLeft: 20, position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 0 }}>—</span>{s}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </div>
 
         {/* 6. Feature Specs */}
