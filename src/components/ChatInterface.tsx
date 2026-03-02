@@ -102,6 +102,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [showPreview, setShowPreview] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [featureSelection, setFeatureSelection] = useState<Record<string, boolean>>({});
+  // ★★★ 근본적 루프 방지: 기능 선택 UI가 한 번이라도 표시되면 영구 true
+  const [featureSelectorShown, setFeatureSelectorShown] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -240,6 +242,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           rfpData,
           chatMode: chatMode || 'quick',
           deepPhase,
+          // ★ 서버에게 기능 선택 UI가 이미 표시되었음을 알림 (루프 근본 차단)
+          featureSelectorShown,
         }),
       });
 
@@ -343,6 +347,12 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           initialSelection[f.name] = f.category === 'must';
         }
         setFeatureSelection(initialSelection);
+        // ★★★ 영구 플래그 설정 — 이후 절대 다시 표시되지 않음
+        setFeatureSelectorShown(true);
+      }
+      // 서버에서 featureSelectorShown=true를 받아도 설정
+      if (data.featureSelectorShown) {
+        setFeatureSelectorShown(true);
       }
 
       saveSession(updatedRfpData, finalMessages, completed);

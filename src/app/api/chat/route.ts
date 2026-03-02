@@ -445,7 +445,7 @@ function generateSimpleFallback(rfpData: RFPData, userMessage: string): {
 // ═══════════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
-    const { messages, rfpData: clientRfpData, chatMode, deepPhase: clientDeepPhase } = await req.json();
+    const { messages, rfpData: clientRfpData, chatMode, deepPhase: clientDeepPhase, featureSelectorShown: clientFeatureSelectorShown } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: '메시지가 필요합니다.' }, { status: 400 });
@@ -453,6 +453,8 @@ export async function POST(req: NextRequest) {
 
     const mode: ChatMode = chatMode === 'deep' ? 'deep' : 'quick';
     const deepPhase: string = clientDeepPhase || 'conversation';
+    // ★ 근본적 루프 방지: 클라이언트가 이미 기능 선택 UI를 표시했으면 절대 다시 표시하지 않음
+    const featureSelectorAlreadyShown: boolean = clientFeatureSelectorShown === true;
 
     const lastUserMessage = messages.filter((m: { role: string }) => m.role === 'user').pop();
     const userText = lastUserMessage?.content || '';
@@ -527,11 +529,16 @@ export async function POST(req: NextRequest) {
         } catch { /* not JSON */ }
       }
 
-      // 기능 선택 UI 표시 여부
-      // ★ featureJustSubmitted면 절대 다시 표시하지 않음 (무한루프 방지)
-      // ★ coreFeatures가 이미 있으면 표시하지 않음
+      // ═══ 기능 선택 UI 표시 여부 ═══
+      // ★★★ 근본적 루프 방지 (3중 게이트) ★★★
+      // Gate 1: featureSelectorAlreadyShown — 클라이언트에서 이미 한 번이라도 표시됨
+      // Gate 2: featureJustSubmitted — 방금 이 턴에서 기능을 제출함
+      // Gate 3: coreFeatures가 이미 있음
+      // 어느 하나라도 true면 절대 기능 선택 UI를 표시하지 않음
       let selectableFeatures: SelectableFeature[] | null = null;
-      if (!featureJustSubmitted && rfpData.coreFeatures.length === 0) {
+      const canShowFeatureSelector = !featureSelectorAlreadyShown && !featureJustSubmitted && rfpData.coreFeatures.length === 0;
+
+      if (canShowFeatureSelector) {
         const featureSourceText = rfpData.overview || userText;
         if (aiResult.showFeatureSelector && featureSourceText && featureSourceText.length >= 2) {
           try {
@@ -562,9 +569,9 @@ export async function POST(req: NextRequest) {
       let isComplete = aiResult.completionReady;
       const covered = getTopicsCovered(rfpData);
 
-      // ★ 방어 로직 개선: featureJustSubmitted면 스킵
-      // completionReady인데 coreFeatures가 비어있고, 방금 기능 제출이 아닌 경우에만 트리거
-      if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures && !featureJustSubmitted) {
+      // ★★★ 방어 로직: canShowFeatureSelector 게이트 동일 적용 ★★★
+      // featureSelectorAlreadyShown이면 절대 재시도하지 않음 — 루프 근본 차단
+      if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures && canShowFeatureSelector) {
         const featureSourceText = rfpData.overview || userText;
         if (featureSourceText && featureSourceText.length >= 2) {
           try {
@@ -589,6 +596,8 @@ export async function POST(req: NextRequest) {
         quickReplies: selectableFeatures ? [] : aiResult.quickReplies,
         inlineOptions: selectableFeatures ? [] : aiResult.quickReplies,
         selectableFeatures,
+        // ★ 클라이언트에게 기능 선택 UI가 표시되었음을 알림 (영구 플래그)
+        featureSelectorShown: selectableFeatures !== null && selectableFeatures.length > 0,
         thinkingLabel: aiResult.thinkingLabel,
         topicsCovered: covered,
         progress: aiResult.progressPercent,
