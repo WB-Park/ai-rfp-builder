@@ -840,43 +840,19 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // ═══ Deep mode: 대화 중간에 기능 선택 UI 절대 표시 안 함 ═══
-        // Deep mode의 핵심은 자연스러운 컨설팅 대화.
-        // 기능 선택은 오직 "대화 완료 → PRD 생성 직전"에만 1회 표시.
-        // readyToDefineFeatures, phase 판단 등은 모두 무시 — 대화 중 절대 불가.
+        // ═══ Deep mode: 기능 선택은 대화 완료 후 PRD 생성 직전에만 ═══
         let selectableFeatures: SelectableFeature[] | null = null;
 
-        // Deep 전용: 완료 조건
-        let isComplete = aiResult.conversationComplete;
-
-        // 안전장치: 완료 시 기능 미수집이면 기능 선택 먼저
-        if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures && !featureSelectorAlreadyShown && !featureJustSubmitted && !featureSubmitUpdate) {
-          const featureConversationCtx = messages
-            .slice(-20)
-            .map((m: { role: string; content: string }) => `${m.role === 'user' ? '고객' : 'PM'}: ${m.content}`)
-            .join('\n');
-          const featureSourceText = rfpData.overview || userText;
-          if (featureSourceText && featureSourceText.length >= 2) {
-            try {
-              const aiFeatures = await generateAIFeatures(featureSourceText, featureConversationCtx);
-              if (aiFeatures && aiFeatures.length >= 3) {
-                selectableFeatures = aiFeatures;
-                isComplete = false;
-              }
-            } catch (e) { console.error('Deep: Feature pre-complete generation failed:', e); }
-          }
-        }
-
-        // ═══ 강제 완료 조건 ═══
-        // Deep mode는 충분히 깊이 파되, 같은 내용을 반복하진 않도록
+        // ═══ 1단계: 강제 완료 조건 먼저 판단 ═══
         const hasOverview = !!rfpData.overview && rfpData.overview.length > 20;
         const hasTarget = !!rfpData.targetUsers && rfpData.targetUsers.length > 5;
 
+        let isComplete = false;
         // 1) AI가 complete 판단 + overview 있으면 → 완료
         if (aiResult.conversationComplete && hasOverview) {
           isComplete = true;
         }
-        // 2) overview + targetUsers + 8턴 이상 → 마무리 유도
+        // 2) overview + targetUsers + 8턴 이상 → 마무리
         if (hasOverview && hasTarget && turnCount >= 8) {
           isComplete = true;
         }
@@ -889,27 +865,50 @@ export async function POST(req: NextRequest) {
           isComplete = true;
         }
 
-        // Deep mode 응답: analysis/question 분리 없이 하나의 response
-        // 하위 호환: analysisMessage와 questionMessage로도 전달
+        // ═══ 2단계: 완료 확정 후, 기능 미수집이면 기능 선택 먼저 ═══
+        // 이 블록이 isComplete=false로 바꾸면 강제 완료가 다시 덮어쓸 수 없음
+        if (isComplete && rfpData.coreFeatures.length === 0 && !featureSelectorAlreadyShown && !featureJustSubmitted && !featureSubmitUpdate) {
+          const featureConversationCtx = messages
+            .slice(-20)
+            .map((m: { role: string; content: string }) => `${m.role === 'user' ? '고객' : 'PM'}: ${m.content}`)
+            .join('\n');
+          const featureSourceText = rfpData.overview || userText;
+          if (featureSourceText && featureSourceText.length >= 2) {
+            try {
+              const aiFeatures = await generateAIFeatures(featureSourceText, featureConversationCtx);
+              if (aiFeatures && aiFeatures.length >= 3) {
+                selectableFeatures = aiFeatures;
+                isComplete = false; // 기능 선택 완료까지 대기 — 이후 덮어쓸 코드 없음
+              }
+            } catch (e) { console.error('Deep: Feature pre-complete generation failed:', e); }
+          }
+        }
+
+        // Deep mode 응답
         const covered = getTopicsCovered(rfpData);
+        const hasFeatures = selectableFeatures !== null && selectableFeatures.length > 0;
+
+        // 기능 선택 UI가 나올 때는 AI 질문이 아닌 안내 메시지로 교체
+        const finalMessage = hasFeatures
+          ? '지금까지 대화를 바탕으로 필요한 기능을 정리했습니다. 아래에서 원하시는 기능을 선택해주세요.'
+          : aiResult.response;
+
         return NextResponse.json({
-          // Deep mode 전용 필드
-          analysisMessage: '',  // Deep mode는 analysis/question 분리 안 함
-          questionMessage: aiResult.response,  // 단일 자연스러운 응답
-          message: aiResult.response,
+          analysisMessage: '',
+          questionMessage: finalMessage,
+          message: finalMessage,
           rfpUpdate: primaryRfpUpdate,
-          // 추가 rfpUpdates (2번째 이후) — 클라이언트에서 활용 가능
           multiUpdates: aiResult.rfpUpdates.slice(1),
           nextAction: isComplete ? 'complete' : 'continue',
-          quickReplies: selectableFeatures ? [] : aiResult.suggestions,
-          inlineOptions: selectableFeatures ? [] : aiResult.suggestions,
+          quickReplies: hasFeatures ? [] : aiResult.suggestions,
+          inlineOptions: hasFeatures ? [] : aiResult.suggestions,
           selectableFeatures,
-          featureSelectorShown: selectableFeatures !== null && selectableFeatures.length > 0,
+          featureSelectorShown: hasFeatures,
           thinkingLabel: aiResult.thinkingLabel,
           topicsCovered: covered,
-          progress: aiResult.progressPercent,
+          progress: hasFeatures ? 90 : aiResult.progressPercent,
           canComplete: isComplete || isReadyToComplete(rfpData),
-          deepPhase: aiResult.deepPhase,
+          deepPhase: hasFeatures ? 'feature_selection' : aiResult.deepPhase,
           insightSummary: aiResult.insightSummary || '',
           insightCategory: aiResult.insightCategory || 'vision',
         });
