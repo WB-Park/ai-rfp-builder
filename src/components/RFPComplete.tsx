@@ -1077,59 +1077,66 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     { icon: '📋', label: '최종 제품 요구사항 정의서 조합 중...', sub: '섹션별 검수 및 품질 보증 단계' },
   ];
 
+  // PRD 생성 함수 — 재시도 가능하도록 분리
+  const [retryCount, setRetryCount] = useState(0);
+
+  const fetchPRD = useCallback(async () => {
+    setLoading(true);
+    setLoadingPhase(0);
+    setPrdData(null);
+
+    const phaseTimer = setInterval(() => {
+      setLoadingPhase(prev => Math.min(prev + 1, loadingPhases.length - 1));
+    }, 5000);
+
+    try {
+      const res = await fetch('/api/generate-rfp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rfpData, sessionId, chatMessages: chatMessages || [], chatMode: chatMode || 'quick' }),
+      });
+      const data = await res.json();
+      clearInterval(phaseTimer);
+      if (data.rfpDocument) {
+        try {
+          const parsed = JSON.parse(data.rfpDocument);
+          if (parsed?.projectName && parsed?.featureModules) {
+            setPrdData(parsed);
+            setLoading(false);
+            // Auto-share: 생성 즉시 공유 URL 생성 → 브라우저 주소창 업데이트
+            try {
+              const shareRes = await fetch('/api/share-prd', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  rfpDocument: data.rfpDocument,
+                  rfpData,
+                  projectName: parsed.projectName,
+                }),
+              });
+              const shareData = await shareRes.json();
+              if (shareData.shareId) {
+                const url = `${window.location.origin}/share/${shareData.shareId}`;
+                setShareUrl(url);
+                window.history.replaceState({}, '', `/share/${shareData.shareId}`);
+              }
+            } catch { /* auto-share 실패해도 PRD는 정상 표시 */ }
+            return;
+          }
+        } catch { /* JSON parse failed */ }
+      }
+      setLoading(false);
+    } catch (err) {
+      clearInterval(phaseTimer);
+      console.error('PRD generation error:', err);
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rfpData, sessionId, chatMessages, chatMode]);
+
   useEffect(() => {
     // preloadedPrd가 있으면 API 호출 스킵
     if (initialPrd) return;
-
-    const fetchPRD = async () => {
-      // 단계별 진행 애니메이션
-      const phaseTimer = setInterval(() => {
-        setLoadingPhase(prev => Math.min(prev + 1, loadingPhases.length - 1));
-      }, 5000);
-
-      try {
-        const res = await fetch('/api/generate-rfp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rfpData, sessionId, chatMessages: chatMessages || [], chatMode: chatMode || 'quick' }),
-        });
-        const data = await res.json();
-        clearInterval(phaseTimer);
-        if (data.rfpDocument) {
-          try {
-            const parsed = JSON.parse(data.rfpDocument);
-            if (parsed?.projectName && parsed?.featureModules) {
-              setPrdData(parsed);
-              setLoading(false);
-              // Auto-share: 생성 즉시 공유 URL 생성 → 브라우저 주소창 업데이트
-              try {
-                const shareRes = await fetch('/api/share-prd', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    rfpDocument: data.rfpDocument,
-                    rfpData,
-                    projectName: parsed.projectName,
-                  }),
-                });
-                const shareData = await shareRes.json();
-                if (shareData.shareId) {
-                  const url = `${window.location.origin}/share/${shareData.shareId}`;
-                  setShareUrl(url);
-                  window.history.replaceState({}, '', `/share/${shareData.shareId}`);
-                }
-              } catch { /* auto-share 실패해도 PRD는 정상 표시 */ }
-              return;
-            }
-          } catch { /* JSON parse failed */ }
-        }
-        setLoading(false);
-      } catch (err) {
-        clearInterval(phaseTimer);
-        console.error('PRD generation error:', err);
-        setLoading(false);
-      }
-    };
     fetchPRD();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rfpData, sessionId]);
@@ -1714,14 +1721,17 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         <div style={{ maxWidth: 500, textAlign: 'center' }}>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: C.textPrimary, marginBottom: 12 }}>제품 요구사항 정의서(PRD) 생성 실패</h2>
           <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, marginBottom: 24 }}>
-            기획서를 생성하는 중에 오류가 발생했습니다.
+            기획서를 생성하는 중에 오류가 발생했습니다.{retryCount > 0 ? ` (${retryCount}회 재시도)` : ''}
           </p>
-          <button onClick={() => window.location.reload()} style={{
+          <button onClick={() => { setRetryCount(prev => prev + 1); fetchPRD(); }} style={{
             background: C.blue, color: '#fff', border: 'none', borderRadius: 8,
             padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
           }}>
-            다시 시도
+            기획서 다시 생성하기
           </button>
+          <p style={{ fontSize: 12, color: C.textSecondary, marginTop: 12 }}>
+            대화 내용이 보존되어 있어 다시 입력하실 필요 없습니다
+          </p>
         </div>
       </div>
     );

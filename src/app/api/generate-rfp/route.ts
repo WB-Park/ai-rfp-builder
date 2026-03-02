@@ -102,14 +102,22 @@ async function generateDeepModePRD(
   features: FeatureItem[],
   featureList: string,
   conversationContext: string,
-  now: string
+  now: string,
+  startTime: number = Date.now()
 ): Promise<PRDResult> {
+  // Vercel 60초 제한 대비: 남은 시간 계산하여 타임아웃 설정
+  const elapsed = Date.now() - startTime;
+  const remaining = Math.max(55000 - elapsed, 15000); // 최소 15초는 보장
+  const callTimeout = Math.min(remaining - 2000, 48000); // 2초 여유, 최대 48초
+
   function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) => setTimeout(() => reject(new Error('API_TIMEOUT')), ms)),
     ]);
   }
+
+  console.log(`[DEEP PRD] Timeout budget: elapsed=${elapsed}ms, callTimeout=${callTimeout}ms`);
 
   // Deep mode: 대화 컨텍스트를 최대한 활용 (10000자까지 — 프롬프트 오버헤드 고려)
   const fullConversation = conversationContext.slice(0, 10000);
@@ -142,10 +150,10 @@ async function generateDeepModePRD(
     }],
   });
 
-  // 2개 호출 병렬 (55초 타임아웃)
+  // 2개 호출 병렬 (동적 타임아웃)
   const [result1, result2] = await Promise.allSettled([
-    withTimeout(deepCall1, 55000),
-    withTimeout(deepCall2, 55000),
+    withTimeout(deepCall1, callTimeout),
+    withTimeout(deepCall2, callTimeout),
   ]);
 
   function parseResult(result: PromiseSettledResult<any>): Record<string, any> {
@@ -370,6 +378,7 @@ async function generateFullAIPRD(rfpData: RFPData, chatMessages?: { role: string
   const isDeepMode = chatMode === 'deep';
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const globalStartTime = Date.now();
 
   let features = sanitizeFeatures(rfpData.coreFeatures || []);
 
@@ -384,10 +393,11 @@ async function generateFullAIPRD(rfpData: RFPData, chatMessages?: { role: string
   console.log(`[generate-rfp] Conversation context: ${hasConversation ? `${chatMessages?.length || 0} messages, ${conversationContext.length} chars` : 'none'}, Features: ${features.length}`);
 
   // ★ 핵심: coreFeatures가 비어있으면 대화 컨텍스트에서 AI로 기능 추출
+  // 타임아웃: 10초 (Vercel 60초 중 최대 10초만 기능추출에 사용)
   if (features.length === 0 && (hasConversation || (rfpData.overview && rfpData.overview.length >= 5))) {
     console.log('[generate-rfp] coreFeatures empty — auto-extracting from conversation');
     try {
-      const featureGenResponse = await anthropic.messages.create({
+      const featureExtractionPromise = anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         messages: [{
@@ -414,6 +424,10 @@ JSON 배열만 출력:
 [{"name": "기능명", "description": "대화에서 논의된 맥락 반영한 설명", "priority": "P1"}]`
         }],
       });
+      const featureGenResponse = await Promise.race([
+        featureExtractionPromise,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 10000)),
+      ]);
       const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
       const featureMatch = featureText.match(/\[[\s\S]*\]/);
       if (featureMatch) {
@@ -438,10 +452,17 @@ JSON 배열만 출력:
   // ★ Deep mode는 완전히 다른 프롬프트 체계로 PRD 생성
   if (isDeepMode && hasConversation) {
     try {
-      return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now);
+      return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now, globalStartTime);
     } catch (deepError: any) {
-      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}), falling back to enhanced quick mode with conversation context`);
-      // Deep mode 실패 시 Quick mode로 폴백하되, 대화 컨텍스트는 반영
+      const elapsedAfterDeep = Date.now() - globalStartTime;
+      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}) after ${elapsedAfterDeep}ms`);
+      // Vercel 60초 제한: Deep mode에서 이미 45초 이상 소요했으면 Quick mode 시도 불가
+      if (elapsedAfterDeep > 45000) {
+        console.error(`[generate-rfp] ⚠️ No time for Quick mode fallback (${elapsedAfterDeep}ms elapsed). Using minimal fallback.`);
+        return generateMinimalFallback(rfpData);
+      }
+      console.log(`[generate-rfp] Falling back to Quick mode (${55000 - elapsedAfterDeep}ms remaining)`);
+      // Quick mode 폴백 — 남은 시간에 맞춰 타임아웃 조정 (아래에서 처리)
     }
   }
 
@@ -450,7 +471,12 @@ JSON 배열만 출력:
     ? `\n\n[고객과의 전체 대화 내용 — ★ 대화에서 나온 모든 정보를 빠짐없이 PRD에 반영하세요 ★]\n${conversationContext.slice(0, 8000)}\n`
     : '';
 
-  // 개별 API 호출에 타임아웃 적용 (45초)
+  // 개별 API 호출에 타임아웃 적용 (남은 시간 기반 동적 설정)
+  const quickElapsed = Date.now() - globalStartTime;
+  const quickRemaining = Math.max(55000 - quickElapsed, 15000);
+  const quickCallTimeout = Math.min(quickRemaining - 2000, 45000);
+  console.log(`[generate-rfp] Quick mode timeout: elapsed=${quickElapsed}ms, callTimeout=${quickCallTimeout}ms`);
+
   function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     return Promise.race([
       promise,
@@ -659,11 +685,11 @@ ${hasConversation ? `⚠️ 중요: 대화에서 고객이 언급한 내용을 �
     }],
   });
 
-  // 3개 호출 병렬 실행 (각 45초 타임아웃)
+  // 3개 호출 병렬 실행 (동적 타임아웃)
   const [resultA, resultB, resultC] = await Promise.allSettled([
-    withTimeout(callA, 45000),
-    withTimeout(callB, 45000),
-    withTimeout(callC, 45000),
+    withTimeout(callA, quickCallTimeout),
+    withTimeout(callB, quickCallTimeout),
+    withTimeout(callC, quickCallTimeout),
   ]);
 
   // 결과 파싱
