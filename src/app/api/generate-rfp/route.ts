@@ -1193,6 +1193,11 @@ export async function POST(req: NextRequest) {
         });
     }
 
+    // ── 슬랙 #알림_prd 알림: 공유 링크 자동 생성 + 푸시 (fire-and-forget) ──
+    notifySlackPRD(result, rfpData, rfpDocument, chatMode).catch((e) =>
+      console.error('[Slack PRD notify] error:', e)
+    );
+
     return NextResponse.json({
       rfpDocument,
       generatedAt: new Date().toISOString(),
@@ -1207,5 +1212,82 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ error: 'RFP 생성 중 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════
+// Slack #알림_prd 자동 알림
+// ═══════════════════════════════════════════
+
+async function notifySlackPRD(
+  result: PRDResult,
+  rfpData: RFPData,
+  rfpDocument: string,
+  chatMode: string
+) {
+  const webhookUrl = process.env.SLACK_PRD_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.log('[Slack PRD notify] No webhook URL configured, skipping');
+    return;
+  }
+
+  try {
+    // 1) 공유 링크 자동 생성
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let shareId = '';
+    for (let i = 0; i < 8; i++) shareId += chars[Math.floor(Math.random() * chars.length)];
+
+    const { error: shareError } = await supabase.from('shared_prds').insert({
+      share_id: shareId,
+      project_name: result.projectName || 'PRD 기획서',
+      rfp_document: rfpDocument.slice(0, 100000),
+      rfp_data: rfpData || null,
+    });
+
+    if (shareError) {
+      console.error('[Slack PRD notify] share insert error:', shareError);
+    }
+
+    // 2) 기능 수 / 요약 추출
+    const featureCount = result.featureModules?.reduce(
+      (sum, m) => sum + (m.features?.length || 0),
+      0
+    ) || 0;
+    const summary = (result.executiveSummary || '').slice(0, 200);
+    const modeLabel = chatMode === 'deep' ? '🔬 Deep Mode' : '⚡ Quick Mode';
+    const shareUrl = `https://wishket-prd.com/share/${shareId}`;
+    const adminUrl = 'https://wishket-prd.com/admin';
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+    // 3) 슬랙 메시지 구성 — AIDP 문의 알림
+    const message = [
+      `📋 *[AIDP 문의 알림] 새 PRD가 생성되었습니다* ${modeLabel}`,
+      '',
+      `> *프로젝트:* ${result.projectName || '(이름 없음)'}`,
+      `> *기능:* ${featureCount}개`,
+      summary ? `> *요약:* ${summary}${summary.length >= 200 ? '...' : ''}` : '',
+      '',
+      `🔗 *공유 URL:* <${shareUrl}|PRD 보기>`,
+      `🛠️ *어드민:* <${adminUrl}|어드민 대시보드>`,
+      '',
+      `🕐 ${now}`,
+      '_AIDP(AI Development Planner) 자동 알림_',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const resp = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: message }),
+    });
+
+    if (!resp.ok) {
+      console.error('[Slack PRD notify] webhook failed:', resp.status);
+    } else {
+      console.log(`[Slack PRD notify] ✅ Sent for "${result.projectName}" → ${shareUrl}`);
+    }
+  } catch (e) {
+    console.error('[Slack PRD notify] unexpected error:', e);
   }
 }
