@@ -1727,7 +1727,14 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     );
   }
 
-  const isDeepMode = chatMode === 'deep' && !!prdData.deepModeInsights;
+  // Deep mode 감지: chatMode prop 또는 문서 메타데이터에서 자동 감지 (공유 페이지 대응)
+  const isDeepMode = (chatMode === 'deep' || prdData.documentMeta?.version?.includes('Deep') || prdData.documentMeta?.generatedBy?.includes('Deep'))
+    && !!prdData.deepModeInsights
+    && (
+      !!prdData.deepModeInsights.strategicNarrative ||
+      (prdData.deepModeInsights.customerVoiceHighlights?.length ?? 0) > 0 ||
+      !!prdData.deepModeInsights.problemSolutionFit
+    );
 
   const tocSections = isDeepMode ? [
     { num: '1', title: '전략적 개요 (Executive Summary)', id: 'sec-summary' },

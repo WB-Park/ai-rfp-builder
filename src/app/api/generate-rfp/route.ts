@@ -111,224 +111,83 @@ async function generateDeepModePRD(
     ]);
   }
 
-  // Deep mode: 대화 컨텍스트를 최대한 활용 (12000자까지)
-  const fullConversation = conversationContext.slice(0, 12000);
+  // Deep mode: 대화 컨텍스트를 최대한 활용 (10000자까지 — 프롬프트 오버헤드 고려)
+  const fullConversation = conversationContext.slice(0, 10000);
+  const projectInfo = `서비스: ${rfpData.overview || '(미입력)'}\n타겟: ${rfpData.targetUsers || '(미입력)'}\n기능:\n${featureList || '(미입력)'}\n참고: ${rfpData.referenceServices || '없음'}\n기술: ${rfpData.techRequirements || '없음'}\n추가: ${rfpData.additionalRequirements || '없음'}`;
 
-  // ── Deep Call A: 전략적 분석 + 고객 인사이트 + Executive Summary ──
-  const deepCallA = anthropic.messages.create({
+  console.log(`[DEEP PRD] Starting. Conversation: ${fullConversation.length} chars, Features: ${features.length}`);
+
+  // ── Deep Call 1: 핵심 분석 (전략+인사이트+구조화 데이터 통합) ──
+  const deepCall1 = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: `당신은 McKinsey 출신 IT 전략 컨설턴트이자, 위시켓에서 13년간 116,000건의 프로젝트를 분석한 수석 PM입니다.
-지금 고객과 1:1 심층 인터뷰를 마치고, 그 대화를 기반으로 컨설팅급 PRD를 작성합니다.
-
-[핵심 원칙]
-1. 모든 분석은 대화 내용에서 근거를 찾아야 합니다. 대화에 없는 내용은 절대 생성하지 마세요.
-2. 고객의 실제 발언을 인용하거나 요약하여 인사이트를 도출하세요.
-3. "좋은", "효율적인" 같은 빈 수식어 대신, 구체적 맥락과 수치를 사용하세요.
-4. 한국어 존댓말로 작성하세요.
-5. 반드시 유효한 JSON만 출력하세요 (마크다운/추가 텍스트 절대 금지).`,
+    max_tokens: 4096,
+    system: `당신은 위시켓 13년차 수석 IT 컨설턴트입니다. 고객 인터뷰를 기반으로 PRD를 작성합니다.
+반드시 유효한 JSON만 출력하세요. 마크다운/추가 텍스트 절대 금지.
+대화에서 나온 정보만 사용하고, 대화에 없는 내용은 생성하지 마세요.`,
     messages: [{
       role: 'user',
-      content: `고객과의 심층 인터뷰 내용을 분석하여 전략적 PRD 섹션을 작성해주세요.
-
-[고객 인터뷰 전문]
-${fullConversation}
-
-[수집된 프로젝트 정보]
-- 서비스: ${rfpData.overview || '(미입력)'}
-- 타겟: ${rfpData.targetUsers || '(미입력)'}
-- 핵심 기능:\n${featureList || '(미입력)'}
-- 참고 서비스: ${rfpData.referenceServices || '없음'}
-- 기술 요구: ${rfpData.techRequirements || '없음'}
-- 추가 요구: ${rfpData.additionalRequirements || '없음'}
-
-다음 JSON을 생성하세요:
-{
-  "projectName": "서비스 본질이 드러나는 15자 이내 프로젝트명",
-  "executiveSummary": "★ 600자 이상의 컨설팅급 Executive Summary. 아래 구조 필수:\n\n1문단: 이 프로젝트의 핵심 정의 (무엇인가, 누구를 위한 것인가)\n2문단: 고객이 이 프로젝트를 시작하게 된 배경과 동기 (대화에서 파악된 비즈니스 맥락)\n3문단: 핵심 기능 범위와 기술 방향\n4문단: 프로젝트의 차별점과 핵심 가치 제안 (대화에서 고객이 강조한 포인트 기반)\n\n⚠️ 시장 규모/성장률 같은 추측 금지. 대화에서 나온 사실만 기반으로 작성.",
-  "problemSolutionFit": "★ 500자 이상. 대화에서 파악된 문제-해결책 적합성 분석:\n(1) 고객이 설명한 현재 문제 상황 (기존 방식의 한계)\n(2) 이 서비스가 제안하는 해결 방식\n(3) 왜 이 해결 방식이 적합한지 (대화에서의 근거)\n모든 내용은 대화에서 고객이 언급한 내용을 근거로.",
-  "targetUsersAnalysis": "★ 500자 이상. 대화에서 고객이 직접 설명한 사용자 정보를 최대한 활용:\n(1) Primary 사용자: 고객이 설명한 그들의 상황, 행동 패턴, 핵심 Pain Point\n(2) Secondary 사용자: 대화에서 언급된 다른 사용자 그룹\n(3) 사용자의 현재 해결 방식과 불만 (대화에서 고객이 언급한 경우만)\n⚠️ 고객이 언급하지 않은 사용자 그룹을 임의로 생성하지 마세요.",
-  "strategicNarrative": "★ 800자 이상. 이 프로젝트의 전략적 내러티브 — 스토리텔링 형식으로:\n이 프로젝트가 해결하려는 본질적 문제는 무엇인가? 고객은 왜 지금 이 서비스를 만들려 하는가? 어떤 변화를 만들어내고 싶은가? 대화에서 고객이 표현한 비전과 열망, 우려를 종합하여 하나의 설득력 있는 전략 스토리로 구성. 빈 수식어 대신 대화에서 나온 구체적 맥락을 사용.",
-  "customerVoiceHighlights": [
-    {
-      "quote": "고객의 핵심 발언 요약 (대화에서 직접 인용하거나 핵심을 정확히 요약)",
-      "insight": "이 발언에서 도출되는 제품 인사이트",
-      "implication": "PRD에 반영해야 할 구체적 시사점 (예: ~기능의 ~부분에 반영 필요)"
-    }
-  ],
-  "marketContext": "대화에서 고객이 언급한 시장/경쟁 환경 정보만 정리. 고객이 언급한 경쟁 서비스, 현재 시장 상황, 타이밍에 대한 인식 등. ⚠️ 고객이 시장에 대해 언급하지 않았으면 '고객 인터뷰에서 시장 환경에 대한 직접적 언급은 없었습니다.'로 작성.",
-  "expertInsight": "★ 1000자 이상. 위시켓 13년차 수석 PM으로서의 전문가 분석:\n(1) 💡 이 프로젝트 유형의 성공 핵심 요인 TOP 3 — 위시켓 실제 데이터 기반 수치 포함\n(2) ⚠️ 주의해야 할 실패 패턴 TOP 3 — 대화에서 파악된 이 프로젝트의 특수 리스크 포함\n(3) 📋 개발사 선정 체크리스트 5개 — 이 프로젝트 도메인에 맞는 구체적 기준\n(4) 💰 예산 최적화 전략 3개 — 대화에서 파악된 고객 상황에 맞는 현실적 제안\n(5) 📝 계약 필수 조항 3개 — 이 프로젝트에서 특히 중요한 것\n(6) 🚀 PM 추천 사항 — 대화에서 고객이 우려한 부분에 대한 전문가 조언"
-}
-
-customerVoiceHighlights: 대화에서 핵심 인사이트를 담고 있는 고객 발언 5~8개. 프로젝트 방향에 영향을 미치는 발언 위주.`
+      content: `[고객 인터뷰]\n${fullConversation}\n\n[프로젝트 정보]\n${projectInfo}\n\n위 대화를 분석하여 아래 JSON을 생성하세요. 모든 내용은 대화에서 근거를 찾아 작성하세요.\n\n{"projectName":"서비스 본질이 드러나는 15자 이내 프로젝트명","executiveSummary":"600자 이상. 1문단:프로젝트 핵심 정의, 2문단:고객이 시작하게 된 배경(대화기반), 3문단:핵심 기능 범위, 4문단:차별점과 가치제안(대화에서 고객이 강조한 포인트)","problemSolutionFit":"400자 이상. 고객이 설명한 현재 문제→제안하는 해결방식→적합성 근거(대화기반)","targetUsersAnalysis":"400자 이상. Primary/Secondary 사용자, 행동패턴, Pain Point(대화에서 고객이 설명한 내용 기반)","strategicNarrative":"600자 이상. 프로젝트가 해결하는 본질적 문제, 고객의 비전과 열망, 전략적 방향(대화기반 스토리텔링)","customerVoiceHighlights":[{"quote":"고객 핵심 발언 요약","insight":"제품 인사이트","implication":"PRD 시사점"}],"marketContext":"대화에서 고객이 언급한 시장/경쟁 정보만. 언급없으면 '직접적 언급 없음'","expertInsight":"800자 이상. 위시켓PM: (1)성공요인TOP3(수치포함) (2)실패패턴TOP3 (3)개발사선정체크리스트5개 (4)예산최적화3개 (5)계약필수조항3개 (6)PM추천사항","projectGoals":[{"goal":"구체적 목표","metric":"SMART 측정지표"}],"userPersonas":[{"name":"한국이름","role":"직업+나이+상황","needs":"구체적 니즈","painPoints":"현재 문제점"}],"timeline":[{"phase":"단계명","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"프로젝트특화 위험","impact":"높음/중간/낮음","mitigation":"구체적 대응책","probability":"높음/중간/낮음"}],"techStack":[{"category":"분류","tech":"기술명","rationale":"선택 근거"}],"competitorAnalysis":[{"name":"서비스명","strengths":"강점","weaknesses":"약점","differentiation":"차별점"}],"assumptions":["대화에서 파악된 전제만"],"constraints":["대화에서 고객이 언급한 제약만"],"scopeExclusions":["고객이 명시적으로 제외한 것만"],"decisionLog":[{"decision":"결정사항","rationale":"근거","alternatives":"대안"}],"mvpRationale":"300자 이상. MVP 범위 선정 근거(대화기반)","implementationStrategy":"300자 이상. 최적 구현 전략","successFramework":[{"category":"비즈니스/사용자/기술/운영","baseline":"현재상태","target":"6개월목표","stretch":"12개월목표"}],"glossary":[{"term":"용어","definition":"설명"}]}\n\ncustomerVoiceHighlights:5~8개, projectGoals:4~6개, userPersonas:2~4명, timeline:5단계, risks:5~7개, techStack:4~6개, successFramework:4개, glossary:8~12개.`
     }],
   });
 
-  // ── Deep Call B: 구조화 데이터 + 의사결정 로그 + 성공 프레임워크 ──
-  const deepCallB = anthropic.messages.create({
+  // ── Deep Call 2: 기능 상세 명세 ──
+  const deepCall2 = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: `당신은 위시켓 13년차 수석 PM입니다. 고객과의 심층 인터뷰를 기반으로 PRD의 구조화 데이터를 생성합니다.
-
-[핵심 원칙]
-1. 대화에서 파악된 정보만 사용. 대화에 없는 내용은 생성하지 마세요.
-2. 각 항목은 이 프로젝트에만 해당하는 구체적 내용이어야 합니다.
-3. 반드시 유효한 JSON만 출력.`,
+    max_tokens: 4096,
+    system: `시니어 소프트웨어 아키텍트입니다. 고객 인터뷰 기반으로 기능 명세를 작성합니다.
+반드시 유효한 JSON만 출력. 마크다운 금지.`,
     messages: [{
       role: 'user',
-      content: `고객 인터뷰 내용을 분석하여 구조화 데이터를 생성하세요.
-
-[고객 인터뷰]
-${fullConversation}
-
-[프로젝트 정보]
-- 서비스: ${rfpData.overview || '(미입력)'}
-- 타겟: ${rfpData.targetUsers || '(미입력)'}
-- 기능:\n${featureList || '(미입력)'}
-- 참고: ${rfpData.referenceServices || '없음'}
-- 기술: ${rfpData.techRequirements || '없음'}
-
-JSON 응답:
-{
-  "projectGoals": [
-    {"goal": "대화에서 파악된 구체적 비즈니스 목표", "metric": "SMART 원칙 적용한 측정 지표+목표값+기간"}
-  ],
-  "userPersonas": [
-    {"name": "한국 이름", "role": "직업+나이+상황 (대화에서 고객이 설명한 실제 사용자 상에 기반)", "needs": "대화에서 파악된 구체적 니즈 2~3개", "painPoints": "대화에서 고객이 언급한 현재 문제점 2~3개"}
-  ],
-  "timeline": [
-    {"phase": "Phase 1 — 기획·설계", "duration": "기간", "deliverables": ["산출물 3~4개"]}
-  ],
-  "risks": [
-    {"risk": "이 프로젝트 도메인/기술에 특화된 구체적 위험 (대화에서 파악된 맥락 기반)", "impact": "높음/중간/낮음", "mitigation": "실행 가능한 구체적 대응책 (도구명, 수치 포함)", "probability": "높음/중간/낮음"}
-  ],
-  "assumptions": ["대화에서 고객이 직접 언급하거나 암시한 전제만. 근거 없으면 빈 배열"],
-  "constraints": ["대화에서 고객이 직접 언급한 제약만. 언급 없으면 빈 배열"],
-  "techStack": [
-    {"category": "프론트엔드/백엔드/DB/인프라", "tech": "기술명", "rationale": "이 프로젝트에서 이 기술을 선택하는 근거 (대화에서 고객이 언급한 기술 우선 반영)"}
-  ],
-  "competitorAnalysis": [
-    {"name": "대화에서 고객이 언급한 경쟁/참고 서비스명", "strengths": "강점", "weaknesses": "고객이 언급한 아쉬운 점", "differentiation": "우리 서비스의 차별점 (대화에서 고객이 강조한 포인트)"}
-  ],
-  "scopeExclusions": ["대화에서 '이건 빼주세요', '필요없어요'라고 언급한 항목만. 없으면 빈 배열"],
-  "decisionLog": [
-    {"decision": "대화 중 내려진 주요 결정 사항", "rationale": "그 결정의 근거 (고객 발언 기반)", "alternatives": "논의된 대안이 있었다면 기재, 없으면 '해당 없음'"}
-  ],
-  "mvpRationale": "★ 400자 이상. MVP 범위를 이렇게 정한 근거:\n(1) 대화에서 고객이 가장 중요하다고 강조한 기능들\n(2) 기술적 의존성상 먼저 구현해야 하는 기능들\n(3) 고객이 언급한 출시 시급성/비즈니스 목표에 맞는 최소 범위\n(4) 2차, 3차로 미룰 수 있는 것들과 그 이유",
-  "implementationStrategy": "★ 400자 이상. 이 프로젝트의 최적 구현 전략:\n(1) 권장 개발 방법론 (이 프로젝트 규모/특성에 맞는)\n(2) 팀 구성 권장안 (필요 역할과 인원)\n(3) 핵심 마일스톤과 의사결정 포인트\n(4) 대화에서 파악된 고객의 기술적/비즈니스적 제약을 고려한 현실적 전략",
-  "successFramework": [
-    {"category": "비즈니스 성과/사용자 경험/기술 품질/운영 효율 중 택1", "baseline": "현재 상태 (대화에서 파악된 As-Is)", "target": "목표 상태 (6개월 내)", "stretch": "도전 목표 (12개월)"}
-  ],
-  "approvalProcess": [
-    {"stage": "단계명", "approver": "담당자", "criteria": "승인 기준"}
-  ],
-  "qaStrategy": [
-    {"type": "테스트 유형", "scope": "범위", "tools": "도구", "criteria": "통과 기준"}
-  ],
-  "glossary": [
-    {"term": "이 프로젝트 도메인 전문 용어", "definition": "비개발자 이해 가능한 설명"}
-  ]
-}
-
-projectGoals: 4~6개. 대화에서 파악된 고객의 실제 목표에 기반. SMART 원칙 적용.
-userPersonas: 2~4명. 대화에서 고객이 설명한 실제 사용자 상 기반. 임의 생성 금지.
-timeline: 5단계 (기획설계/UI디자인/MVP개발/추가기능/QA출시). 대화에서 파악된 일정 제약 반영.
-risks: 5~7개. ★이 프로젝트의 도메인·기술·비즈니스에 특화. 대화에서 고객이 우려한 내용 우선 반영★
-assumptions: 대화에서 파악된 것만 0~5개.
-constraints: 대화에서 고객이 언급한 것만 0~5개.
-techStack: 4~6개. 대화에서 고객이 언급한 기술 우선 반영.
-competitorAnalysis: 대화에서 언급된 서비스만. 없으면 빈 배열.
-decisionLog: 대화에서 논의되고 결정된 사항 3~7개.
-successFramework: 4개. 비즈니스/사용자/기술/운영 각 1개.
-glossary: 8~12개.`
+      content: `[고객 인터뷰]\n${fullConversation.slice(0, 6000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n[타겟]: ${rfpData.targetUsers || ''}\n\n[기능 목록]\n${featureList}\n\n각 기능의 상세 명세를 JSON으로 작성하세요. 대화에서 고객이 강조한 기능은 2배 상세하게.\n\n{"featureSpecs":[{"name":"기능명(위 목록과 일치)","description":"대화맥락 반영 설명 3~4문장","subFeatures":["서브기능 5~8개"],"acceptanceCriteria":["수용기준 4~6개(측정가능)"],"userFlow":"[시작]→[단계1]→[분기]\\n├─✓성공→[결과]\\n└─✗실패→[처리]","screenSpecs":[{"id":"SCR-001","name":"화면명","purpose":"목적","elements":["UI요소 5~8개"],"scenarios":[["시나리오","사전조건","동작","반응","✓/✗"]]}],"businessRules":["규칙 3~5개(수치/조건 필수)"],"dataEntities":[{"name":"테이블명","fields":"컬럼(타입포함)"}],"errorCases":["에러 3~5개"],"estimatedManDays":0,"dependencies":[]}]}`
     }],
   });
 
-  // ── Deep Call C: 기능 상세 명세 (가장 중요 — Deep mode 강화) ──
-  const deepCallC = anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: `당신은 시니어 소프트웨어 아키텍트입니다. 고객 인터뷰에서 논의된 내용을 기반으로, 개발사가 WBS를 즉시 작성할 수 있는 수준의 상세 기능 명세를 작성합니다.
-
-[핵심 원칙]
-1. 각 기능은 대화에서 논의된 맥락에 맞춰 구체적으로 작성
-2. 고객이 강조한 기능은 더 상세하게 명세
-3. 서브기능 6개+, 수용기준 5개+, 비즈니스 규칙에 구체적 수치/조건 필수
-4. 반드시 유효한 JSON만 출력`,
-    messages: [{
-      role: 'user',
-      content: `고객 인터뷰를 기반으로 기능 상세 명세를 작성하세요.
-
-[고객 인터뷰]
-${fullConversation}
-
-[프로젝트]: ${rfpData.overview || ''}
-[타겟]: ${rfpData.targetUsers || ''}
-
-[기능 목록]
-${featureList}
-
-JSON 응답:
-{
-  "featureSpecs": [
-    {
-      "name": "기능명 (위 목록과 정확히 일치)",
-      "description": "대화 맥락을 반영한 구체적 설명 3~4문장. 고객이 이 기능에 대해 언급한 내용을 포함",
-      "subFeatures": ["서브기능 6~10개. 대화에서 고객이 언급한 세부 요구사항 우선 배치"],
-      "acceptanceCriteria": ["수용기준 5~7개. 측정 가능한 조건. 대화에서 고객이 기대한 품질 수준 반영"],
-      "userFlow": "상세 ASCII 다이어그램:\n[시작] → [단계1] → [분기]\n  ├─ ✓ 케이스A → [처리A] → [결과A]\n  ├─ ✓ 케이스B → [처리B] → [결과B]\n  └─ ✗ 에러 → [에러 처리] → [복구]",
-      "screenSpecs": [
-        {
-          "id": "SCR-001",
-          "name": "화면명",
-          "purpose": "화면 목적",
-          "elements": ["UI 요소 6~10개. 레이아웃 설명 포함"],
-          "scenarios": [
-            ["시나리오명", "사전조건", "사용자 동작", "시스템 반응", "✓/✗"]
-          ]
-        }
-      ],
-      "businessRules": ["비즈니스 규칙 4~6개. 구체적 숫자/조건 필수"],
-      "dataEntities": [
-        {"name": "테이블명", "fields": "컬럼들 (타입 포함. 예: id:PK, name:varchar(100), ...)"}
-      ],
-      "errorCases": ["에러 케이스 4~6개. 상황+원인+사용자 메시지 포함"],
-      "estimatedManDays": "숫자. 시니어 기준 1MD=8시간. 프론트+백+QA 포함",
-      "dependencies": ["의존 기능명. 없으면 빈 배열"]
-    }
-  ]
-}
-
-★ 중요: 대화에서 고객이 특별히 강조하거나 상세하게 설명한 기능은 다른 기능보다 2배 이상 상세하게 명세하세요.
-★ 고객이 참고 서비스를 언급한 경우, 해당 기능이 참고 서비스와 어떻게 다른지/비슷한지 명세에 반영하세요.`
-    }],
-  });
-
-  // 3개 호출 병렬 (45초 타임아웃)
-  const [resultA, resultB, resultC] = await Promise.allSettled([
-    withTimeout(deepCallA, 45000),
-    withTimeout(deepCallB, 45000),
-    withTimeout(deepCallC, 45000),
+  // 2개 호출 병렬 (55초 타임아웃)
+  const [result1, result2] = await Promise.allSettled([
+    withTimeout(deepCall1, 55000),
+    withTimeout(deepCall2, 55000),
   ]);
 
   function parseResult(result: PromiseSettledResult<any>): Record<string, any> {
-    if (result.status !== 'fulfilled') return {};
+    if (result.status !== 'fulfilled') {
+      console.error(`[DEEP PRD] Call failed:`, result.status === 'rejected' ? result.reason?.message : 'unknown');
+      return {};
+    }
     const content = result.value.content[0];
     if (content.type !== 'text') return {};
-    const match = content.text.match(/\{[\s\S]*\}/);
-    if (!match) return {};
-    try { return JSON.parse(match[0]); } catch { return {}; }
+    const text = content.text;
+    // JSON 추출: 가장 바깥쪽 {} 찾기
+    let depth = 0, start = -1;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '{') { if (start === -1) start = i; depth++; }
+      else if (text[i] === '}') { depth--; if (depth === 0 && start !== -1) {
+        try { return JSON.parse(text.slice(start, i + 1)); } catch { /* continue scanning */ start = -1; }
+      }}
+    }
+    // Fallback: regex
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) { console.error(`[DEEP PRD] No JSON found in response (${text.length} chars)`); return {}; }
+    try { return JSON.parse(match[0]); } catch (e) { console.error(`[DEEP PRD] JSON parse failed:`, (e as Error).message); return {}; }
   }
 
-  const dataA = parseResult(resultA);
-  const dataB = parseResult(resultB);
-  const dataC = parseResult(resultC);
+  const data1 = parseResult(result1);
+  const data2 = parseResult(result2);
 
-  console.log(`[generate-rfp DEEP] CallA keys: ${Object.keys(dataA).join(',')}, CallB keys: ${Object.keys(dataB).join(',')}, CallC featureSpecs: ${(dataC.featureSpecs || []).length}`);
+  const call1Keys = Object.keys(data1);
+  const call2Specs = (data2.featureSpecs || []).length;
+  console.log(`[DEEP PRD] Call1 keys(${call1Keys.length}): ${call1Keys.join(',')}, Call2 featureSpecs: ${call2Specs}`);
 
-  // ── Feature Modules 조립 (기존 로직 재활용) ──
-  const projectName = dataA.projectName || rfpData.overview?.slice(0, 15) || '프로젝트';
-  const featureSpecs = dataC.featureSpecs || [];
+  // ── 실패 감지: Call1이 핵심 필드 3개 미만이면 실패로 판정 ──
+  const criticalFields = ['executiveSummary', 'strategicNarrative', 'projectGoals', 'expertInsight'];
+  const hasCritical = criticalFields.filter(f => data1[f] && (typeof data1[f] === 'string' ? data1[f].length > 20 : Array.isArray(data1[f]) && data1[f].length > 0)).length;
+  if (hasCritical < 2) {
+    console.error(`[DEEP PRD] ⚠️ Call1 critically failed (only ${hasCritical}/${criticalFields.length} fields). Throwing to trigger quick-mode fallback.`);
+    throw new Error('DEEP_MODE_CALL1_FAILED');
+  }
+
+  // ── Feature Modules 조립 ──
+  const projectName = data1.projectName || rfpData.overview?.slice(0, 15) || '프로젝트';
+  const featureSpecs = data2.featureSpecs || [];
   const featureModules: PRDResult['featureModules'] = [];
   const p0Features = features.filter(f => f.priority === 'P1');
   const p1Features = features.filter(f => f.priority === 'P2');
@@ -359,9 +218,7 @@ JSON 응답:
   if (featureSpecs.length > 0 && featureSpecs.length === features.length) {
     const matchedCount = features.filter(f => findBestSpec(f.name) && Object.keys(findBestSpec(f.name)).length > 0).length;
     if (matchedCount < features.length * 0.5) {
-      features.forEach((f, i) => {
-        if (featureSpecs[i]) featureSpecs[i]._mappedName = f.name;
-      });
+      features.forEach((f, i) => { if (featureSpecs[i]) featureSpecs[i]._mappedName = f.name; });
     }
   }
 
@@ -395,14 +252,12 @@ JSON 응답:
 
   const scopeInclusions = features.map(f => `${f.name}${f.description ? ` — ${f.description}` : ''}`);
 
-  // Deep mode: NFR도 AI가 생성한 것 우선 (하드코딩 대신)
   const nonFunctionalRequirements: PRDResult['nonFunctionalRequirements'] = [
     { category: '성능 (Performance)', items: ['API 응답: 평균 < 200ms, 99th < 1초', '페이지 로딩: FCP < 2초, LCP < 3초', '동시 접속: 최소 1,000명', '이미지: WebP + lazy loading'] },
     { category: '보안 (Security)', items: ['HTTPS/TLS 1.3 전 구간 암호화', '비밀번호: bcrypt, 8자+ 복잡도', 'JWT: Access 1시간, Refresh 14일', 'SQL Injection/XSS 방지', '개인정보보호법 준수'] },
     { category: '인프라/운영', items: ['가용성: 99.5% (월 다운타임 < 3.6시간)', '자동 백업: 일 1회, 30일 보관', 'CI/CD: GitHub Actions', '모니터링: Sentry + 메트릭'] },
   ];
 
-  // Glossary
   const defaultGlossary = [
     { term: 'MVP', definition: 'Minimum Viable Product — 핵심 기능만으로 시장 검증하는 첫 버전' },
     { term: 'PRD', definition: 'Product Requirements Document — 제품 요구사항 정의서' },
@@ -410,10 +265,9 @@ JSON 응답:
     { term: 'SLA', definition: 'Service Level Agreement — 서비스 수준 약정' },
     { term: 'WBS', definition: 'Work Breakdown Structure — 업무 분류 체계' },
   ];
-  const aiGlossary = Array.isArray(dataB.glossary) && dataB.glossary.length > 0 ? dataB.glossary.filter((g: any) => g.term && g.definition) : [];
+  const aiGlossary = Array.isArray(data1.glossary) && data1.glossary.length > 0 ? data1.glossary.filter((g: any) => g.term && g.definition) : [];
   const glossary = aiGlossary.length >= 5 ? aiGlossary : [...aiGlossary, ...defaultGlossary.filter(dg => !aiGlossary.some((ag: any) => ag.term === dg.term))];
 
-  // IA
   const informationArchitecture: PRDResult['informationArchitecture'] = {
     sitemap: [{
       id: 'root', label: projectName,
@@ -424,7 +278,6 @@ JSON 응답:
     }],
   };
 
-  // API Endpoints
   const apiEndpoints: PRDResult['apiEndpoints'] = [];
   for (const f of features.slice(0, 6)) {
     const slug = f.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '');
@@ -435,7 +288,6 @@ JSON 응답:
     );
   }
 
-  // Data model
   const dataModel: PRDResult['dataModel'] = [];
   const seen = new Set<string>();
   for (const spec of featureSpecs) {
@@ -450,30 +302,32 @@ JSON 응답:
     }
   }
 
-  // Deep Mode Insights 조립
+  // Deep Mode Insights 조립 — data1에서 모두 가져옴
   const deepModeInsights: PRDResult['deepModeInsights'] = {
-    strategicNarrative: dataA.strategicNarrative || '',
-    customerVoiceHighlights: Array.isArray(dataA.customerVoiceHighlights) ? dataA.customerVoiceHighlights.filter((c: any) => c.quote && c.insight) : [],
-    decisionLog: Array.isArray(dataB.decisionLog) ? dataB.decisionLog.filter((d: any) => d.decision) : [],
-    mvpRationale: dataB.mvpRationale || '',
-    implementationStrategy: dataB.implementationStrategy || '',
-    successFramework: Array.isArray(dataB.successFramework) ? dataB.successFramework.filter((s: any) => s.category) : [],
-    problemSolutionFit: dataA.problemSolutionFit || '',
-    marketContext: dataA.marketContext || '',
+    strategicNarrative: data1.strategicNarrative || '',
+    customerVoiceHighlights: Array.isArray(data1.customerVoiceHighlights) ? data1.customerVoiceHighlights.filter((c: any) => c.quote && c.insight) : [],
+    decisionLog: Array.isArray(data1.decisionLog) ? data1.decisionLog.filter((d: any) => d.decision) : [],
+    mvpRationale: data1.mvpRationale || '',
+    implementationStrategy: data1.implementationStrategy || '',
+    successFramework: Array.isArray(data1.successFramework) ? data1.successFramework.filter((s: any) => s.category) : [],
+    problemSolutionFit: data1.problemSolutionFit || '',
+    marketContext: data1.marketContext || '',
   };
+
+  console.log(`[DEEP PRD] ✅ Success. Insights: narrative=${!!deepModeInsights.strategicNarrative}, voices=${deepModeInsights.customerVoiceHighlights.length}, decisions=${deepModeInsights.decisionLog.length}`);
 
   return {
     projectName,
     documentMeta: { version: '2.0 Deep', createdAt: now, generatedBy: 'Wishket AI PRD Builder — Deep Analysis' },
-    executiveSummary: dataA.executiveSummary || `${rfpData.targetUsers || '사용자'}를 위한 ${projectName}`,
+    executiveSummary: data1.executiveSummary || `${rfpData.overview || '프로젝트'} — 심층 분석 기반 PRD`,
     projectOverview: '',
-    problemStatement: dataA.problemSolutionFit || '',
-    projectGoals: dataB.projectGoals || [{ goal: 'MVP 출시', metric: '핵심 기능 구현 완료' }],
-    targetUsers: dataA.targetUsersAnalysis || rfpData.targetUsers || '',
-    userPersonas: dataB.userPersonas || [],
+    problemStatement: data1.problemSolutionFit || '',
+    projectGoals: (Array.isArray(data1.projectGoals) && data1.projectGoals.length > 0) ? data1.projectGoals : [{ goal: 'MVP 출시', metric: '핵심 기능 구현 완료' }],
+    targetUsers: data1.targetUsersAnalysis || rfpData.targetUsers || '',
+    userPersonas: Array.isArray(data1.userPersonas) ? data1.userPersonas : [],
     scopeInclusions,
-    scopeExclusions: dataB.scopeExclusions || [],
-    techStack: dataB.techStack || [
+    scopeExclusions: Array.isArray(data1.scopeExclusions) ? data1.scopeExclusions : [],
+    techStack: (Array.isArray(data1.techStack) && data1.techStack.length > 0) ? data1.techStack : [
       { category: '프론트엔드', tech: 'Next.js', rationale: '빠른 개발과 SEO' },
       { category: '백엔드', tech: 'NestJS', rationale: '안정적 API' },
       { category: 'DB', tech: 'PostgreSQL', rationale: '데이터 무결성' },
@@ -482,28 +336,28 @@ JSON 응답:
     additionalRequirements: rfpData.additionalRequirements || '',
     featureModules,
     nonFunctionalRequirements,
-    timeline: dataB.timeline || [
+    timeline: (Array.isArray(data1.timeline) && data1.timeline.length > 0) ? data1.timeline : [
       { phase: 'Phase 1 — 기획·설계', duration: '2~3주', deliverables: ['요구사항 확정', '와이어프레임'] },
       { phase: 'Phase 2 — UI 디자인', duration: '2주', deliverables: ['디자인 시안'] },
       { phase: 'Phase 3 — MVP 개발', duration: '4~6주', deliverables: ['핵심 기능 구현'] },
       { phase: 'Phase 4 — 추가 개발', duration: '2~4주', deliverables: ['추가 기능'] },
       { phase: 'Phase 5 — QA·출시', duration: '1~2주', deliverables: ['테스트', '배포'] },
     ],
-    assumptions: (dataB.assumptions && dataB.assumptions.length > 0) ? dataB.assumptions : [],
-    constraints: (dataB.constraints && dataB.constraints.length > 0) ? dataB.constraints : [],
-    risks: ((dataB.risks && dataB.risks.length > 0) ? dataB.risks : []).map((r: any) => ({
+    assumptions: Array.isArray(data1.assumptions) ? data1.assumptions : [],
+    constraints: Array.isArray(data1.constraints) ? data1.constraints : [],
+    risks: (Array.isArray(data1.risks) ? data1.risks : []).map((r: any) => ({
       ...r,
       probability: r.probability || (r.impact === '높음' ? '높음' : '중간'),
     })),
     glossary,
-    expertInsight: dataA.expertInsight || '',
+    expertInsight: data1.expertInsight || '',
     informationArchitecture,
     originalDescription: rfpData.overview || '',
     apiEndpoints,
     dataModel,
-    competitorAnalysis: dataB.competitorAnalysis || [],
-    approvalProcess: dataB.approvalProcess || [],
-    qaStrategy: dataB.qaStrategy || [],
+    competitorAnalysis: Array.isArray(data1.competitorAnalysis) ? data1.competitorAnalysis : [],
+    approvalProcess: data1.approvalProcess || [],
+    qaStrategy: data1.qaStrategy || [],
     deepModeInsights,
   };
 }
@@ -583,7 +437,12 @@ JSON 배열만 출력:
 
   // ★ Deep mode는 완전히 다른 프롬프트 체계로 PRD 생성
   if (isDeepMode && hasConversation) {
-    return generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now);
+    try {
+      return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now);
+    } catch (deepError: any) {
+      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}), falling back to enhanced quick mode with conversation context`);
+      // Deep mode 실패 시 Quick mode로 폴백하되, 대화 컨텍스트는 반영
+    }
   }
 
   // ★ 대화 컨텍스트 삽입 문자열 — 전체 대화를 최대한 반영
@@ -1206,7 +1065,7 @@ export async function POST(req: NextRequest) {
         .from('rfp_sessions')
         .update({
           rfp_data: rfpData,
-          rfp_document: rfpDocument.slice(0, 50000),
+          rfp_document: rfpDocument.slice(0, 100000),
           completed: true,
           updated_at: new Date().toISOString(),
         })
