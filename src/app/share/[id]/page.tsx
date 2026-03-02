@@ -39,14 +39,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     ? `${summary}...`
     : `${projectName} — AI가 자동 생성한 PRD 기획서${featureCount > 0 ? ` (기능 ${featureCount}개)` : ''}`;
 
+  const shareUrl = `https://wishket-prd.com/share/${id}`;
+
   return {
-    title: `${projectName} — PRD 기획서 | 위시켓`,
+    title: `${projectName} — PRD 기획서`,
     description,
+    alternates: {
+      canonical: shareUrl,
+    },
     openGraph: {
       title: `${projectName} — AI PRD 기획서`,
       description,
       type: 'article',
-      siteName: '위시켓 AI PRD Builder',
+      url: shareUrl,
+      siteName: '위시켓 AI PRD 빌더',
+      locale: 'ko_KR',
     },
     twitter: {
       card: 'summary_large_image',
