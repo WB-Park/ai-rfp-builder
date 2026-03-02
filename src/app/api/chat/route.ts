@@ -414,10 +414,17 @@ ${phase === 'refine' ? `[refine — 정제 단계] 최종 확인 중
   • 고객의 관점에서 자연스러운 1인칭 답변 형태로 작성
 
 ═══ rfpUpdates 규칙 ═══
-- 고객의 자연스러운 대화에서 정보를 추출하여 배열로 반환
-- 하나의 답변에서 여러 항목을 동시에 추출 가능 (예: overview + targetUsers)
-- overview는 고객의 비전+배경+동기를 풍부하게 조합 (단순 서비스명이 아닌 맥락 포함)
-- 추출할 정보가 없으면 빈 배열 []
+★★★ 매 턴마다 반드시 1개 이상의 rfpUpdate를 추출하세요 ★★★
+고객이 무언가를 말했다면, 그 안에서 PRD에 반영할 정보가 반드시 있습니다.
+- 첫 번째 답변 → 반드시 overview 추출 (고객이 말한 서비스 설명 + 배경 + 동기를 풍부하게 조합)
+- 이후 답변 → 대화에서 새로 알게 된 정보를 적절한 section에 매핑
+- 하나의 답변에서 여러 항목 동시 추출 가능 (예: overview + targetUsers + referenceServices)
+- overview는 대화가 진행될수록 더 풍부하게 업데이트 (이전 overview + 새 맥락 합산)
+- additionalRequirements: 고객이 언급한 우려사항, 선호도, 제약, 성공기준 등 모든 부가 정보를 축적
+- ⚠️ 빈 배열 [] 반환은 고객이 "건너뛰기" 등 정보가 전혀 없는 경우만
+
+[사용 가능한 section]
+overview, targetUsers, coreFeatures, techRequirements, referenceServices, additionalRequirements
 
 ═══ 완료 조건 ═══
 - conversationComplete=true: 충분한 대화가 오갔고 + overview 수집됨 + coreFeatures 수집됨
@@ -818,7 +825,7 @@ export async function POST(req: NextRequest) {
           message: aiResult.response,
           rfpUpdate: primaryRfpUpdate,
           // 추가 rfpUpdates (2번째 이후) — 클라이언트에서 활용 가능
-          additionalRfpUpdates: aiResult.rfpUpdates.slice(1),
+          multiUpdates: aiResult.rfpUpdates.slice(1),
           nextAction: isComplete ? 'complete' : 'continue',
           quickReplies: selectableFeatures ? [] : aiResult.suggestions,
           inlineOptions: selectableFeatures ? [] : aiResult.suggestions,
