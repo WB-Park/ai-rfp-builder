@@ -708,68 +708,196 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
             </div>
           )}
 
-          {/* 수집 상태 칩 */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--space-lg)' }}>
-            {[
-              { label: '프로젝트 개요', filled: !!rfpData.overview, icon: '📋' },
-              { label: '타겟 사용자', filled: !!rfpData.targetUsers, icon: '👥' },
-              { label: '핵심 기능', filled: rfpData.coreFeatures.length > 0, icon: '⚙️' },
-              { label: '기술 요구사항', filled: !!rfpData.techRequirements, icon: '💻' },
-              { label: '참고 서비스', filled: !!rfpData.referenceServices, icon: '🔍' },
-              { label: '추가 요구사항', filled: !!rfpData.additionalRequirements, icon: '📝' },
-            ].map(item => (
-              <span key={item.label} style={{
-                fontSize: 11, fontWeight: 500,
-                padding: '4px 10px', borderRadius: 'var(--radius-full)',
-                background: item.filled ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
-                color: item.filled ? 'var(--color-primary)' : 'var(--text-quaternary)',
-                border: `1px solid ${item.filled ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent'}`,
-                transition: 'all 0.3s ease',
-              }}>
-                {item.filled ? '✓' : ''} {item.icon} {item.label}
-              </span>
-            ))}
-          </div>
+          {chatMode === 'deep' ? (
+            /* ═══ Deep Mode 전용 미리보기 ═══ */
+            <>
+              {/* Deep mode: 대화 깊이 인디케이터 */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--space-lg)' }}>
+                {[
+                  { phase: 'explore', label: '탐색', icon: '🔍' },
+                  { phase: 'understand', label: '이해', icon: '💡' },
+                  { phase: 'define', label: '정의', icon: '🎯' },
+                  { phase: 'refine', label: '정제', icon: '✨' },
+                ].map((step, idx) => {
+                  const phaseOrder = ['explore', 'understand', 'define', 'refine'];
+                  const currentIdx = phaseOrder.indexOf(deepPhase);
+                  const isActive = idx === currentIdx;
+                  const isDone = idx < currentIdx;
+                  return (
+                    <div key={step.phase} style={{
+                      flex: 1, textAlign: 'center', padding: '8px 4px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isActive ? 'rgba(var(--color-primary-rgb), 0.08)' : isDone ? 'rgba(52,199,89,0.06)' : 'var(--surface-2)',
+                      border: `1px solid ${isActive ? 'rgba(var(--color-primary-rgb), 0.25)' : isDone ? 'rgba(52,199,89,0.15)' : 'transparent'}`,
+                      transition: 'all 0.3s ease',
+                    }}>
+                      <div style={{ fontSize: 16, marginBottom: 2 }}>{isDone ? '✓' : step.icon}</div>
+                      <div style={{
+                        fontSize: 11, fontWeight: isActive ? 700 : 500,
+                        color: isActive ? 'var(--color-primary)' : isDone ? 'var(--color-success, #34C759)' : 'var(--text-quaternary)',
+                      }}>{step.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
 
-          {rfpData.overview ? (
-            <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-              <RFPSection title="프로젝트 개요" icon="📋" content={rfpData.overview} />
-              {rfpData.targetUsers && <RFPSection title="타겟 사용자" icon="👥" content={rfpData.targetUsers} />}
-              {Array.isArray(rfpData.coreFeatures) && rfpData.coreFeatures.length > 0 && (
-                <div>
-                  <SectionLabel title="핵심 기능" icon="⚙️" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
-                    {rfpData.coreFeatures.map((f, i) => (
-                      <div key={i} style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)',
-                        padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
-                      }}>
-                        <span className={`chip-${(f.priority || 'P1').toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority || 'P1'}</span>
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', display: 'block' }}>{f.name}</span>
-                          {f.description && f.description !== f.name && (
-                            <span style={{ color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5, display: 'block', marginTop: 4 }}>{f.description}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+              {/* Deep mode: 대화에서 파악된 내용 */}
+              {rfpData.overview ? (
+                <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+                  {/* 핵심 비전 — 가장 중요 */}
+                  <div style={{
+                    padding: '20px', borderRadius: 'var(--radius-lg)',
+                    background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.04), rgba(var(--color-primary-rgb), 0.01))',
+                    border: '1px solid rgba(var(--color-primary-rgb), 0.12)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 14 }}>🎯</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>프로젝트 비전</span>
+                    </div>
+                    <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 }}>{rfpData.overview}</p>
                   </div>
+
+                  {/* 파악된 항목들 — 대화에서 추출된 순서대로 */}
+                  {rfpData.targetUsers && (
+                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 13 }}>👥</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>타겟 사용자</span>
+                      </div>
+                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.targetUsers}</p>
+                    </div>
+                  )}
+
+                  {rfpData.referenceServices && (
+                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 13 }}>🔎</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>경쟁/참고 서비스</span>
+                      </div>
+                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.referenceServices}</p>
+                    </div>
+                  )}
+
+                  {Array.isArray(rfpData.coreFeatures) && rfpData.coreFeatures.length > 0 && (
+                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 13 }}>⚙️</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>핵심 기능</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-quaternary)', fontWeight: 500 }}>{rfpData.coreFeatures.length}개</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {rfpData.coreFeatures.map((f, i) => (
+                          <div key={i} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-0)',
+                          }}>
+                            <span className={`chip-${(f.priority || 'P1').toLowerCase()}`} style={{ flexShrink: 0, fontSize: 10 }}>{f.priority || 'P1'}</span>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{f.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rfpData.techRequirements && (
+                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 13 }}>💻</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>기술 방향</span>
+                      </div>
+                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.techRequirements}</p>
+                    </div>
+                  )}
+
+                  {rfpData.additionalRequirements && (
+                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 13 }}>📌</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>추가 맥락</span>
+                      </div>
+                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.additionalRequirements}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
+                  <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>💬</div>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
+                    대화가 시작되면 여기에 정리됩니다
+                  </p>
+                  <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
+                    대화를 통해 파악된 내용이 실시간으로 구조화됩니다
+                  </p>
                 </div>
               )}
-              {rfpData.referenceServices && <RFPSection title="참고 서비스" icon="🔍" content={rfpData.referenceServices} />}
-              {rfpData.techRequirements && <RFPSection title="기술 요구사항" icon="💻" content={rfpData.techRequirements} />}
-              {rfpData.additionalRequirements && <RFPSection title="추가 요구사항" icon="📝" content={rfpData.additionalRequirements} />}
-            </div>
+            </>
           ) : (
-            <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
-              <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>📝</div>
-              <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
-                아직 작성된 내용이 없어요
-              </p>
-              <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
-                AI와 대화하면 여기에 PRD가 실시간으로 채워집니다
-              </p>
-            </div>
+            /* ═══ Quick Mode 미리보기 (기존) ═══ */
+            <>
+              {/* 수집 상태 칩 */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--space-lg)' }}>
+                {[
+                  { label: '프로젝트 개요', filled: !!rfpData.overview, icon: '📋' },
+                  { label: '타겟 사용자', filled: !!rfpData.targetUsers, icon: '👥' },
+                  { label: '핵심 기능', filled: rfpData.coreFeatures.length > 0, icon: '⚙️' },
+                  { label: '기술 요구사항', filled: !!rfpData.techRequirements, icon: '💻' },
+                  { label: '참고 서비스', filled: !!rfpData.referenceServices, icon: '🔍' },
+                  { label: '추가 요구사항', filled: !!rfpData.additionalRequirements, icon: '📝' },
+                ].map(item => (
+                  <span key={item.label} style={{
+                    fontSize: 11, fontWeight: 500,
+                    padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                    background: item.filled ? 'rgba(var(--color-primary-rgb), 0.08)' : 'var(--surface-2)',
+                    color: item.filled ? 'var(--color-primary)' : 'var(--text-quaternary)',
+                    border: `1px solid ${item.filled ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent'}`,
+                    transition: 'all 0.3s ease',
+                  }}>
+                    {item.filled ? '✓' : ''} {item.icon} {item.label}
+                  </span>
+                ))}
+              </div>
+
+              {rfpData.overview ? (
+                <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+                  <RFPSection title="프로젝트 개요" icon="📋" content={rfpData.overview} />
+                  {rfpData.targetUsers && <RFPSection title="타겟 사용자" icon="👥" content={rfpData.targetUsers} />}
+                  {Array.isArray(rfpData.coreFeatures) && rfpData.coreFeatures.length > 0 && (
+                    <div>
+                      <SectionLabel title="핵심 기능" icon="⚙️" />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
+                        {rfpData.coreFeatures.map((f, i) => (
+                          <div key={i} style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)',
+                            padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)',
+                          }}>
+                            <span className={`chip-${(f.priority || 'P1').toLowerCase()}`} style={{ flexShrink: 0, marginTop: 2 }}>{f.priority || 'P1'}</span>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', display: 'block' }}>{f.name}</span>
+                              {f.description && f.description !== f.name && (
+                                <span style={{ color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5, display: 'block', marginTop: 4 }}>{f.description}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {rfpData.referenceServices && <RFPSection title="참고 서비스" icon="🔍" content={rfpData.referenceServices} />}
+                  {rfpData.techRequirements && <RFPSection title="기술 요구사항" icon="💻" content={rfpData.techRequirements} />}
+                  {rfpData.additionalRequirements && <RFPSection title="추가 요구사항" icon="📝" content={rfpData.additionalRequirements} />}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
+                  <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>📝</div>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
+                    아직 작성된 내용이 없어요
+                  </p>
+                  <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
+                    AI와 대화하면 여기에 PRD가 실시간으로 채워집니다
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
