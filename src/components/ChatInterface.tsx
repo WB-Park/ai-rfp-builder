@@ -717,10 +717,9 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   { phase: 'explore', label: '탐색', icon: '🔍' },
                   { phase: 'understand', label: '이해', icon: '💡' },
                   { phase: 'define', label: '정의', icon: '🎯' },
-                  { phase: 'refine', label: '정제', icon: '✨' },
-                  { phase: 'wrapup', label: '완료', icon: '✅' },
+                  { phase: 'refine', label: '완성', icon: '✅' },
                 ].map((step, idx) => {
-                  const phaseOrder = ['explore', 'understand', 'define', 'refine', 'wrapup'];
+                  const phaseOrder = ['explore', 'understand', 'define', 'refine'];
                   const currentIdx = phaseOrder.indexOf(deepPhase);
                   const isActive = idx === currentIdx;
                   const isDone = idx < currentIdx;
