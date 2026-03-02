@@ -1,26 +1,41 @@
 'use client';
 
-// AI PRD Builder — Landing Page v5
-// MIRROR Phase 1~3 전체 적용:
-//   M1: 게스트 시작 메인 CTA + 이메일 보너스 리프레이밍
-//   M2: 모바일 섹션 축소 (9→6, Features+How 통합, Stats→Reviews 통합)
-//   M3: 사용자 수 동적 표시 (사회적 증거 + 긴급성)
-//   M7: FAQ 상위 2개 기본 펼침
-//   M10: 스크롤 힌트 제거
-//   P1: 데모 예시 3개 탭 (쇼핑몰, 예약 플랫폼, SaaS)
-//   P2: 기술 차별화 섹션 추가
-//   P3: Trust chip "데이터 보호" + 보안 메시지
-//   P4: Hero CTA "전문가 수준" → "개발사 전달용"
-//   P5: 섹션 간 서사 흐름 전환 문구
-//   P7: Before/After 비교표 수치 추가
+// AI PRD Builder — Landing Page v6
+// PROBE 검증 수정 + MIRROR 모바일 히어로 개선:
+//   [GUARD] S1: Footer 죽은 링크 → <a> + 실제 URL
+//   [GUARD] D1: userCount fallback 427 제거 → 0이면 대체 문구
+//   [GUARD] S2: FAQ +/- 아이콘 → state 기반 회전 애니메이션
+//   [GUARD] S3/D2: Final CTA 에러 독립 표시
+//   [GUARD] S6: isMobile 초기값 FOUC 방지
+//   [GUARD] D4: Footer 모바일 padding 조정
+//   [GUARD] D5: 게스트 시작도 세션 기록 (리드 추적)
+//   [ELEVATE] E-4: 비교표 직후 인라인 CTA
+//   [ELEVATE] E-5: StickyBar 모바일 사회적 증거
+//   [ELEVATE] E-6: 데모 탭 5초 자동 순환
+//   [MIRROR] 모바일 히어로 간소화: 이메일폼 제거, 트러스트칩 3개, 스텝 제거, 호흡 공간 확보
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface LandingPageProps {
   onStart: (email: string, sessionId?: string) => void;
 }
 
-// ─── Design Tokens (블루 톤 — AI 진단과 차별화) ───
+// ─── Custom Hook: isMobile (중복 제거) ───
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < breakpoint;
+    return false;
+  });
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// ─── Design Tokens ───
 const C = {
   navy: '#0B1120',
   navyLight: '#131C31',
@@ -103,22 +118,57 @@ const DEMO_TABS = [
   },
 ];
 
+// ─── Footer 링크 데이터 (S1: 실제 URL) ───
+const FOOTER_COLS = [
+  {
+    title: '위시켓',
+    links: [
+      { label: '위시켓 소개', href: 'https://www.wishket.com/company/' },
+      { label: '신뢰와 안전', href: 'https://www.wishket.com/trust/' },
+    ],
+  },
+  {
+    title: '이용방법',
+    links: [
+      { label: '클라이언트 이용방법', href: 'https://www.wishket.com/guide/client/' },
+      { label: '파트너 이용방법', href: 'https://www.wishket.com/guide/partner/' },
+    ],
+  },
+  {
+    title: '고객센터',
+    links: [
+      { label: '클라이언트 고객센터', href: 'https://help.wishket.com/hc/ko' },
+      { label: '파트너 고객센터', href: 'https://help.wishket.com/hc/ko' },
+    ],
+  },
+];
+
 export default function LandingPage({ onStart }: LandingPageProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [finalError, setFinalError] = useState(''); // [S3] Final CTA 독립 에러
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false); // [D5] 게스트 로딩
   const [scrolled, setScrolled] = useState(false);
   const heroInputRef = useRef<HTMLInputElement>(null);
-  const [demoTab, setDemoTab] = useState(0); // P1: 데모 탭
+  const [demoTab, setDemoTab] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number[]>([0, 1]); // [S2] FAQ state
 
-  // [Phase 3: M3] 사용자 수 동적 표시
+  // [D1] 사용자 수 — fallback 제거
   const [userCount, setUserCount] = useState(0);
   useEffect(() => {
-    // 세션 수 가져오기 (API 실패 시 기본값)
     fetch('/api/lead?count=true').then(r => r.json()).then(d => {
       if (d.count && d.count > 0) setUserCount(d.count);
-      else setUserCount(427); // fallback
-    }).catch(() => setUserCount(427));
+      // fallback 없음 — 0이면 대체 문구 표시
+    }).catch(() => { /* 0 유지 */ });
+  }, []);
+
+  // [E-6] 데모 탭 자동 순환 (5초)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDemoTab(prev => (prev + 1) % DEMO_TABS.length);
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -127,9 +177,23 @@ export default function LandingPage({ onStart }: LandingPageProps) {
     return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  const handleGuestStart = () => {
-    onStart('guest@anonymous.user');
-  };
+  // [D5] 게스트 시작 — 세션 기록 포함
+  const handleGuestStart = useCallback(async () => {
+    setGuestLoading(true);
+    try {
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'guest@anonymous.user', step: 'guest_start' }),
+      });
+      const data = await res.json();
+      onStart('guest@anonymous.user', data.sessionId);
+    } catch {
+      onStart('guest@anonymous.user');
+    } finally {
+      setGuestLoading(false);
+    }
+  }, [onStart]);
 
   const handleEmailStart = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -156,13 +220,33 @@ export default function LandingPage({ onStart }: LandingPageProps) {
     }
   };
 
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  // [S3] Final CTA 전용 이메일 제출
+  const handleFinalEmailStart = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setFinalError('');
+    if (!email || !email.includes('@')) {
+      setFinalError('유효한 이메일을 입력해주세요.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, step: 'email' }),
+      });
+      const data = await res.json();
+      if (data.error) setFinalError(data.error);
+      else onStart(email, data.sessionId);
+    } catch {
+      setFinalError('네트워크 오류. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // [S6] FOUC 방지 — useIsMobile 커스텀 훅 사용
+  const isMobile = useIsMobile();
 
   const sectionPad: React.CSSProperties = { padding: isMobile ? '56px 16px' : '80px 24px', maxWidth: 1080, margin: '0 auto' };
   const secTitle: React.CSSProperties = {
@@ -175,11 +259,10 @@ export default function LandingPage({ onStart }: LandingPageProps) {
   return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
       {/* 모바일 글로벌 스타일 */}
-      {isMobile && (
-        <style>{`
-          @keyframes heroPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.25)} 50%{box-shadow:0 4px 30px rgba(37,99,235,0.5)} }
-        `}</style>
-      )}
+      <style>{`
+        @keyframes heroPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.25)} 50%{box-shadow:0 4px 30px rgba(37,99,235,0.5)} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
 
       {/* ━━ Header ━━ */}
       <header style={{
@@ -199,10 +282,11 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)' }} />
             <span style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, fontWeight: 500 }}>AI 기획서 빌더</span>
           </div>
-          <button onClick={handleGuestStart} style={{
-            padding: isMobile ? '10px 16px' : '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
+          <button onClick={handleGuestStart} disabled={guestLoading} style={{
+            padding: isMobile ? '10px 16px' : '8px 20px', borderRadius: 10, border: 'none', cursor: guestLoading ? 'wait' : 'pointer',
             background: C.blue, color: C.white, fontSize: isMobile ? 13 : 14, fontWeight: 600,
             transition: 'all 0.2s', minHeight: isMobile ? 44 : undefined,
+            opacity: guestLoading ? 0.7 : 1,
           }}>바로 시작</button>
         </div>
       </header>
@@ -210,7 +294,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       {/* ━━ Hero ━━ */}
       <section style={{
         background: `linear-gradient(180deg, ${C.navy} 0%, ${C.navyLight} 80%, ${C.navyMid} 100%)`,
-        padding: isMobile ? '68px 16px 40px' : '130px 24px 80px', textAlign: 'center',
+        padding: isMobile ? '72px 20px 44px' : '130px 24px 80px', textAlign: 'center',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
@@ -221,157 +305,197 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         }} />
 
         <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {/* Badge — [M3] 사용자 수 동적 표시 */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: isMobile ? '6px 14px' : '8px 18px', borderRadius: 100,
-            background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
-            marginBottom: isMobile ? 12 : 28,
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
-            <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: C.blueText }}>
-              {userCount > 0 ? `${userCount.toLocaleString()}명이 기획서 작성 완료` : '위시켓 13년 외주 경험 × AI'}
-            </span>
-          </div>
-
-          {/* Headline */}
-          <h1 style={{
-            fontSize: isMobile ? 26 : 'clamp(30px, 5vw, 48px)', fontWeight: 800,
-            color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em',
-            marginBottom: isMobile ? 8 : 16,
-          }}>
-            {isMobile ? (
-              <>소프트웨어 기획서,<br /><span style={{ color: C.blueSoft }}>AI가 5분 만에 완성</span></>
-            ) : (
-              <>소프트웨어 기획서(PRD),<br /><span style={{ color: C.blueSoft }}>AI와 대화 몇 번이면 끝</span></>
-            )}
-          </h1>
-
-          {/* [M5] Sub — 숫자 대비 강조 */}
-          <p style={{
-            fontSize: isMobile ? 14 : 'clamp(15px, 2vw, 18px)', color: C.textLight,
-            lineHeight: 1.65, maxWidth: isMobile ? '100%' : 560, margin: isMobile ? '0 auto 16px' : '0 auto 36px',
-          }}>
-            {isMobile ? (
-              <>보통 <strong style={{ color: C.white }}>3일</strong> 걸리는 기획서를, AI가 <strong style={{ color: C.blueSoft }}>5분</strong> 만에 무료로 완성합니다.</>
-            ) : (
-              <>보통 <strong style={{ color: C.white }}>3일</strong> 걸리는 기획서 작성. AI가 <strong style={{ color: C.blueSoft }}>5분</strong> 만에 개발사에 <strong style={{ color: C.blueSoft }}>바로 전달 가능한 기획서</strong>를 무료로 작성하고, PDF로 이메일에 보내드립니다.</>
-            )}
-          </p>
-
-          {/* ──── [M1] Hero CTA: 게스트 시작 메인 + 이메일은 보너스 ──── */}
-          {/* [M1] 메인 CTA: 바로 시작 (이메일 불필요) */}
-          <button onClick={handleGuestStart} style={{
-            width: isMobile ? '100%' : 'auto', padding: isMobile ? '0 28px' : '0 40px',
-            height: isMobile ? 56 : 58, borderRadius: 14, border: 'none',
-            background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-            color: C.white, fontSize: isMobile ? 17 : 18, fontWeight: 700, cursor: 'pointer',
-            boxShadow: `0 4px 24px ${C.blueGlow}`,
-            transition: 'all 0.2s', letterSpacing: '0.01em',
-            animation: isMobile ? 'heroPulse 2.5s ease-in-out infinite' : undefined,
-            display: 'block', margin: '0 auto 12px',
-          }}>
-            무료로 기획서 만들기 →
-          </button>
-
-          {/* [M1] 서브: 이메일 입력은 보너스 옵션 */}
-          <form onSubmit={handleEmailStart} style={{
-            maxWidth: 480, margin: '0 auto 8px',
-            display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 6,
-            alignItems: 'center',
-          }}>
-            <div style={{ fontSize: 13, color: C.gray400, whiteSpace: 'nowrap', marginRight: isMobile ? 0 : 4 }}>
-              또는
-            </div>
-            <input
-              ref={heroInputRef}
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              placeholder="이메일 입력 시 PDF도 발송"
-              style={{
-                width: isMobile ? '100%' : 'auto', flex: isMobile ? undefined : 1,
-                height: 44, padding: '0 14px', borderRadius: 10,
-                border: error ? '1.5px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)', color: C.white, fontSize: 14,
-                outline: 'none', transition: 'all 0.2s',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = C.blue;
-                e.target.style.boxShadow = `0 0 0 2px ${C.blueGlow}`;
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = error ? '#EF4444' : 'rgba(255,255,255,0.1)';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-            {/* [P4] CTA 문구: "전문가 수준" → "개발사 전달용" */}
-            <button type="submit" disabled={loading} style={{
-              width: isMobile ? '100%' : 'auto', padding: '0 16px', height: 44, borderRadius: 10, border: 'none',
-              background: 'rgba(255,255,255,0.1)', color: C.blueSoft,
-              fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
-              opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
-              transition: 'all 0.2s',
-            }}>
-              {loading ? '...' : 'PDF 받기'}
-            </button>
-          </form>
-
-          {error && (
-            <p style={{ color: '#EF4444', fontSize: 13, marginTop: 4, marginBottom: 4 }}>{error}</p>
-          )}
-
-          {/* [P3] Trust chips — 데이터 보호 추가 */}
-          <div style={{
-            display: isMobile ? 'grid' : 'flex',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : undefined,
-            flexWrap: 'wrap', justifyContent: 'center',
-            gap: isMobile ? '10px 12px' : 16, marginTop: isMobile ? 16 : 24,
-          }}>
-            {['회원가입 불필요', '완전 무료', '5분이면 완료', 'PDF 다운로드', '데이터 보호'].map(t => (
-              <span key={t} style={{
-                fontSize: isMobile ? 12 : 13, color: C.textLight, display: 'flex', alignItems: 'center',
-                justifyContent: isMobile ? 'center' : undefined, gap: 5,
+          {/* [MIRROR] 모바일 히어로: 간소화된 구조 */}
+          {isMobile ? (
+            <>
+              {/* Badge */}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '6px 14px', borderRadius: 100,
+                background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
+                marginBottom: 16,
               }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t === '데이터 보호' ? '#34D399' : C.blueSoft} strokeWidth="2.5">
-                  {t === '데이터 보호' ? (
-                    <path d="M12 2L3 7v5c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z" />
-                  ) : (
-                    <polyline points="20 6 9 17 4 12" />
-                  )}
-                </svg>
-                {t}
-              </span>
-            ))}
-          </div>
-
-          {/* [M9] Step indicator — 3단계로 축소 */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: isMobile ? 8 : 6, marginTop: 36, flexWrap: 'wrap',
-          }}>
-            {[
-              { n: '1', t: '아이디어 말하기' },
-              { n: '2', t: 'AI가 질문 & 정리' },
-              { n: '3', t: '기획서 완성 + PDF' },
-            ].map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{
-                  width: 24, height: 24, borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 700, color: C.white,
-                }}>{s.n}</div>
-                <span style={{ fontSize: 13, color: C.textLight }}>{s.t}</span>
-                {i < 2 && <span style={{ color: C.gray600, margin: '0 2px', fontSize: 12 }}>→</span>}
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.blueText }}>
+                  {userCount > 0 ? `${userCount.toLocaleString()}명이 기획서 작성 완료` : '위시켓 13년 외주 경험 × AI'}
+                </span>
               </div>
-            ))}
-          </div>
-          {/* [M10] 스크롤 힌트 제거됨 */}
+
+              {/* Headline — 깔끔하게 2줄 */}
+              <h1 style={{
+                fontSize: 28, fontWeight: 800, color: C.white,
+                lineHeight: 1.35, letterSpacing: '-0.03em', marginBottom: 12,
+              }}>
+                기획서 작성,<br />
+                <span style={{ color: C.blueSoft }}>AI가 5분 만에 끝</span>
+              </h1>
+
+              {/* Sub — 핵심 1줄 */}
+              <p style={{
+                fontSize: 15, color: C.textLight, lineHeight: 1.6,
+                marginBottom: 28, padding: '0 8px',
+              }}>
+                대화만 하면 개발사 전달용 기획서 완성
+              </p>
+
+              {/* 메인 CTA 1개 — 깨끗하게 */}
+              <button onClick={handleGuestStart} disabled={guestLoading} style={{
+                width: '100%', height: 56, borderRadius: 14, border: 'none',
+                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                color: C.white, fontSize: 17, fontWeight: 700,
+                cursor: guestLoading ? 'wait' : 'pointer',
+                boxShadow: `0 4px 24px ${C.blueGlow}`,
+                animation: 'heroPulse 2.5s ease-in-out infinite',
+                opacity: guestLoading ? 0.7 : 1,
+              }}>
+                {guestLoading ? '준비 중...' : '무료로 기획서 만들기 →'}
+              </button>
+
+              {/* Trust chips — 3개로 축소, 1줄 */}
+              <div style={{
+                display: 'flex', justifyContent: 'center',
+                gap: 16, marginTop: 20,
+              }}>
+                {['회원가입 불필요', '완전 무료', '5분 완성'].map(t => (
+                  <span key={t} style={{
+                    fontSize: 12, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
+                  }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blueSoft} strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            /* ━━ PC Hero (기존 유지) ━━ */
+            <>
+              {/* Badge */}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 18px', borderRadius: 100,
+                background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
+                marginBottom: 28,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: C.blueText }}>
+                  {userCount > 0 ? `${userCount.toLocaleString()}명이 기획서 작성 완료` : '위시켓 13년 외주 경험 × AI'}
+                </span>
+              </div>
+
+              {/* Headline */}
+              <h1 style={{
+                fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800,
+                color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em', marginBottom: 16,
+              }}>
+                소프트웨어 기획서(PRD),<br /><span style={{ color: C.blueSoft }}>AI와 대화 몇 번이면 끝</span>
+              </h1>
+
+              {/* Sub */}
+              <p style={{
+                fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
+                lineHeight: 1.65, maxWidth: 560, margin: '0 auto 36px',
+              }}>
+                보통 <strong style={{ color: C.white }}>3일</strong> 걸리는 기획서 작성. AI가 <strong style={{ color: C.blueSoft }}>5분</strong> 만에 개발사에 <strong style={{ color: C.blueSoft }}>바로 전달 가능한 기획서</strong>를 무료로 작성하고, PDF로 이메일에 보내드립니다.
+              </p>
+
+              {/* 메인 CTA */}
+              <button onClick={handleGuestStart} disabled={guestLoading} style={{
+                padding: '0 40px', height: 58, borderRadius: 14, border: 'none',
+                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                color: C.white, fontSize: 18, fontWeight: 700,
+                cursor: guestLoading ? 'wait' : 'pointer',
+                boxShadow: `0 4px 24px ${C.blueGlow}`,
+                transition: 'all 0.2s', letterSpacing: '0.01em',
+                display: 'block', margin: '0 auto 12px',
+                opacity: guestLoading ? 0.7 : 1,
+              }}>
+                {guestLoading ? '준비 중...' : '무료로 기획서 만들기 →'}
+              </button>
+
+              {/* 서브: 이메일 */}
+              <form onSubmit={handleEmailStart} style={{
+                maxWidth: 480, margin: '0 auto 8px',
+                display: 'flex', gap: 6, alignItems: 'center',
+              }}>
+                <div style={{ fontSize: 13, color: C.gray400, whiteSpace: 'nowrap', marginRight: 4 }}>또는</div>
+                <input
+                  ref={heroInputRef}
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                  placeholder="이메일 입력 시 PDF도 발송"
+                  style={{
+                    flex: 1, height: 44, padding: '0 14px', borderRadius: 10,
+                    border: error ? '1.5px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.05)', color: C.white, fontSize: 14,
+                    outline: 'none', transition: 'border-color 0.2s',
+                  }}
+                />
+                <button type="submit" disabled={loading} style={{
+                  padding: '0 16px', height: 44, borderRadius: 10, border: 'none',
+                  background: 'rgba(255,255,255,0.1)', color: C.blueSoft,
+                  fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
+                  opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
+                  transition: 'all 0.2s',
+                }}>
+                  {loading ? '...' : 'PDF 받기'}
+                </button>
+              </form>
+              {error && (
+                <p style={{ color: '#EF4444', fontSize: 13, marginTop: 4, marginBottom: 4 }}>{error}</p>
+              )}
+
+              {/* Trust chips */}
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
+                gap: 16, marginTop: 24,
+              }}>
+                {['회원가입 불필요', '완전 무료', '5분이면 완료', 'PDF 다운로드', '데이터 보호'].map(t => (
+                  <span key={t} style={{
+                    fontSize: 13, color: C.textLight, display: 'flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t === '데이터 보호' ? '#34D399' : C.blueSoft} strokeWidth="2.5">
+                      {t === '데이터 보호' ? (
+                        <path d="M12 2L3 7v5c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z" fill="rgba(52,211,153,0.15)" />
+                      ) : (
+                        <polyline points="20 6 9 17 4 12" />
+                      )}
+                    </svg>
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              {/* Step indicator — PC만 */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 6, marginTop: 36, flexWrap: 'wrap',
+              }}>
+                {[
+                  { n: '1', t: '아이디어 말하기' },
+                  { n: '2', t: 'AI가 질문 & 정리' },
+                  { n: '3', t: '기획서 완성 + PDF' },
+                ].map((s, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      width: 24, height: 24, borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700, color: C.white,
+                    }}>{s.n}</div>
+                    <span style={{ fontSize: 13, color: C.textLight }}>{s.t}</span>
+                    {i < 2 && <span style={{ color: C.gray600, margin: '0 2px', fontSize: 12 }}>→</span>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </section>
 
-      {/* ━━ Demo Preview — [P1] 3개 탭 ━━ */}
+      {/* ━━ Demo Preview — 3개 탭 + 자동 순환 ━━ */}
       <section style={{
         background: `linear-gradient(180deg, ${C.navyMid} 0%, ${C.bg} 100%)`,
         padding: isMobile ? '0 16px 48px' : '0 24px 80px',
@@ -442,15 +566,12 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             ))}
           </div>
         </div>
-
-        {/* [P1] 실제 결과 라벨 */}
         <p style={{ textAlign: 'center', fontSize: 12, color: C.gray500, marginTop: 12 }}>
           * 실제 AI가 생성한 기획서 결과물입니다. 업종별로 다른 결과가 나옵니다.
         </p>
       </section>
 
-      {/* ━━ [P5] 서사 전환 — "이런 기획서를 받을 수 있어요" ━━ */}
-      {/* [M2] 모바일: Features + How It Works 통합 / PC: 기존 유지 */}
+      {/* ━━ Features ━━ */}
       <section style={{ background: C.bg, ...sectionPad }}>
         <h2 style={secTitle}>{isMobile ? '이런 기획서, 이렇게 쉽게' : 'ChatGPT에서는 절대 못 받는 기획서'}</h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
@@ -470,8 +591,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <div key={item.n} style={{
               background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
               border: '1px solid rgba(0,0,0,0.05)',
-              transition: 'all 0.25s ease',
-              cursor: 'default',
+              transition: 'all 0.25s ease', cursor: 'default',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'translateY(-4px)';
@@ -496,14 +616,13 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </section>
 
-      {/* ━━ [P5 서사] "이렇게 쉽습니다" — PC에서만 How It Works 표시, 모바일은 M2로 통합됨 ━━ */}
+      {/* ━━ How It Works — PC만 ━━ */}
       {!isMobile && (
         <section style={{ background: C.white, ...sectionPad }}>
           <h2 style={secTitle}>정말 간단합니다</h2>
           <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
             프롬프트 작성? 필요 없습니다. AI가 질문하고 당신은 답만 하세요.
           </p>
-
           <div style={{
             display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
             gap: 32, marginTop: 48, flexWrap: 'wrap',
@@ -529,9 +648,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </section>
       )}
 
-      {/* ━━ [P2] 기술 차별화 섹션 — "왜 ChatGPT로는 안 되는가?" ━━ */}
+      {/* ━━ WHY WISHKET AI + 비교표 ━━ */}
       <section style={{ background: isMobile ? C.white : C.bg, ...sectionPad }}>
-        {/* [P5] 서사 전환 문구 */}
         <p style={{ fontSize: 13, color: C.blue, textAlign: 'center', fontWeight: 600, marginBottom: 8, letterSpacing: '0.05em' }}>
           WHY WISHKET AI
         </p>
@@ -540,7 +658,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           {isMobile ? '같은 질문, 전혀 다른 결과' : '116,000건의 실전 프로젝트 데이터가 만드는 차이'}
         </p>
 
-        {/* [P2] 기술 차별화 3포인트 */}
+        {/* 기술 차별화 3포인트 */}
         <div style={{
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
           gap: 16, marginBottom: 40,
@@ -577,7 +695,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           ))}
         </div>
 
-        {/* [P7] Before/After — 수치 비교표 */}
+        {/* Before/After 비교표 */}
         <div style={{
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
           gap: 20,
@@ -585,7 +703,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           {/* ChatGPT */}
           <div style={{
             background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
-            border: '1px solid rgba(0,0,0,0.06)', opacity: isMobile ? 0.9 : 0.85,
+            border: '1px solid rgba(0,0,0,0.06)', opacity: 0.85,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
               <span style={{
@@ -595,11 +713,11 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               <span style={{ fontSize: 17, fontWeight: 700, color: C.gray600 }}>일반 ChatGPT</span>
             </div>
             {[
-              { t: '기능 우선순위 분류', v: '없음', bad: true },
-              { t: '예산 추정 정확도', v: '근거 없음', bad: true },
-              { t: '개발 일정 추정', v: '부정확', bad: true },
-              { t: '개발사 전달 포맷', v: '미지원', bad: true },
-              { t: '외주 맥락 이해', v: '없음', bad: true },
+              { t: '기능 우선순위 분류', v: '없음' },
+              { t: '예산 추정 정확도', v: '근거 없음' },
+              { t: '개발 일정 추정', v: '부정확' },
+              { t: '개발사 전달 포맷', v: '미지원' },
+              { t: '외주 맥락 이해', v: '없음' },
             ].map((row, i) => (
               <div key={i} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -630,11 +748,11 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               }}>추천</span>
             </div>
             {[
-              { t: '기능 우선순위 분류', v: 'P1/P2/P3 자동', good: true },
-              { t: '예산 추정 정확도', v: '±20% 범위', good: true },
-              { t: '개발 일정 추정', v: '업종별 실전 기반', good: true },
-              { t: '개발사 전달 포맷', v: 'RFP + PDF', good: true },
-              { t: '외주 맥락 이해', v: '116,000건 학습', good: true },
+              { t: '기능 우선순위 분류', v: 'P1/P2/P3 자동' },
+              { t: '예산 추정 정확도', v: '±20% 범위' },
+              { t: '개발 일정 추정', v: '업종별 실전 기반' },
+              { t: '개발사 전달 포맷', v: 'RFP + PDF' },
+              { t: '외주 맥락 이해', v: '116,000건 학습' },
             ].map((row, i) => (
               <div key={i} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -646,10 +764,25 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             ))}
           </div>
         </div>
+
+        {/* [E-4] 비교표 직후 인라인 CTA */}
+        <div style={{ textAlign: 'center', marginTop: 32 }}>
+          <button onClick={handleGuestStart} disabled={guestLoading} style={{
+            padding: isMobile ? '0 28px' : '0 32px', height: 50, borderRadius: 12, border: 'none',
+            background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+            color: C.white, fontSize: isMobile ? 15 : 16, fontWeight: 700,
+            cursor: guestLoading ? 'wait' : 'pointer',
+            boxShadow: `0 4px 20px ${C.blueGlow}`,
+            transition: 'all 0.2s',
+            opacity: guestLoading ? 0.7 : 1,
+          }}>
+            직접 확인해보기 →
+          </button>
+          <p style={{ fontSize: 13, color: C.gray500, marginTop: 8 }}>무료 · 회원가입 불필요 · 5분</p>
+        </div>
       </section>
 
-      {/* ━━ Stats + Social Proof — [M2] 모바일: 통합 / PC: Stats 다크 바 유지 ━━ */}
-      {/* [P5] 서사 전환: "실제 데이터 기반으로..." */}
+      {/* ━━ Stats ━━ */}
       <section style={{
         background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`,
         padding: isMobile ? '40px 16px' : '56px 24px', textAlign: 'center',
@@ -674,25 +807,19 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             </div>
           ))}
         </div>
-        {/* [P10] 출처 */}
-        <p style={{ fontSize: 11, color: C.gray600, marginTop: 16 }}>
-          * 위시켓 공식 누적 실적 기준
-        </p>
+        <p style={{ fontSize: 11, color: C.gray600, marginTop: 16 }}>* 위시켓 공식 누적 실적 기준</p>
       </section>
 
       {/* ━━ Social Proof ━━ */}
-      {/* [P5] 서사 전환: "이미 많은 분들이" */}
       <section style={{ background: C.bg, ...sectionPad }}>
         <h2 style={secTitle}>{isMobile ? '사용자들이 말합니다' : '실제 사용자 후기'}</h2>
         <p style={{ fontSize: isMobile ? 14 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10, marginBottom: 44 }}>
           AI 기획서 빌더로 기획서를 완성한 분들의 이야기
         </p>
-
         <div style={{
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 20,
         }}>
-          {/* [M4] 다양한 별점 — 1개 4점으로 변경 */}
           {[
             { name: '김태현', role: '스타트업 대표', text: '개발사에 보낼 기획서를 3일이나 쓰고 있었는데, 여기서 5분 만에 끝났어요. 개발사 대표님이 "이렇게 잘 정리된 RFP는 처음"이라고 하셨습니다.', rating: 5 },
             { name: '이수진', role: '기획자', text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. ChatGPT한테 물어보면 뜬구름 잡는 소리만 하는데, 여기는 외주 맥락을 정확히 알고 있더라고요.', rating: 5 },
@@ -727,7 +854,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </section>
 
-      {/* ━━ [M7] FAQ — 상위 2개 기본 펼침 ━━ */}
+      {/* ━━ FAQ — [S2] state 기반 +/- 회전 ━━ */}
       <section style={{ background: C.white, ...sectionPad }}>
         <h2 style={secTitle}>자주 묻는 질문</h2>
         <div style={{ maxWidth: 680, margin: '40px auto 0' }}>
@@ -738,24 +865,41 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             { q: '생성된 기획서를 수정할 수 있나요?', a: '기획서 완성 후 각 섹션별로 AI 재생성이 가능합니다. 원하는 부분만 다시 생성하여 수정할 수 있어요.' },
             { q: '개인정보는 안전한가요?', a: '입력하신 이메일은 기획서 발송에만 사용되며, 마케팅 목적으로 활용하지 않습니다. 프로젝트 정보는 기획서 생성에만 사용되고 제3자에게 공유되지 않습니다.' },
           ].map((faq, i) => (
-            <details key={i} open={i < 2} style={{
-              borderBottom: `1px solid ${C.gray200}`,
-              padding: '20px 0',
+            <div key={i} style={{
+              borderBottom: `1px solid ${C.gray200}`, padding: '20px 0',
             }}>
-              <summary style={{
-                fontSize: isMobile ? 15 : 16, fontWeight: 600, color: C.textDark,
-                cursor: 'pointer', listStyle: 'none',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                minHeight: 44, padding: isMobile ? '4px 0' : undefined,
-              }}>
+              <button
+                onClick={() => setOpenFaq(prev =>
+                  prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]
+                )}
+                style={{
+                  width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: isMobile ? 15 : 16, fontWeight: 600, color: C.textDark,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  minHeight: 44, padding: isMobile ? '4px 0' : 0, textAlign: 'left',
+                }}
+                aria-expanded={openFaq.includes(i)}
+              >
                 {faq.q}
-                <span style={{ fontSize: 20, color: C.gray400, transition: 'transform 0.2s' }}>+</span>
-              </summary>
-              <p style={{
-                fontSize: 14, color: C.textMuted, lineHeight: 1.7,
-                marginTop: 12, paddingRight: 24,
-              }}>{faq.a}</p>
-            </details>
+                <span style={{
+                  fontSize: 20, color: C.gray400,
+                  transition: 'transform 0.3s ease',
+                  transform: openFaq.includes(i) ? 'rotate(45deg)' : 'rotate(0deg)',
+                  flexShrink: 0, marginLeft: 12,
+                }}>+</span>
+              </button>
+              <div style={{
+                maxHeight: openFaq.includes(i) ? 200 : 0,
+                overflow: 'hidden',
+                transition: 'max-height 0.3s ease, opacity 0.3s ease',
+                opacity: openFaq.includes(i) ? 1 : 0,
+              }}>
+                <p style={{
+                  fontSize: 14, color: C.textMuted, lineHeight: 1.7,
+                  marginTop: 12, paddingRight: 24,
+                }}>{faq.a}</p>
+              </div>
+            </div>
           ))}
         </div>
       </section>
@@ -780,34 +924,33 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </p>
 
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          {/* [M1] 메인 CTA: 바로 시작 */}
-          <button onClick={handleGuestStart} style={{
+          <button onClick={handleGuestStart} disabled={guestLoading} style={{
             width: isMobile ? '100%' : 'auto', padding: '0 36px',
             height: isMobile ? 56 : 54, borderRadius: 14, border: 'none',
             background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-            color: C.white, fontSize: isMobile ? 17 : 18, fontWeight: 700, cursor: 'pointer',
+            color: C.white, fontSize: isMobile ? 17 : 18, fontWeight: 700,
+            cursor: guestLoading ? 'wait' : 'pointer',
             boxShadow: `0 4px 20px ${C.blueGlow}`,
             transition: 'all 0.2s', display: 'block', margin: '0 auto 16px',
+            opacity: guestLoading ? 0.7 : 1,
           }}>
-            무료로 기획서 만들기 →
+            {guestLoading ? '준비 중...' : '무료로 기획서 만들기 →'}
           </button>
 
-          {/* 서브: 이메일 */}
-          <form onSubmit={handleEmailStart} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 6, alignItems: 'center' }}>
+          {/* 서브: 이메일 — [S3] 독립 에러 */}
+          <form onSubmit={handleFinalEmailStart} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: C.gray500 }}>또는</span>
             <input
               type="email"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(''); }}
+              onChange={(e) => { setEmail(e.target.value); setFinalError(''); setError(''); }}
               placeholder="이메일 입력 시 PDF도 발송"
               style={{
                 width: isMobile ? '100%' : 'auto', flex: isMobile ? undefined : 1, height: 44, padding: '0 14px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.1)',
+                border: finalError ? '1.5px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.05)', color: C.white, fontSize: 14,
-                outline: 'none', transition: 'all 0.2s',
+                outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={(e) => { e.target.style.borderColor = C.blue; e.target.style.boxShadow = `0 0 0 2px ${C.blueGlow}`; }}
-              onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
             />
             <button type="submit" disabled={loading} style={{
               width: isMobile ? '100%' : 'auto', padding: '0 16px', height: 44, borderRadius: 10, border: 'none',
@@ -818,16 +961,20 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               {loading ? '...' : 'PDF 받기'}
             </button>
           </form>
+          {/* [S3] Final CTA 독립 에러 표시 */}
+          {finalError && (
+            <p style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>{finalError}</p>
+          )}
         </div>
 
-        {/* [P3] 보안 메시지 */}
+        {/* 보안 메시지 */}
         <p style={{ fontSize: 12, color: C.gray600, marginTop: 20, maxWidth: 400, margin: '20px auto 0' }}>
           입력된 정보는 기획서 생성에만 사용되며, 제3자에게 공유되지 않습니다.
         </p>
       </section>
 
-      {/* ━━ Footer ━━ */}
-      <footer style={{ background: C.gray50, borderTop: `1px solid ${C.gray200}`, padding: isMobile ? '32px 16px 80px' : '44px 24px 28px' }}>
+      {/* ━━ Footer — [S1] 실제 링크 ━━ */}
+      <footer style={{ background: C.gray50, borderTop: `1px solid ${C.gray200}`, padding: isMobile ? '32px 16px 72px' : '44px 24px 28px' }}>
         <div style={{ maxWidth: 1080, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 28, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: C.gray600 }}>서비스 전체보기</span>
@@ -841,7 +988,6 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
-                {/* [P9] AI 진단 링크 구분 */}
                 {s.label}{!isMobile && s.desc && <span style={{ fontSize: 11, color: C.gray400 }}>({s.desc})</span>}
               </a>
             ))}
@@ -857,15 +1003,15 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               <div style={{ fontSize: isMobile ? 13 : 12, color: C.gray500, marginTop: 2 }}>10:00-18:00 주말·공휴일 제외</div>
               <div style={{ fontSize: isMobile ? 13 : 12, color: C.gray500 }}>help@wishket.com</div>
             </div>
-            {[
-              { title: '위시켓', links: ['위시켓 소개', '신뢰와 안전'] },
-              { title: '이용방법', links: ['클라이언트 이용방법', '파트너 이용방법'] },
-              { title: '고객센터', links: ['클라이언트 고객센터', '파트너 고객센터'] },
-            ].map(col => (
+            {/* [S1] Footer 링크 — <a> 태그 + 실제 URL */}
+            {FOOTER_COLS.map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.gray700, marginBottom: 10 }}>{col.title}</div>
                 {col.links.map(l => (
-                  <div key={l} style={{ fontSize: 13, color: C.gray500, marginBottom: 6, cursor: 'pointer' }}>{l}</div>
+                  <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" style={{
+                    fontSize: 13, color: C.gray500, marginBottom: 6, cursor: 'pointer',
+                    display: 'block', textDecoration: 'none',
+                  }}>{l.label}</a>
                 ))}
               </div>
             ))}
@@ -886,24 +1032,17 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </footer>
 
-      {/* ━━ Sticky Bottom Bar ━━ */}
-      <StickyBar onStart={handleGuestStart} userCount={userCount} />
+      {/* ━━ Sticky Bottom Bar — [E-5] 모바일 사회적 증거 추가 ━━ */}
+      <StickyBar onStart={handleGuestStart} userCount={userCount} guestLoading={guestLoading} />
     </div>
   );
 }
 
-// ─── [M6] Sticky Bottom Bar — 사용자 수 표시 ───
-function StickyBar({ onStart, userCount }: { onStart: () => void; userCount: number }) {
+// ─── Sticky Bottom Bar ───
+function StickyBar({ onStart, userCount, guestLoading }: { onStart: () => void; userCount: number; guestLoading: boolean }) {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  const isMobile = useIsMobile(); // 커스텀 훅 사용 (중복 제거)
 
   useEffect(() => {
     const fn = () => setVisible(window.scrollY > 400);
@@ -919,13 +1058,20 @@ function StickyBar({ onStart, userCount }: { onStart: () => void; userCount: num
       background: 'rgba(11, 17, 32, 0.95)', backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderTop: '1px solid rgba(255,255,255,0.06)',
-      padding: isMobile ? '10px 16px calc(10px + env(safe-area-inset-bottom, 0px))' : '12px 24px',
+      padding: isMobile ? '8px 16px calc(8px + env(safe-area-inset-bottom, 0px))' : '12px 24px',
     }}>
       <div style={{
         maxWidth: 1080, margin: '0 auto',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: isMobile ? 8 : 0,
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        alignItems: 'center', justifyContent: 'space-between',
+        gap: isMobile ? 4 : 0,
       }}>
+        {/* [E-5] 모바일에서도 사회적 증거 표시 */}
+        {isMobile && userCount > 0 && (
+          <div style={{ fontSize: 11, color: C.gray400, textAlign: 'center' }}>
+            {userCount.toLocaleString()}명이 이미 사용 중
+          </div>
+        )}
         {!isMobile && (
           <span style={{ fontSize: 15, color: '#CBD5E1' }}>
             {userCount > 0
@@ -935,13 +1081,14 @@ function StickyBar({ onStart, userCount }: { onStart: () => void; userCount: num
           </span>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 12, width: isMobile ? '100%' : 'auto' }}>
-          <button onClick={onStart} style={{
+          <button onClick={onStart} disabled={guestLoading} style={{
             padding: isMobile ? '12px 20px' : '10px 24px', borderRadius: 10, border: 'none',
             background: `linear-gradient(135deg, #2563EB, #3B82F6)`, color: '#FFFFFF',
-            fontSize: isMobile ? 15 : 15, fontWeight: 700,
-            cursor: 'pointer', transition: 'all 0.2s',
+            fontSize: 15, fontWeight: 700,
+            cursor: guestLoading ? 'wait' : 'pointer', transition: 'all 0.2s',
             boxShadow: '0 2px 12px rgba(37, 99, 235, 0.3)',
             flex: isMobile ? 1 : undefined, minHeight: 44,
+            opacity: guestLoading ? 0.7 : 1,
           }}>
             {isMobile ? '무료 기획서 만들기' : '바로 시작하기'}
           </button>
