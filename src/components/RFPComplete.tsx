@@ -1716,15 +1716,15 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   }
 
   const tocSections = [
-    { num: '1', title: '프로젝트 스코프', id: 'sec-summary' },
+    { num: '1', title: '제품 개요 및 목적 (Why)', id: 'sec-summary' },
     { num: '2', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
     { num: '3', title: '프로젝트 범위', id: 'sec-scope' },
     { num: '4', title: '정보 구조 (IA)', id: 'sec-ia' },
-    { num: '5', title: '기능 명세', id: 'sec-features' },
-    { num: '6', title: '기술 스택', id: 'sec-tech' },
-    { num: '7', title: '비기능 요구사항', id: 'sec-nfr' },
-    { num: '8', title: '일정 계획', id: 'sec-timeline' },
-    { num: '9', title: '전제 조건 & 제약사항', id: 'sec-assumptions' },
+    { num: '5', title: '핵심 기능 요구사항 (What)', id: 'sec-features' },
+    { num: '6', title: '성공 지표', id: 'sec-goals' },
+    { num: '7', title: '기술 스택', id: 'sec-tech' },
+    { num: '8', title: '비기능적 요구사항 & 제약조건', id: 'sec-nfr' },
+    { num: '9', title: 'MVP 및 로드맵', id: 'sec-timeline' },
     { num: '10', title: '리스크 관리', id: 'sec-risks' },
     ...(prdData.expertInsight ? [{ num: '11', title: '전문가 인사이트', id: 'sec-expert' }] : []),
     ...(() => {
@@ -1951,7 +1951,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 1. 프로젝트 스코프 */}
         <div id="sec-summary" style={{ marginTop: 8 }}>
-          <SectionHeaderAnchored number="1" title="프로젝트 스코프" subtitle="프로젝트 핵심 정의" id="sec-summary" />
+          <SectionHeaderAnchored number="1" title="제품 개요 및 목적 (Why)" subtitle="무엇을, 왜 만드는가?" id="sec-summary" />
           <Card style={{ borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '28px 32px' }}>
             <FormattedText
               value={prdData.executiveSummary}
@@ -2193,7 +2193,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 7. Feature Specs */}
         <div id="sec-features">
-          <SectionHeaderAnchored number="5" title="기능 명세" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
+          <SectionHeaderAnchored number="5" title="핵심 기능 요구사항 (What)" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
           {/* B-2: Priority Filter Tabs + A-2: Expand/Collapse All */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
             <div role="tablist" aria-label="우선순위 필터" style={{ display: 'flex', gap: 4, background: C.borderLight, borderRadius: 8, padding: 3 }}>
@@ -2309,9 +2309,44 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         <SectionDivider />
 
+        {/* 6. 성공 지표 (Success Metrics) */}
+        {(prdData.projectGoals?.length ?? 0) > 0 && (
+          <div id="sec-goals">
+            <SectionHeaderAnchored number="6" title="성공 지표" subtitle="성공을 어떻게 측정할 것인가?" id="sec-goals" />
+            <Card style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {prdData.projectGoals.map((g, i) => (
+                  <div key={i} style={{
+                    display: 'flex', gap: 16, padding: '16px 20px',
+                    background: i % 2 === 0 ? C.blueBg : C.surface,
+                    borderRadius: 12, border: `1px solid ${C.borderLight}`,
+                    alignItems: 'center',
+                  }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 700, flexShrink: 0,
+                    }}>{i + 1}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{g.goal}</div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ background: C.greenBg, color: C.green, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, border: `1px solid ${C.greenBorder}` }}>지표</span>
+                        {g.metric}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        <SectionDivider />
+
         {/* 7. Tech Stack */}
         <div id="sec-tech">
-          <SectionHeaderAnchored number="6" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
+          <SectionHeaderAnchored number="7" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
           {/* B-5: Tech Stack Architecture Visualization */}
           {(prdData.techStack?.length ?? 0) > 0 && (
             <Card style={{ marginBottom: 14, padding: '24px 28px' }}>
@@ -2396,7 +2431,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 8. NFR */}
         <div id="sec-nfr">
-          <SectionHeaderAnchored number="7" title="비기능 요구사항 (NFR)" subtitle="성능, 보안, 접근성, 규정준수" id="sec-nfr" />
+          <SectionHeaderAnchored number="8" title="비기능적 요구사항 & 제약조건" subtitle="성능, 보안, 접근성, 제약사항" id="sec-nfr" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {prdData.nonFunctionalRequirements?.map((nfr, idx) => {
               const nfrThemes: Record<string, { icon: string; color: string; bg: string }> = {
@@ -2424,13 +2459,38 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               );
             })}
           </div>
+          {/* 전제 조건 & 제약사항 — 비기능 섹션 하위로 통합 */}
+          <div style={{ marginTop: 14 }} className="prd-two-col" id="sec-assumptions">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+              <Card>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {prdData.assumptions?.map((a, i) => (
+                    <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                      <span style={{ position: 'absolute', left: 0 }}>•</span>{a}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>🚧 제약사항 (Constraints)</h3>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {prdData.constraints?.map((c, i) => (
+                    <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
+                      <span style={{ position: 'absolute', left: 0 }}>•</span>{c}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+          </div>
         </div>
 
         <SectionDivider />
 
         {/* 9. Timeline */}
         <div id="sec-timeline">
-          <SectionHeaderAnchored number="8" title="일정 계획" subtitle="단계별 일정 및 산출물" id="sec-timeline" />
+          <SectionHeaderAnchored number="9" title="MVP 및 로드맵" subtitle="단계별 출시 계획 및 산출물" id="sec-timeline" />
           {/* B-3: Gantt Chart */}
           <GanttChart timeline={prdData.timeline} />
           <Card>
@@ -2474,36 +2534,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         <SectionDivider />
 
-        {/* 10. Assumptions & Constraints */}
-        <div id="sec-assumptions">
-          <SectionHeaderAnchored number="9" title="전제 조건 & 제약사항" id="sec-assumptions" />
-          <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
-            <Card>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {prdData.assumptions?.map((a, i) => (
-                  <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
-                    <span style={{ position: 'absolute', left: 0 }}>•</span>{a}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <Card>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>🚧 제약사항 (Constraints)</h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {prdData.constraints?.map((c, i) => (
-                  <li key={i} style={{ fontSize: 14, color: C.textSecondary, marginBottom: 8, paddingLeft: 16, position: 'relative', lineHeight: 1.5 }}>
-                    <span style={{ position: 'absolute', left: 0 }}>•</span>{c}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </div>
-        </div>
-
-        <SectionDivider />
-
-        {/* 11. Risk Register */}
+        {/* 10. Risk Register */}
         <div id="sec-risks">
           <SectionHeaderAnchored number="10" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
           {/* 리스크 테이블 */}
