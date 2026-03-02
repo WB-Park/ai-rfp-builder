@@ -156,7 +156,7 @@ async function generateDeepModePRD(
     system: `시니어 아키텍트. 기능 명세. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
-      content: `[인터뷰]\n${fullConversation.slice(0, 3000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n[기능]\n${featureList}\n\nJSON:\n{"featureSpecs":[{"name":"기능명","description":"설명1~2문장","subFeatures":["서브3~4개"],"acceptanceCriteria":["기준2~3개"],"userFlow":"[시작]→[결과]","screenSpecs":[{"id":"SCR-001","name":"화면","purpose":"목적","elements":["요소3~4개"]}],"businessRules":["규칙2개"],"dataEntities":[{"name":"테이블","fields":"컬럼"}],"errorCases":["에러2개"],"estimatedManDays":0}]}`
+      content: `[인터뷰]\n${fullConversation.slice(0, 3000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n${featureList ? `[기능]\n${featureList}` : '[지시] 인터뷰 대화에서 핵심 기능 6~10개를 직접 추출하여 상세 명세를 작성하세요. P1(핵심 3~5개), P2(중요 2~3개), P3(부가 1~2개)로 분류.'}\n\nJSON:\n{"featureSpecs":[{"name":"기능명","description":"설명1~2문장","priority":"P1","subFeatures":["서브3~4개"],"acceptanceCriteria":["기준2~3개"],"userFlow":"[시작]→[결과]","screenSpecs":[{"id":"SCR-001","name":"화면","purpose":"목적","elements":["요소3~4개"]}],"businessRules":["규칙2개"],"dataEntities":[{"name":"테이블","fields":"컬럼"}],"errorCases":["에러2개"],"estimatedManDays":0}]}`
     }],
   });
 
@@ -303,6 +303,48 @@ async function generateDeepModePRD(
   buildFeatureModule(1, 'MVP 필수 기능', 'P0', 'MVP 필수', p0Features);
   buildFeatureModule(2, '우선 기능', 'P1', '우선순위 1', p1Features);
   buildFeatureModule(3, '선택 기능', 'P2', '우선순위 2', p2Features);
+
+  // ── 폴백: features가 비어서 featureModules가 빈 경우, featureSpecs에서 직접 빌드 ──
+  if (featureModules.length === 0 && featureSpecs.length > 0) {
+    console.log(`[DEEP PRD] ⚠️ featureModules empty but ${featureSpecs.length} featureSpecs available. Building from specs directly.`);
+    const specP0: FeatureItem[] = [];
+    const specP1: FeatureItem[] = [];
+    const specP2: FeatureItem[] = [];
+    featureSpecs.forEach((spec: any, idx: number) => {
+      const item: FeatureItem = { name: spec.name || `기능 ${idx + 1}`, description: spec.description || '', priority: 'P1' };
+      // featureSpecs에 priority가 있으면 활용, 없으면 순서 기반 배분
+      const specPriority = spec.priority || '';
+      if (specPriority === 'P1' || (!specPriority && idx < Math.ceil(featureSpecs.length * 0.5))) { item.priority = 'P1'; specP0.push(item); }
+      else if (specPriority === 'P2' || (!specPriority && idx < Math.ceil(featureSpecs.length * 0.8))) { item.priority = 'P2'; specP1.push(item); }
+      else { item.priority = 'P3'; specP2.push(item); }
+    });
+    // features도 재설정 (scopeInclusions, IA, API endpoints 등에 사용)
+    features = [...specP0, ...specP1, ...specP2];
+    buildFeatureModule(1, 'MVP 필수 기능', 'P0', 'MVP 필수', specP0);
+    buildFeatureModule(2, '우선 기능', 'P1', '우선순위 1', specP1);
+    buildFeatureModule(3, '선택 기능', 'P2', '우선순위 2', specP2);
+  }
+
+  // ── 폴백 2: featureSpecs도 비어있으면 대화에서 간단히 키워드 추출 ──
+  if (featureModules.length === 0) {
+    console.log(`[DEEP PRD] ⚠️ Both features and featureSpecs empty. Extracting from Call1a data.`);
+    // Call1a의 projectGoals나 기타 데이터에서 최소한의 기능 추출 시도
+    const goalFeatures: FeatureItem[] = (Array.isArray(data1.projectGoals) ? data1.projectGoals : [])
+      .slice(0, 5)
+      .map((g: any, i: number) => ({
+        name: (g.goal || `핵심 기능 ${i + 1}`).slice(0, 30),
+        description: g.metric || g.goal || '',
+        priority: i < 2 ? 'P1' as const : 'P2' as const,
+      }));
+    if (goalFeatures.length > 0) {
+      features = goalFeatures;
+      const gP0 = goalFeatures.filter(f => f.priority === 'P1');
+      const gP1 = goalFeatures.filter(f => f.priority === 'P2');
+      if (gP0.length > 0) buildFeatureModule(1, 'MVP 필수 기능', 'P0', 'MVP 필수', gP0);
+      if (gP1.length > 0) buildFeatureModule(2, '우선 기능', 'P1', '우선순위 1', gP1);
+      console.log(`[DEEP PRD] ✅ Built ${featureModules.length} modules from projectGoals fallback`);
+    }
+  }
 
   const scopeInclusions = features.map(f => `${f.name}${f.description ? ` — ${f.description}` : ''}`);
 
@@ -472,7 +514,7 @@ JSON 배열만 출력:
       });
       const featureGenResponse = await Promise.race([
         featureExtractionPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 8000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 12000)),
       ]);
       const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
       const featureMatch = featureText.match(/\[[\s\S]*\]/);
