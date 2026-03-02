@@ -303,15 +303,16 @@ function generateQuickFallback(rfpData: RFPData, userMessage: string): {
 
 // Deep mode 전용 phase 정의 — Quick mode의 field 수집과 완전히 다름
 // 대화의 "깊이"로 판단, rfpData 필드 채움 여부와 무관
-type DeepPhase = 'explore' | 'understand' | 'define' | 'refine';
+type DeepPhase = 'explore' | 'understand' | 'define' | 'refine' | 'wrapup';
 
 function determineDeepPhase(messages: ChatMessage[], turnCount: number): DeepPhase {
   // Deep mode phase는 대화 턴 수 + 대화 내용의 깊이로 결정
   // Quick mode처럼 "어떤 필드가 채워졌는가"로 판단하지 않음
   if (turnCount <= 2) return 'explore';    // 탐색: 뭘 만들려는지, 왜 필요한지
-  if (turnCount <= 5) return 'understand'; // 이해: 배경, 상황, 사용자, 경쟁
-  if (turnCount <= 8) return 'define';     // 정의: 핵심 기능, 차별점, 기술 방향
-  return 'refine';                         // 정제: 우려, 성공기준, 최종 확인
+  if (turnCount <= 4) return 'understand'; // 이해: 배경, 상황, 사용자, 경쟁
+  if (turnCount <= 7) return 'define';     // 정의: 핵심 기능, 차별점, 기술 방향
+  if (turnCount <= 10) return 'refine';    // 정제: 우려, 성공기준, 마지막 확인
+  return 'wrapup';                         // 마무리: 대화 종료 유도, 더 이상 새 질문 금지
 }
 
 async function generateDeepResponse(
@@ -389,12 +390,22 @@ ${phase === 'define' ? `[define — 정의 단계] 핵심을 구체화하는 중
 • 기술 방향, 플랫폼 등을 자연스럽게 논의
 • 차별점과 핵심 가치 확인` : ''}
 
-${phase === 'refine' ? `[refine — 정제 단계] 최종 확인 중
-• 우려사항, 리스크, 성공 기준 논의
-• 대화 내용을 종합 정리
-• 남은 궁금한 점 확인
-• conversationComplete=true 가능 (충분히 이야기했다면)
+${phase === 'refine' ? `[refine — 정제 단계] 마지막 확인 (최대 2~3턴)
+• 지금까지 대화를 종합해서 핵심 포인트 정리
+• 빠뜨린 중요한 내용이 있는지 한 번만 확인
+• ⚠️ 새로운 주제를 꺼내지 마세요. 이미 다룬 주제를 더 깊이 파는 것만 허용
+• ⚠️ 지엽적인 질문 절대 금지 (보안, 성능, 확장성 같은 기술적 디테일은 PRD에서 자동 생성됨)
+• conversationComplete=true 적극적으로 설정 — 핵심 내용이 파악됐으면 끝내세요
 • 아직 기능 정의를 안 했다면 readyToDefineFeatures=true` : ''}
+
+${phase === 'wrapup' ? `[wrapup — 마무리 단계] 대화를 종료해야 합니다
+★★★ 이 단계에서는 새로운 질문을 하지 마세요 ★★★
+• 지금까지의 대화 내용을 2~3문장으로 종합 정리해서 보여주세요
+• "지금까지 말씀해주신 내용을 바탕으로 PRD를 생성하면 좋을 것 같습니다" 식으로 마무리
+• 고객이 추가로 하고 싶은 말이 있다면 듣되, PM에서 새 질문은 금지
+• conversationComplete=true 강제 설정
+• readyToDefineFeatures=true (기능 미정의 시)
+• ⚠️ 응답 형식 변경: ③ **질문** 대신 → ③ **마무리 멘트** (질문이 아닌 정리/제안)` : ''}
 
 ═══ 응답 스타일 ═══
 - 존댓말 필수
@@ -427,9 +438,13 @@ ${phase === 'refine' ? `[refine — 정제 단계] 최종 확인 중
 overview, targetUsers, coreFeatures, techRequirements, referenceServices, additionalRequirements
 
 ═══ 완료 조건 ═══
-- conversationComplete=true: 충분한 대화가 오갔고 + overview 수집됨 + coreFeatures 수집됨
-- 고객이 "됐어요", "이 정도면 충분해요" 등 종료 의사 → 즉시 conversationComplete=true
+- conversationComplete=true 조건 (어느 하나라도 해당되면):
+  1. wrapup 단계 → 무조건 true
+  2. refine 단계에서 overview + targetUsers 수집 완료 → true
+  3. 고객이 "됐어요", "이 정도면 충분해요" 등 종료 의사 → 즉시 true
+  4. 10턴 이상 + overview 수집됨 → true (너무 긴 대화 방지)
 - readyToDefineFeatures=true: define 단계 이후 + 대화로 서비스 방향이 잡혔을 때 (기능 선택 UI 트리거)
+- ⚠️ 대화를 무한히 이어가는 것은 좋은 PM이 아닙니다. 핵심을 파악했으면 과감하게 정리하세요.
 
 [이미 다룬 주제]
 ${topicsCovered.length > 0 ? topicsCovered.join(', ') : '(아직 없음)'}
@@ -526,12 +541,24 @@ function generateDeepFallback(rfpData: RFPData, userMessage: string, turnCount: 
     };
   }
 
+  if (turnCount <= 9) {
+    return {
+      response: `지금까지 말씀해주신 내용이 상당히 구체적입니다. 혹시 마지막으로 꼭 반영하고 싶으신 내용이 있으신가요?`,
+      rfpUpdates: msg.length > 1 ? [{ section: 'additionalRequirements', value: msg }] : [],
+      suggestions: ['이 정도면 충분해요', '하나 더 말씀드릴게요'],
+      deepPhase: 'refine',
+      progressPercent: 80,
+      readyToDefineFeatures: true,
+      conversationComplete: false,
+    };
+  }
+
   return {
-    response: `충분한 대화가 이루어졌습니다. 정리하신 내용을 바탕으로 제품 요구사항 정의서를 생성하시겠습니까?`,
+    response: `지금까지 나눈 대화를 바탕으로 제품 요구사항 정의서(PRD)를 생성하면 아주 좋은 결과물이 나올 것 같습니다. 준비되셨다면 PRD를 만들어보겠습니다!`,
     rfpUpdates: [],
     suggestions: [],
-    deepPhase: 'refine',
-    progressPercent: 90,
+    deepPhase: 'wrapup',
+    progressPercent: 95,
     readyToDefineFeatures: rfpData.coreFeatures.length === 0,
     conversationComplete: true,
   };
@@ -810,8 +837,17 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 안전장치: 12턴 + overview + features → 강제 완료
-        if (turnCount >= 12 && rfpData.overview && rfpData.coreFeatures.length > 0) {
+        // 안전장치: 적극적 완료 유도
+        // 1) 10턴 + overview → 기능 선택 안 했어도 완료 가능
+        if (turnCount >= 10 && rfpData.overview) {
+          isComplete = true;
+        }
+        // 2) 8턴 + overview + features → 즉시 완료
+        if (turnCount >= 8 && rfpData.overview && rfpData.coreFeatures.length > 0) {
+          isComplete = true;
+        }
+        // 3) wrapup phase → 무조건 완료
+        if (aiResult.deepPhase === 'wrapup') {
           isComplete = true;
         }
 
