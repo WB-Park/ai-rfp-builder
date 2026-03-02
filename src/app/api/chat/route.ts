@@ -327,15 +327,19 @@ function analyzeInfoCompleteness(rfpData: RFPData) {
 
   if (rfpData.additionalRequirements && rfpData.additionalRequirements.length > 5) collected.push('추가 맥락');
 
-  // 필수 3개: 비전, 타겟, 기능 → 충분성 판단 기준
+  // 필수: 비전 + 타겟 → 충분성 판단 (기능은 대화 후 자동 수집)
   const essentialCount = [rfpData.overview, rfpData.targetUsers].filter(Boolean).length
     + (rfpData.coreFeatures.length > 0 ? 1 : 0);
 
-  return { collected, missing, essentialCount, isCoreSufficient: essentialCount >= 3, totalCollected: collected.length };
+  // ★ overview + targetUsers만 있으면 충분 (coreFeatures는 대화 후 기능 선택에서 수집)
+  const isCoreSufficient = !!(rfpData.overview && rfpData.overview.length > 20 && rfpData.targetUsers && rfpData.targetUsers.length > 5);
+
+  return { collected, missing, essentialCount, isCoreSufficient, totalCollected: collected.length };
 }
 
 function determineDeepPhase(messages: ChatMessage[], turnCount: number, rfpData: RFPData): DeepPhase {
-  const info = analyzeInfoCompleteness(rfpData);
+  // ★ coreFeatures는 대화 완료 후 기능 선택에서 수집되므로 phase 판단에서 제외
+  // Deep mode는 최대 8턴. 빠르게 진행해야 함.
 
   // 1단계: 최소 2턴은 탐색 (첫 인사 + 첫 대화)
   if (turnCount <= 2) return 'explore';
@@ -343,14 +347,11 @@ function determineDeepPhase(messages: ChatMessage[], turnCount: number, rfpData:
   // 2단계: overview 수집 전이면 아직 이해 단계
   if (!rfpData.overview) return 'understand';
 
-  // 3단계: overview 있지만 타겟/기능 아직 → 정의 단계
-  if (!rfpData.targetUsers || rfpData.coreFeatures.length === 0) return 'define';
+  // 3단계: overview 있고 아직 타겟 미파악 → 정의 (but 최대 2턴만)
+  if (!rfpData.targetUsers && turnCount <= 5) return 'define';
 
-  // 4단계: 필수 3개 다 있으면 → 정제 (마지막 확인)
-  if (info.isCoreSufficient) return 'refine';
-
-  // fallback
-  return 'define';
+  // 4단계: 5턴 이상이거나 overview+타겟 둘 다 있으면 → 즉시 정제/마무리
+  return 'refine';
 }
 
 async function generateDeepResponse(
@@ -422,13 +423,19 @@ ${phase === 'define' ? `[define — 정의 단계] 핵심을 구체화하는 중
 • 차별점과 핵심 가치 확인
 • ⚠️ 기능 리스트를 직접 묻지 마세요 — 대화 완료 후 시스템이 자동 제시합니다` : ''}
 
-${phase === 'refine' ? `[refine — 정제 단계] 핵심 정보(비전+타겟+기능)가 모두 수집됨
-★ 이제 마무리를 준비하세요 ★
-• 지금까지 대화를 종합 정리하면서, 빠뜨린 중요한 내용이 있는지만 확인
-• 고객에게 "지금까지 파악한 내용을 정리하면..." 으로 시작하여 핵심을 요약
-• ⚠️ 새로운 지엽적 주제(보안, 성능, 확장성 등)를 꺼내지 마세요 — PRD에서 자동 생성됨
-• 고객이 더 할 말이 있으면 들으면 되지만, PM에서 새 주제를 던지진 마세요
-• conversationComplete=true 적극 설정` : ''}
+${phase === 'refine' ? `[refine — 마무리 단계] ★★★ 반드시 이번 턴에 마무리하세요 ★★★
+• 지금까지 대화를 종합하여 "정리하면 이런 프로젝트입니다: ..." 로 핵심 요약
+• 새로운 질문 절대 금지. 요약만 하고 "이 내용으로 PRD를 생성하겠습니다" 로 마무리
+• conversationComplete=true 필수 설정
+• ⚠️ 더 물어볼 것이 없습니다. 추가 질문하면 고객이 이탈합니다.` : ''}
+
+${turnCount >= 6 ? `
+🚨🚨🚨 경고: 이미 ${turnCount}턴이 지났습니다. 고객이 지치고 있습니다. 🚨🚨🚨
+• 이번 턴에서 반드시 대화를 마무리하세요
+• 새로운 질문 대신, 지금까지 파악한 내용을 정리해서 전달하세요
+• conversationComplete=true 필수
+• "지금까지 말씀해주신 내용을 정리하면..." 으로 시작하여 핵심 요약 후 종료
+` : ''}
 
 ═══ 정보 수집 현황 ═══
 ✅ 수집 완료: ${info.collected.length > 0 ? info.collected.join(', ') : '(없음)'}
@@ -474,13 +481,15 @@ ${info.isCoreSufficient ? `
 [사용 가능한 section]
 overview, targetUsers, coreFeatures, techRequirements, referenceServices, additionalRequirements
 
-═══ 완료 조건 ═══
+═══ 완료 조건 (★ Deep mode는 최대 8턴) ═══
 - conversationComplete=true 조건:
-  1. 필수 3항목(비전+타겟+기능) 모두 수집 완료 + PM이 더 물어볼 가치가 없다고 판단
+  1. 프로젝트 비전(overview) + 타겟 사용자(targetUsers) 파악되면 → true
   2. 고객이 "됐어요", "이 정도면 충분해요" 등 종료 의사 → 즉시 true
-  3. refine 단계에서 핵심 요약 후 고객이 동의 → true
-- ⚠️ 필수 3항목이 모두 수집되면, 특별한 이유 없이 대화를 이어가지 마세요
-- ⚠️ readyToDefineFeatures는 항상 false로 설정하세요 (서버에서 자동 관리)
+  3. 5턴 이상 + overview 있으면 → 적극적으로 true
+  4. refine 단계에서는 → 무조건 true
+- ⚠️ 기능 리스트(coreFeatures)는 대화 완료 후 자동 제시되므로, 수집 여부와 관계없이 마무리
+- ⚠️ readyToDefineFeatures는 항상 false (서버 자동 관리)
+- 🚨 8턴 넘기면 시스템이 강제 종료합니다. 그 전에 자연스럽게 마무리하세요.
 
 [수집된 주제] ${info.collected.length > 0 ? info.collected.join(', ') : '(아직 없음)'}
 [부족한 주제] ${info.missing.length > 0 ? info.missing.join(', ') : '(없음 — 충분!)'}
@@ -858,18 +867,25 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 안전장치: 정보 충분성 기반 완료 유도
-        const completionInfo = analyzeInfoCompleteness(rfpData);
-        // 1) 필수 3항목 모두 수집 + AI가 complete 판단 → 완료
-        if (completionInfo.isCoreSufficient && aiResult.conversationComplete) {
+        // ═══ 강제 완료 조건 (Deep mode는 최대 8턴) ═══
+        // coreFeatures는 대화 완료 후 기능 선택에서 수집되므로, overview+targetUsers만으로 판단
+        const hasOverview = !!rfpData.overview && rfpData.overview.length > 20;
+        const hasTarget = !!rfpData.targetUsers && rfpData.targetUsers.length > 5;
+
+        // 1) AI가 complete 판단 + overview 있으면 → 완료
+        if (aiResult.conversationComplete && hasOverview) {
           isComplete = true;
         }
-        // 2) 필수 3항목 + 15턴 이상 → 강제 완료 (안전장치)
-        if (completionInfo.isCoreSufficient && turnCount >= 15) {
+        // 2) overview + targetUsers 모두 수집 + 5턴 이상 → 강제 완료
+        if (hasOverview && hasTarget && turnCount >= 5) {
           isComplete = true;
         }
-        // 3) 30턴 절대 상한 — 아무리 복잡해도 30턴이면 충분
-        if (turnCount >= 30 && rfpData.overview) {
+        // 3) overview만 있어도 7턴이면 → 강제 완료
+        if (hasOverview && turnCount >= 7) {
+          isComplete = true;
+        }
+        // 4) 8턴 절대 상한 — 무조건 종료
+        if (turnCount >= 8) {
           isComplete = true;
         }
 
