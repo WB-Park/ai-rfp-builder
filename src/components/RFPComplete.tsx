@@ -817,22 +817,24 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: stri
           >
             {linkCopied ? '✅ 복사됨' : '🔗 URL 복사'}
           </button>
-          <button
-            onClick={onCTAClick}
+          <a
+            href="https://www.wishket.com/project/create/?utm_source=ai-prd&utm_medium=sticky-cta&utm_campaign=prd-builder"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               padding: '7px 20px', borderRadius: 8, border: 'none',
               background: '#fff', color: C.blue,
               fontSize: 13, fontWeight: 700, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 6,
               boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
-              transition: C.ease,
+              transition: C.ease, textDecoration: 'none',
             }}
-            onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-1px)'; (e.target as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }}
-            onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; (e.target as HTMLElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)'; }}
           >
             <span>⚡</span>
             개발 파트너 찾기
-          </button>
+          </a>
         </div>
       </div>
     </div>

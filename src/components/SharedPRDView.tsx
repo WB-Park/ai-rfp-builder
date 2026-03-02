@@ -355,7 +355,7 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
         <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 40px' }}>
           <Card><pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: C.textSecondary, lineHeight: 1.8, margin: 0 }}>{rfpDocument}</pre></Card>
           <div style={{ marginTop: 32, textAlign: 'center' }}>
-            <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share" target="_blank" rel="noopener noreferrer" style={{
+            <a href="https://www.wishket.com/project/create/?utm_source=ai-prd&utm_medium=share" target="_blank" rel="noopener noreferrer" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
               background: C.gradient, color: 'white', textDecoration: 'none', fontWeight: 600, fontSize: 15,
             }}>위시켓에서 개발사 찾기 →</a>
@@ -799,7 +799,7 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
               프로젝트 요구사항에 최적화된 파트너를 매칭해 드립니다.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <a href={`https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=share&utm_campaign=shared-prd&ref=${shareId}`} target="_blank" rel="noopener noreferrer" style={{
+              <a href={`https://www.wishket.com/project/create/?utm_source=ai-prd&utm_medium=share&utm_campaign=shared-prd&ref=${shareId}`} target="_blank" rel="noopener noreferrer" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 12,
                 background: '#fff', color: '#2563EB', textDecoration: 'none', fontWeight: 700, fontSize: 15,
               }}>

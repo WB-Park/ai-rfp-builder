@@ -112,7 +112,7 @@ function generateEmailHTML(rfpDocument: string, projectName?: string): string {
       <div style="margin-top:32px;padding:24px;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-radius:12px;text-align:center;">
         <p style="font-size:16px;font-weight:600;color:#1E40AF;margin:0 0 8px;">이 RFP로 바로 프로젝트를 시작하세요</p>
         <p style="font-size:14px;color:#3B82F6;margin:0 0 16px;">위시켓에서 검증된 개발사 매칭을 받아보세요</p>
-        <a href="https://www.wishket.com/project/register/?utm_source=ai-rfp&utm_medium=email&utm_campaign=rfp-complete"
+        <a href="https://www.wishket.com/project/create/?utm_source=ai-prd&utm_medium=email&utm_campaign=prd-complete"
            style="display:inline-block;padding:12px 32px;background:#2563EB;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
           위시켓에서 프로젝트 등록하기 →
         </a>
