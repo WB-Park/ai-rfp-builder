@@ -69,6 +69,17 @@ interface PRDResult {
   // P1: Approval & QA
   approvalProcess?: { stage: string; approver: string; criteria: string }[];
   qaStrategy?: { type: string; scope: string; tools: string; criteria: string }[];
+  // Deep Mode Premium Sections
+  deepModeInsights?: {
+    strategicNarrative: string;
+    customerVoiceHighlights: { quote: string; insight: string; implication: string }[];
+    decisionLog: { decision: string; rationale: string; alternatives: string }[];
+    mvpRationale: string;
+    implementationStrategy: string;
+    successFramework: { category: string; baseline: string; target: string; stretch: string }[];
+    problemSolutionFit: string;
+    marketContext: string;
+  };
 }
 
 // ━━━━━ Design Tokens (Design System v2 — Slate + Blue Brand) ━━━━━
@@ -1716,7 +1727,36 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     );
   }
 
-  const tocSections = [
+  const isDeepMode = chatMode === 'deep' && !!prdData.deepModeInsights;
+
+  const tocSections = isDeepMode ? [
+    { num: '1', title: '전략적 개요 (Executive Summary)', id: 'sec-summary' },
+    ...(prdData.deepModeInsights?.strategicNarrative ? [{ num: '2', title: '전략적 내러티브', id: 'sec-strategic' }] : []),
+    ...(prdData.deepModeInsights?.problemSolutionFit ? [{ num: '3', title: '문제-해결 적합성 분석', id: 'sec-psf' }] : []),
+    ...((prdData.deepModeInsights?.customerVoiceHighlights?.length ?? 0) > 0 ? [{ num: '4', title: '고객 인사이트', id: 'sec-voice' }] : []),
+    { num: '5', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
+    { num: '6', title: '프로젝트 범위 & MVP 근거', id: 'sec-scope' },
+    { num: '7', title: '정보 구조 (IA)', id: 'sec-ia' },
+    { num: '8', title: '핵심 기능 요구사항', id: 'sec-features' },
+    { num: '9', title: '성공 지표 프레임워크', id: 'sec-goals' },
+    { num: '10', title: '기술 스택', id: 'sec-tech' },
+    { num: '11', title: '구현 전략 & 로드맵', id: 'sec-timeline' },
+    { num: '12', title: '리스크 관리', id: 'sec-risks' },
+    ...(prdData.expertInsight ? [{ num: '13', title: 'PM 전문가 인사이트', id: 'sec-expert' }] : []),
+    ...((prdData.deepModeInsights?.decisionLog?.length ?? 0) > 0 ? [{ num: '14', title: '의사결정 로그', id: 'sec-decisions' }] : []),
+    ...(() => {
+      let n = 15;
+      const extra: { num: string; title: string; id: string }[] = [];
+      if ((prdData.approvalProcess?.length ?? 0) > 0) extra.push({ num: String(n++), title: '승인 프로세스', id: 'sec-approval' });
+      if ((prdData.qaStrategy?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'QA 전략', id: 'sec-qa' });
+      if ((prdData.apiEndpoints?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'API 명세', id: 'sec-api' });
+      if ((prdData.dataModel?.length ?? 0) > 0) extra.push({ num: String(n++), title: '데이터 모델', id: 'sec-datamodel' });
+      if ((prdData.competitorAnalysis?.length ?? 0) > 0) extra.push({ num: String(n++), title: '경쟁 서비스 분석', id: 'sec-competitor' });
+      extra.push({ num: String(n++), title: '비기능적 요구사항', id: 'sec-nfr' });
+      extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
+      return extra;
+    })(),
+  ] : [
     { num: '1', title: '제품 개요 및 목적 (Why)', id: 'sec-summary' },
     { num: '2', title: '타겟 사용자 & 페르소나', id: 'sec-users' },
     { num: '3', title: '프로젝트 범위', id: 'sec-scope' },
@@ -1841,8 +1881,20 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            PRD · 제품 요구사항 정의서
+            {isDeepMode ? 'DEEP ANALYSIS PRD · 심층 분석 기획서' : 'PRD · 제품 요구사항 정의서'}
           </div>
+          {isDeepMode && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(37,99,235,0.2))',
+              padding: '5px 14px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+              letterSpacing: 0.8, marginBottom: 16, marginLeft: 10,
+              border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd',
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', display: 'inline-block' }} />
+              1:1 심층 인터뷰 기반
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 40, fontWeight: 900, margin: '0 0 14px 0', lineHeight: 1.15, letterSpacing: '-1px', flex: '1 1 auto', minWidth: 0 }}>
               {prdData.projectName}
@@ -1952,7 +2004,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 1. 프로젝트 스코프 */}
         <div id="sec-summary" style={{ marginTop: 8 }}>
-          <SectionHeaderAnchored number="1" title="제품 개요 및 목적 (Why)" subtitle="무엇을, 왜 만드는가?" id="sec-summary" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-summary')?.num || '1'} title={isDeepMode ? '전략적 개요 (Executive Summary)' : '제품 개요 및 목적 (Why)'} subtitle={isDeepMode ? '심층 인터뷰 기반 프로젝트 전략 요약' : '무엇을, 왜 만드는가?'} id="sec-summary" />
           <Card style={{ borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '28px 32px' }}>
             <FormattedText
               value={prdData.executiveSummary}
@@ -1988,9 +2040,93 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         <SectionDivider />
 
-        {/* 4. Target Users & Personas */}
+        {/* ━━ Deep Mode Exclusive Sections ━━ */}
+        {isDeepMode && prdData.deepModeInsights?.strategicNarrative && (
+          <>
+            <div id="sec-strategic" className="prd-section-fade">
+              <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-strategic')?.num || '2'} title="전략적 내러티브" subtitle="이 프로젝트의 본질과 전략적 방향" id="sec-strategic" />
+              <Card style={{ borderLeft: `4px solid ${C.purple}`, background: 'linear-gradient(135deg, rgba(124,58,237,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '28px 32px' }}>
+                <FormattedText
+                  value={prdData.deepModeInsights.strategicNarrative}
+                  onChange={(v) => setPrdData({ ...prdData, deepModeInsights: { ...prdData.deepModeInsights!, strategicNarrative: v } })}
+                  style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.95, margin: 0 }}
+                  sectionKey="strategicNarrative" sectionTitle="전략적 내러티브" projectContext={projectCtx}
+                />
+              </Card>
+            </div>
+            <SectionDivider />
+          </>
+        )}
+
+        {isDeepMode && prdData.deepModeInsights?.problemSolutionFit && (
+          <>
+            <div id="sec-psf" className="prd-section-fade">
+              <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-psf')?.num || '3'} title="문제-해결 적합성 분석 (Problem-Solution Fit)" subtitle="현재 문제와 제안하는 해결책의 적합성" id="sec-psf" />
+              <Card style={{ borderLeft: `4px solid #059669`, background: 'linear-gradient(135deg, rgba(5,150,105,0.03) 0%, rgba(255,255,255,1) 60%)', padding: '28px 32px' }}>
+                <FormattedText
+                  value={prdData.deepModeInsights.problemSolutionFit}
+                  onChange={(v) => setPrdData({ ...prdData, deepModeInsights: { ...prdData.deepModeInsights!, problemSolutionFit: v } })}
+                  style={{ fontSize: 15, color: C.textSecondary, lineHeight: 1.95, margin: 0 }}
+                  sectionKey="problemSolutionFit" sectionTitle="문제-해결 적합성" projectContext={projectCtx}
+                />
+              </Card>
+              {prdData.deepModeInsights.marketContext && prdData.deepModeInsights.marketContext.length > 20 && (
+                <Card style={{ marginTop: 14 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>🌐 시장 맥락</h3>
+                  <FormattedText
+                    value={prdData.deepModeInsights.marketContext}
+                    onChange={(v) => setPrdData({ ...prdData, deepModeInsights: { ...prdData.deepModeInsights!, marketContext: v } })}
+                    style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.85 }}
+                  />
+                </Card>
+              )}
+            </div>
+            <SectionDivider />
+          </>
+        )}
+
+        {isDeepMode && (prdData.deepModeInsights?.customerVoiceHighlights?.length ?? 0) > 0 && (
+          <>
+            <div id="sec-voice" className="prd-section-fade">
+              <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-voice')?.num || '4'} title="고객 인사이트 (Customer Voice)" subtitle="심층 인터뷰에서 도출된 핵심 인사이트" id="sec-voice" />
+              <div style={{ display: 'grid', gap: 14 }}>
+                {prdData.deepModeInsights!.customerVoiceHighlights.map((cv, i) => (
+                  <Card key={i} style={{ borderLeft: `3px solid ${C.purple}`, padding: '20px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10, background: C.purpleBg,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, fontSize: 16,
+                      }}>💬</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: 14, color: C.textPrimary, fontWeight: 600, lineHeight: 1.6,
+                          padding: '10px 16px', background: C.purpleBg, borderRadius: 8, marginBottom: 10,
+                          borderLeft: `3px solid ${C.purple}`, fontStyle: 'italic',
+                        }}>
+                          &ldquo;{cv.quote}&rdquo;
+                        </div>
+                        <div style={{ display: 'grid', gap: 6 }}>
+                          <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
+                            <span style={{ fontWeight: 700, color: C.textPrimary }}>인사이트: </span>{cv.insight}
+                          </div>
+                          <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
+                            <span style={{ fontWeight: 700, color: C.blue }}>시사점: </span>{cv.implication}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+            <SectionDivider />
+          </>
+        )}
+
+        {/* Target Users & Personas */}
         <div id="sec-users">
-          <SectionHeaderAnchored number="2" title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" id="sec-users" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-users')?.num || '2'} title="타겟 사용자 & 페르소나" subtitle="주요 사용자 유형 및 니즈 분석" id="sec-users" />
           <Card>
             <FormattedText
               value={prdData.targetUsers}
@@ -2047,7 +2183,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 3. 프로젝트 범위 — In-Scope + Out-of-Scope */}
         <div id="sec-scope">
-          <SectionHeaderAnchored number="3" title="프로젝트 범위" subtitle="구현 범위 및 제외 항목 정의" id="sec-scope" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-scope')?.num || '3'} title={isDeepMode ? '프로젝트 범위 & MVP 근거' : '프로젝트 범위'} subtitle="구현 범위 및 제외 항목 정의" id="sec-scope" />
           <div className="prd-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
             <Card style={{ borderLeft: `4px solid ${C.green}`, borderRadius: 16 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.green, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2081,14 +2217,29 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               </Card>
             )}
           </div>
+          {/* Deep mode: MVP 범위 선정 근거 */}
+          {isDeepMode && prdData.deepModeInsights?.mvpRationale && (
+            <Card style={{ marginTop: 14, borderLeft: `4px solid ${C.blue}`, background: 'linear-gradient(135deg, rgba(37,99,235,0.02) 0%, rgba(255,255,255,1) 60%)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.blue, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.blueBg, fontSize: 13 }}>🎯</span>
+                MVP 범위 선정 근거
+              </h3>
+              <FormattedText
+                value={prdData.deepModeInsights.mvpRationale}
+                onChange={(v) => setPrdData({ ...prdData, deepModeInsights: { ...prdData.deepModeInsights!, mvpRationale: v } })}
+                style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.85 }}
+                sectionKey="mvpRationale" sectionTitle="MVP 범위 근거" projectContext={projectCtx}
+              />
+            </Card>
+          )}
         </div>
 
         <SectionDivider />
 
-        {/* 6. Information Architecture */}
+        {/* Information Architecture */}
         {(prdData.informationArchitecture?.sitemap?.length ?? 0) > 0 && (
           <div id="sec-ia">
-            <SectionHeaderAnchored number="4" title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" id="sec-ia" />
+            <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-ia')?.num || '4'} title="정보 구조 (IA)" subtitle="서비스 화면 구조 및 사이트맵" id="sec-ia" />
             <Card>
               <div style={{ padding: '8px 0' }}>
                 {/* #6: IA Tree Visualization — Pro tree diagram */}
@@ -2194,7 +2345,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 7. Feature Specs */}
         <div id="sec-features">
-          <SectionHeaderAnchored number="5" title="핵심 기능 요구사항 (What)" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-features')?.num || '5'} title="핵심 기능 요구사항 (What)" subtitle={`총 ${totalFeatures}개 기능 · 우선순위별 분류`} id="sec-features" />
           {/* B-2: Priority Filter Tabs + A-2: Expand/Collapse All */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
             <div role="tablist" aria-label="우선순위 필터" style={{ display: 'flex', gap: 4, background: C.borderLight, borderRadius: 8, padding: 3 }}>
@@ -2313,7 +2464,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {/* 6. 성공 지표 (Success Metrics) */}
         {(prdData.projectGoals?.length ?? 0) > 0 && (
           <div id="sec-goals">
-            <SectionHeaderAnchored number="6" title="성공 지표" subtitle="성공을 어떻게 측정할 것인가?" id="sec-goals" />
+            <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-goals')?.num || '6'} title={isDeepMode ? '성공 지표 프레임워크' : '성공 지표'} subtitle="성공을 어떻게 측정할 것인가?" id="sec-goals" />
             <Card style={{ padding: '24px 28px' }}>
               <div style={{ display: 'grid', gap: 12 }}>
                 {prdData.projectGoals.map((g, i) => (
@@ -2343,11 +2494,42 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           </div>
         )}
 
+        {/* Deep mode: 성공 프레임워크 (Baseline → Target → Stretch) */}
+        {isDeepMode && (prdData.deepModeInsights?.successFramework?.length ?? 0) > 0 && (
+          <Card style={{ marginTop: 14 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.purpleBg, fontSize: 13 }}>🎯</span>
+              성공 프레임워크 (As-Is → Target → Stretch)
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: C.gradient }}>
+                    {['영역', '현재 상태 (Baseline)', '목표 (6개월)', '도전 목표 (12개월)'].map((h, idx) => (
+                      <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#fff', fontSize: 12, whiteSpace: 'nowrap', borderRadius: idx === 0 ? '8px 0 0 0' : idx === 3 ? '0 8px 0 0' : undefined }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {prdData.deepModeInsights!.successFramework.map((sf, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? C.white : C.surface, borderBottom: `1px solid ${C.borderLight}` }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, color: C.textPrimary }}>{sf.category}</td>
+                      <td style={{ padding: '10px 14px', color: C.textTertiary }}>{sf.baseline}</td>
+                      <td style={{ padding: '10px 14px', color: C.blue, fontWeight: 600 }}>{sf.target}</td>
+                      <td style={{ padding: '10px 14px', color: C.purple, fontWeight: 600 }}>{sf.stretch}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+
         <SectionDivider />
 
-        {/* 7. Tech Stack */}
+        {/* Tech Stack */}
         <div id="sec-tech">
-          <SectionHeaderAnchored number="7" title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-tech')?.num || '7'} title="기술 스택 권장안" subtitle="프로젝트 특성에 맞는 기술 구성" id="sec-tech" />
           {/* B-5: Tech Stack Architecture Visualization */}
           {(prdData.techStack?.length ?? 0) > 0 && (
             <Card style={{ marginBottom: 14, padding: '24px 28px' }}>
@@ -2432,7 +2614,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 8. NFR */}
         <div id="sec-nfr">
-          <SectionHeaderAnchored number="8" title="비기능적 요구사항 & 제약조건" subtitle="성능, 보안, 접근성, 제약사항" id="sec-nfr" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-nfr')?.num || '8'} title="비기능적 요구사항 & 제약조건" subtitle="성능, 보안, 접근성, 제약사항" id="sec-nfr" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {prdData.nonFunctionalRequirements?.map((nfr, idx) => {
               const nfrThemes: Record<string, { icon: string; color: string; bg: string }> = {
@@ -2491,7 +2673,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 9. Timeline */}
         <div id="sec-timeline">
-          <SectionHeaderAnchored number="9" title="MVP 및 로드맵" subtitle="단계별 출시 계획 및 산출물" id="sec-timeline" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-timeline')?.num || '9'} title={isDeepMode ? '구현 전략 & 로드맵' : 'MVP 및 로드맵'} subtitle="단계별 출시 계획 및 산출물" id="sec-timeline" />
           {/* B-3: Gantt Chart */}
           <GanttChart timeline={prdData.timeline} />
           <Card>
@@ -2531,13 +2713,28 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               ))}
             </div>
           </Card>
+          {/* Deep mode: 구현 전략 */}
+          {isDeepMode && prdData.deepModeInsights?.implementationStrategy && (
+            <Card style={{ marginTop: 14, borderLeft: `4px solid ${C.purple}`, background: 'linear-gradient(135deg, rgba(124,58,237,0.02) 0%, rgba(255,255,255,1) 60%)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.purple, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: C.purpleBg, fontSize: 13 }}>🛠</span>
+                구현 전략 (Implementation Strategy)
+              </h3>
+              <FormattedText
+                value={prdData.deepModeInsights.implementationStrategy}
+                onChange={(v) => setPrdData({ ...prdData, deepModeInsights: { ...prdData.deepModeInsights!, implementationStrategy: v } })}
+                style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.85 }}
+                sectionKey="implementationStrategy" sectionTitle="구현 전략" projectContext={projectCtx}
+              />
+            </Card>
+          )}
         </div>
 
         <SectionDivider />
 
-        {/* 10. Risk Register */}
+        {/* Risk Register */}
         <div id="sec-risks">
-          <SectionHeaderAnchored number="10" title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-risks')?.num || '10'} title="리스크 관리" subtitle="예상 리스크 및 대응 전략" id="sec-risks" />
           {/* 리스크 테이블 */}
           <Card>
             <div className="prd-table-responsive" style={{ overflowX: 'auto' }}>
@@ -2575,7 +2772,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {/* 12. Expert Insight (conditional) */}
         {prdData.expertInsight && (
           <div id="sec-expert">
-            <SectionHeaderAnchored number="11" title="AI 전문가 인사이트" subtitle="위시켓 프로젝트 데이터 기반 분석" id="sec-expert" />
+            <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-expert')?.num || '11'} title={isDeepMode ? 'PM 전문가 인사이트' : 'AI 전문가 인사이트'} subtitle="위시켓 프로젝트 데이터 기반 분석" id="sec-expert" />
             <Card style={{
               background: 'linear-gradient(135deg, #eff6ff, #f0fdf4)',
               border: `1px solid #bfdbfe`, borderRadius: 20,
@@ -2605,6 +2802,44 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               </div>
             </Card>
           </div>
+        )}
+
+        {/* Deep mode: 의사결정 로그 */}
+        {isDeepMode && (prdData.deepModeInsights?.decisionLog?.length ?? 0) > 0 && (
+          <>
+            <SectionDivider />
+            <div id="sec-decisions" className="prd-section-fade">
+              <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-decisions')?.num || '14'} title="의사결정 로그 (Decision Log)" subtitle="심층 인터뷰 중 확정된 주요 의사결정" id="sec-decisions" />
+              <Card>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  {prdData.deepModeInsights!.decisionLog.map((dl, i) => (
+                    <div key={i} style={{
+                      padding: '16px 20px', background: i % 2 === 0 ? C.surface : C.white,
+                      borderRadius: 12, border: `1px solid ${C.borderLight}`,
+                      borderLeft: `3px solid ${C.blue}`,
+                    }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{
+                          background: C.blue, color: '#fff', width: 22, height: 22, borderRadius: 6,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 700, flexShrink: 0,
+                        }}>{i + 1}</span>
+                        {dl.decision}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.7, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600, color: C.textPrimary }}>근거: </span>{dl.rationale}
+                      </div>
+                      {dl.alternatives && dl.alternatives !== '해당 없음' && (
+                        <div style={{ fontSize: 12, color: C.textTertiary, lineHeight: 1.6 }}>
+                          <span style={{ fontWeight: 600 }}>검토된 대안: </span>{dl.alternatives}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </>
         )}
 
         <SectionDivider />
