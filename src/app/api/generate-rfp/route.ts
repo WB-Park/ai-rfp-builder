@@ -1259,9 +1259,9 @@ async function notifySlackPRD(
     const adminUrl = 'https://wishket-prd.com/admin';
     const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-    // 3) 슬랙 메시지 구성 — AIDP 문의 알림
+    // 3) 슬랙 메시지 구성
     const message = [
-      `📋 *[AIDP 문의 알림] 새 PRD가 생성되었습니다* ${modeLabel}`,
+      `📋 *새 PRD가 생성되었습니다* ${modeLabel}`,
       '',
       `> *프로젝트:* ${result.projectName || '(이름 없음)'}`,
       `> *기능:* ${featureCount}개`,
