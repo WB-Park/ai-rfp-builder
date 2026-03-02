@@ -364,8 +364,10 @@ async function generateDeepResponse(
   deepPhase: DeepPhase;
   progressPercent: number;
   thinkingLabel: string;
-  readyToDefineFeatures: boolean;  // 기능 정의할 준비가 됐는지 (showFeatureSelector 대체)
+  readyToDefineFeatures: boolean;
   conversationComplete: boolean;   // 대화 완료 여부
+  insightSummary: string;    // ★ 이 턴에서 발견한 핵심 인사이트 1줄
+  insightCategory: string;   // ★ 인사이트 카테고리 (vision/user/problem/solution/market/tech/strategy)
 } | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
@@ -493,8 +495,16 @@ overview, targetUsers, coreFeatures, techRequirements, referenceServices, additi
   "progressPercent": 0~100,
   "thinkingLabel": "표시 레이블",
   "readyToDefineFeatures": false,
-  "conversationComplete": false
-}`,
+  "conversationComplete": false,
+  "insightSummary": "★ 이 턴에서 새로 발견한 핵심 인사이트 1문장 (예: '단체복 시장의 사이즈 불일치가 핵심 페인포인트'). 반드시 고객의 답변에서 추출된 구체적 사실. 고객이 처음 말한 경우 '비전:' prefix, 문제점이면 '문제:' prefix, 해결방향이면 '해결:', 타겟 관련이면 '타겟:' prefix",
+  "insightCategory": "vision|user|problem|solution|market|tech|strategy 중 1개. 이 인사이트의 성격."
+}
+
+★★★ insightSummary 필수 규칙 ★★★
+- 매 턴마다 반드시 1개의 인사이트를 추출하세요
+- 고객의 답변에서 구체적인 사실/판단/의견을 압축한 1문장
+- 제네릭하면 안 됨: ❌ "고객의 니즈를 파악함" / ✅ "단체복 주문 시 개인별 사이즈 측정이 가장 큰 병목"
+- 이 인사이트가 우측 패널에 실시간으로 쌓여서, 고객에게 "대화가 가치 있다"는 걸 보여줍니다`,
       messages: [{
         role: 'user',
         content: `대화 히스토리:\n${conversationContext}\n\n고객의 마지막 답변을 분석하세요. 고객이 아직 스스로 정리하지 못한 생각을 끌어내주세요. 반드시 JSON 형식으로만 응답하세요.`
@@ -517,6 +527,8 @@ overview, targetUsers, coreFeatures, techRequirements, referenceServices, additi
       thinkingLabel: parsed.thinkingLabel || '프로젝트를 심층 분석하고 있어요...',
       readyToDefineFeatures: parsed.readyToDefineFeatures || false,
       conversationComplete: parsed.conversationComplete || false,
+      insightSummary: parsed.insightSummary || '',
+      insightCategory: parsed.insightCategory || 'vision',
     };
   } catch (error) {
     console.error('Deep response error:', error);
@@ -882,6 +894,8 @@ export async function POST(req: NextRequest) {
           progress: aiResult.progressPercent,
           canComplete: isComplete || isReadyToComplete(rfpData),
           deepPhase: aiResult.deepPhase,
+          insightSummary: aiResult.insightSummary || '',
+          insightCategory: aiResult.insightCategory || 'vision',
         });
       }
 

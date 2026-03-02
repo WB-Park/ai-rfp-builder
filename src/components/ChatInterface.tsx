@@ -106,6 +106,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   // ★★★ 근본적 루프 방지: 기능 선택 UI가 한 번이라도 표시되면 영구 true
   const [featureSelectorShown, setFeatureSelectorShown] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Deep mode: 실시간 인사이트 카드 추적
+  const [deepInsights, setDeepInsights] = useState<Array<{ text: string; category: string; turn: number }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -286,6 +288,16 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       }
 
       setRfpData(updatedRfpData);
+
+      // Deep mode: 실시간 인사이트 수집
+      if (chatMode === 'deep' && data.insightSummary && data.insightSummary.length > 3) {
+        const turnNum = messages.filter((m: ChatMessage) => m.role === 'user').length;
+        setDeepInsights(prev => [...prev, {
+          text: data.insightSummary,
+          category: data.insightCategory || 'vision',
+          turn: turnNum,
+        }]);
+      }
 
       // Deep Phase 업데이트
       if (data.deepPhase) {
@@ -710,125 +722,135 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
           )}
 
           {chatMode === 'deep' ? (
-            /* ═══ Deep Mode 전용 미리보기 ═══ */
+            /* ═══ Deep Mode 전용 미리보기 — 실시간 인사이트 ═══ */
             <>
-              {/* Deep mode: 대화 깊이 인디케이터 */}
-              <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--space-lg)' }}>
-                {[
-                  { phase: 'explore', label: '탐색', icon: '🔍' },
-                  { phase: 'understand', label: '이해', icon: '💡' },
-                  { phase: 'define', label: '정의', icon: '🎯' },
-                  { phase: 'refine', label: '완성', icon: '✅' },
-                ].map((step, idx) => {
-                  const phaseOrder = ['explore', 'understand', 'define', 'refine'];
-                  const currentIdx = phaseOrder.indexOf(deepPhase);
-                  const isActive = idx === currentIdx;
-                  const isDone = idx < currentIdx;
-                  return (
-                    <div key={step.phase} style={{
-                      flex: 1, textAlign: 'center', padding: '8px 4px',
-                      borderRadius: 'var(--radius-md)',
-                      background: isActive ? 'rgba(var(--color-primary-rgb), 0.08)' : isDone ? 'rgba(52,199,89,0.06)' : 'var(--surface-2)',
-                      border: `1px solid ${isActive ? 'rgba(var(--color-primary-rgb), 0.25)' : isDone ? 'rgba(52,199,89,0.15)' : 'transparent'}`,
-                      transition: 'all 0.3s ease',
-                    }}>
-                      <div style={{ fontSize: 16, marginBottom: 2 }}>{isDone ? '✓' : step.icon}</div>
-                      <div style={{
-                        fontSize: 11, fontWeight: isActive ? 700 : 500,
-                        color: isActive ? 'var(--color-primary)' : isDone ? 'var(--color-success, #34C759)' : 'var(--text-quaternary)',
-                      }}>{step.label}</div>
-                    </div>
-                  );
-                })}
+              {/* 상단: 프로젝트 이해도 프로그레스 */}
+              <div style={{ marginBottom: 'var(--space-xl)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>프로젝트 이해도</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary)' }}>{deepInsights.length}개 인사이트 발견</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3,
+                    background: 'linear-gradient(90deg, var(--color-primary), #8B5CF6)',
+                    width: `${Math.min(progressPercent, 100)}%`,
+                    transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }} />
+                </div>
+                {/* 마이크로 단계 칩 */}
+                <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+                  {[
+                    { phase: 'explore', label: '탐색' },
+                    { phase: 'understand', label: '이해' },
+                    { phase: 'define', label: '정의' },
+                    { phase: 'refine', label: '정제' },
+                  ].map((step, idx) => {
+                    const phaseOrder = ['explore', 'understand', 'define', 'refine'];
+                    const currentIdx = phaseOrder.indexOf(deepPhase);
+                    const isActive = idx === currentIdx;
+                    const isDone = idx < currentIdx;
+                    return (
+                      <span key={step.phase} style={{
+                        fontSize: 11, fontWeight: isActive ? 700 : 500, padding: '3px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        background: isActive ? 'rgba(var(--color-primary-rgb), 0.1)' : isDone ? 'rgba(52,199,89,0.08)' : 'var(--surface-2)',
+                        color: isActive ? 'var(--color-primary)' : isDone ? '#34C759' : 'var(--text-quaternary)',
+                        transition: 'all 0.3s ease',
+                      }}>
+                        {isDone ? '✓ ' : ''}{step.label}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Deep mode: 대화에서 파악된 내용 */}
-              {rfpData.overview ? (
-                <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-                  {/* 핵심 비전 — 가장 중요 */}
-                  <div style={{
-                    padding: '20px', borderRadius: 'var(--radius-lg)',
-                    background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.04), rgba(var(--color-primary-rgb), 0.01))',
-                    border: '1px solid rgba(var(--color-primary-rgb), 0.12)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <span style={{ fontSize: 14 }}>🎯</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>프로젝트 비전</span>
-                    </div>
-                    <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 }}>{rfpData.overview}</p>
+              {/* 실시간 인사이트 카드들 — 대화할수록 쌓임 */}
+              {deepInsights.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#34C759', animation: 'pulse 2s infinite' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                      실시간 인사이트
+                    </span>
                   </div>
-
-                  {/* 파악된 항목들 — 대화에서 추출된 순서대로 */}
-                  {rfpData.targetUsers && (
-                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 13 }}>👥</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>타겟 사용자</span>
-                      </div>
-                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.targetUsers}</p>
-                    </div>
-                  )}
-
-                  {rfpData.referenceServices && (
-                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 13 }}>🔎</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>경쟁/참고 서비스</span>
-                      </div>
-                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.referenceServices}</p>
-                    </div>
-                  )}
-
-                  {Array.isArray(rfpData.coreFeatures) && rfpData.coreFeatures.length > 0 && (
-                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <span style={{ fontSize: 13 }}>⚙️</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>핵심 기능</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-quaternary)', fontWeight: 500 }}>{rfpData.coreFeatures.length}개</span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {rfpData.coreFeatures.map((f, i) => (
-                          <div key={i} style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-0)',
-                          }}>
-                            <span className={`chip-${(f.priority || 'P1').toLowerCase()}`} style={{ flexShrink: 0, fontSize: 10 }}>{f.priority || 'P1'}</span>
-                            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{f.name}</span>
+                  {deepInsights.map((insight, idx) => {
+                    const isLatest = idx === deepInsights.length - 1;
+                    const categoryConfig: Record<string, { icon: string; color: string; bg: string }> = {
+                      vision: { icon: '🎯', color: '#7C3AED', bg: 'rgba(124,58,237,0.06)' },
+                      user: { icon: '👥', color: '#0EA5E9', bg: 'rgba(14,165,233,0.06)' },
+                      problem: { icon: '⚡', color: '#EF4444', bg: 'rgba(239,68,68,0.06)' },
+                      solution: { icon: '💡', color: '#F59E0B', bg: 'rgba(245,158,11,0.06)' },
+                      market: { icon: '📊', color: '#10B981', bg: 'rgba(16,185,129,0.06)' },
+                      tech: { icon: '💻', color: '#6366F1', bg: 'rgba(99,102,241,0.06)' },
+                      strategy: { icon: '🧭', color: '#EC4899', bg: 'rgba(236,72,153,0.06)' },
+                    };
+                    const cat = categoryConfig[insight.category] || categoryConfig.vision;
+                    return (
+                      <div key={idx} style={{
+                        padding: '14px 16px', borderRadius: 'var(--radius-md)',
+                        background: isLatest ? cat.bg : 'var(--surface-1)',
+                        border: `1px solid ${isLatest ? cat.color + '30' : 'var(--border-default)'}`,
+                        transition: 'all 0.4s ease',
+                        animation: isLatest ? 'slideInRight 0.4s ease-out' : 'none',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                          <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{cat.icon}</span>
+                          <div style={{ flex: 1 }}>
+                            <p style={{
+                              fontSize: 13, lineHeight: 1.6, margin: 0,
+                              color: isLatest ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              fontWeight: isLatest ? 600 : 400,
+                            }}>{insight.text}</p>
+                            {isLatest && (
+                              <span style={{ fontSize: 10, color: cat.color, fontWeight: 600, marginTop: 6, display: 'inline-block' }}>
+                                방금 발견 ·  턴 {insight.turn}
+                              </span>
+                            )}
                           </div>
-                        ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {rfpData.techRequirements && (
-                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 13 }}>💻</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>기술 방향</span>
-                      </div>
-                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.techRequirements}</p>
-                    </div>
-                  )}
-
-                  {rfpData.additionalRequirements && (
-                    <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 13 }}>📌</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>추가 맥락</span>
-                      </div>
-                      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', margin: 0 }}>{rfpData.additionalRequirements}</p>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-4xl) var(--space-lg)' }}>
-                  <div style={{ fontSize: 48, marginBottom: 'var(--space-md)', opacity: 0.3, animation: 'float 3s ease-in-out infinite' }}>💬</div>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
-                    대화가 시작되면 여기에 정리됩니다
+                <div style={{ textAlign: 'center', padding: isMobile ? 'var(--space-xl)' : 'var(--space-3xl) var(--space-lg)' }}>
+                  <div style={{ fontSize: 40, marginBottom: 'var(--space-md)', opacity: 0.4, animation: 'float 3s ease-in-out infinite' }}>🔍</div>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>
+                    대화에서 인사이트를 추출하고 있어요
                   </p>
-                  <p style={{ fontSize: 14, color: 'var(--text-quaternary)' }}>
-                    대화를 통해 파악된 내용이 실시간으로 구조화됩니다
+                  <p style={{ fontSize: 13, color: 'var(--text-quaternary)', lineHeight: 1.5 }}>
+                    대화할수록 프로젝트에 대한 이해가 쌓이고,<br />이 내용이 PRD에 자동으로 반영됩니다
                   </p>
+                </div>
+              )}
+
+              {/* 하단: 프로젝트 요약 (rfpData 기반 — 접힌 상태로) */}
+              {rfpData.overview && deepInsights.length >= 2 && (
+                <div style={{ marginTop: 'var(--space-xl)', paddingTop: 'var(--space-lg)', borderTop: '1px solid var(--border-default)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 12 }}>📋</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>프로젝트 요약</span>
+                  </div>
+                  <div style={{
+                    padding: '14px 16px', borderRadius: 'var(--radius-md)',
+                    background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.03), transparent)',
+                    border: '1px solid rgba(var(--color-primary-rgb), 0.08)',
+                  }}>
+                    <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 }}>
+                      {rfpData.overview.length > 200 ? rfpData.overview.slice(0, 200) + '...' : rfpData.overview}
+                    </p>
+                  </div>
+                  {rfpData.targetUsers && (
+                    <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-1)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>타겟:</strong> {rfpData.targetUsers.length > 100 ? rfpData.targetUsers.slice(0, 100) + '...' : rfpData.targetUsers}
+                    </div>
+                  )}
+                  {rfpData.techRequirements && (
+                    <div style={{ marginTop: 6, padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-1)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>기술:</strong> {rfpData.techRequirements}
+                    </div>
+                  )}
                 </div>
               )}
             </>
