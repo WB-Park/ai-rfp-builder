@@ -138,7 +138,7 @@ async function generateQuickResponse(
 6. 추가 요구사항
 
 [중요 규칙]
-- 개요를 파악한 직후에는 반드시 showFeatureSelector=true
+- 개요를 파악한 직후, coreFeatures가 아직 비어있을 때만 showFeatureSelector=true (이미 기능이 선택된 경우 절대 다시 true하지 마세요)
 - overview + coreFeatures + 1개 추가 정보가 수집되면 completionReady=true
 - 5개 이상 정보가 수집되면 자연스럽게 완료를 제안
 
@@ -289,7 +289,7 @@ Deep Mode에서는 Quick Mode와 동일하게 대화형으로 시작하되, 각 
 - 한 번에 하나의 주제에 집중 (토픽 점프 금지)
 
 [중요 규칙]
-- 개요를 파악한 직후에는 반드시 showFeatureSelector=true
+- 개요를 파악한 직후, coreFeatures가 아직 비어있을 때만 showFeatureSelector=true (이미 기능이 선택된 경우 절대 다시 true하지 마세요)
 - overview + coreFeatures + 2개 추가 정보가 수집되면 completionReady=true
 - 6개 이상 수집되면 자연스럽게 완료 제안
 - deepPhase는 항상 "conversation" 유지 (phase 전환 없음)
@@ -458,7 +458,8 @@ export async function POST(req: NextRequest) {
       // rfpUpdate 처리
       let rfpUpdate = aiResult.rfpUpdate;
 
-      // 사용자가 JSON 기능 배열을 보낸 경우
+      // 사용자가 JSON 기능 배열을 보낸 경우 (기능 선택 완료)
+      let featureJustSubmitted = false;
       if (!rfpUpdate) {
         try {
           const parsed = JSON.parse(userText);
@@ -471,21 +472,28 @@ export async function POST(req: NextRequest) {
                 priority: f.category === 'must' ? 'P1' : i < 4 ? 'P2' : 'P3',
               })),
             };
+            featureJustSubmitted = true;
+            // ★ 핵심 수정: rfpData에 즉시 반영하여 이후 로직에서 coreFeatures 인식
+            rfpData.coreFeatures = rfpUpdate.value as RFPData['coreFeatures'];
           }
         } catch { /* not JSON */ }
       }
 
       // 기능 선택 UI 표시 여부
+      // ★ featureJustSubmitted면 절대 다시 표시하지 않음 (무한루프 방지)
+      // ★ coreFeatures가 이미 있으면 표시하지 않음
       let selectableFeatures: SelectableFeature[] | null = null;
-      const featureSourceText = rfpData.overview || userText;
-      if (aiResult.showFeatureSelector && featureSourceText && featureSourceText.length >= 2) {
-        try {
-          const aiFeatures = await generateAIFeatures(featureSourceText);
-          if (aiFeatures && aiFeatures.length >= 3) {
-            selectableFeatures = aiFeatures;
+      if (!featureJustSubmitted && rfpData.coreFeatures.length === 0) {
+        const featureSourceText = rfpData.overview || userText;
+        if (aiResult.showFeatureSelector && featureSourceText && featureSourceText.length >= 2) {
+          try {
+            const aiFeatures = await generateAIFeatures(featureSourceText);
+            if (aiFeatures && aiFeatures.length >= 3) {
+              selectableFeatures = aiFeatures;
+            }
+          } catch (e) {
+            console.error('Feature generation failed:', e);
           }
-        } catch (e) {
-          console.error('Feature generation failed:', e);
         }
       }
 
@@ -497,16 +505,18 @@ export async function POST(req: NextRequest) {
           .replace(/기능\s*리스트를?\s*확인[^.]*[.!]?/g, '')
           .trim();
         if (!finalQuestion) {
-          finalQuestion = '프로젝트에 필요한 핵심 기능들을 알려주세요. 어떤 기능이 가장 중요한가요?';
+          finalQuestion = featureJustSubmitted
+            ? '기능 선택이 완료되었습니다. 다음 단계로 넘어가겠습니다.'
+            : '프로젝트에 필요한 핵심 기능들을 알려주세요. 어떤 기능이 가장 중요한가요?';
         }
       }
 
       let isComplete = aiResult.completionReady;
       const covered = getTopicsCovered(rfpData);
 
-      // ★ 방어 로직: completionReady인데 coreFeatures가 비어있으면,
-      // 기능 선택을 먼저 강제 트리거 (완료 불가)
-      if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures) {
+      // ★ 방어 로직 개선: featureJustSubmitted면 스킵
+      // completionReady인데 coreFeatures가 비어있고, 방금 기능 제출이 아닌 경우에만 트리거
+      if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures && !featureJustSubmitted) {
         const featureSourceText = rfpData.overview || userText;
         if (featureSourceText && featureSourceText.length >= 2) {
           try {
