@@ -398,13 +398,20 @@ ${phase === 'refine' ? `[refine — 정제 단계] 최종 확인 중
 
 ═══ 응답 스타일 ═══
 - 존댓말 필수
-- response는 하나의 자연스러운 텍스트. 분석과 질문이 자연스럽게 이어지는 대화체.
-  • 먼저 고객의 답변을 재구성/확인 (2~3문장)
-  • 위시켓 데이터 기반 인사이트 1문장 (💡 prefix)
-  • 자연스럽게 이어지는 질문 1개 (마지막에)
+- response는 3파트로 구성하되, 줄바꿈(\\n\\n)으로 구분:
+  ① 리액션 (2~3문장): 고객 답변을 재구성/확인하며 구체적으로 짚어주기
+  ② 💡 인사이트 (1문장): 위시켓 데이터 기반 전문가 인사이트 (💡 prefix)
+  ③ **질문** (1개): 마지막에 줄바꿈 후 **볼드**로 강조. 물음표(?) 정확히 1개.
+- 예시 형식:
+  "말씀하신 내용을 정리하면, OOO 서비스에서 핵심은 XXX라는 점이군요. 현재 이 문제를 겪는 분들이 YYY 방식으로 해결하고 있다는 점도 중요한 맥락입니다.\\n\\n💡 위시켓에서 유사한 프로젝트 데이터를 보면, 초기 타겟을 좁힌 프로젝트의 성공률이 82% 더 높았습니다.\\n\\n**그렇다면 이 서비스를 가장 먼저 사용하게 될 핵심 타겟은 구체적으로 어떤 상황에 있는 분인가요?**"
 - ⚠️ "좋은 생각이시네요", "흥미로운 아이디어네요" 같은 제네릭 반응 절대 금지
 - ⚠️ 예산/견적/비용/시장규모 질문 금지
-- suggestions: 고객이 답변하기 쉽도록 돕는 힌트 2~3개. "선택지"가 아니라 "이런 방향으로 생각해보세요"
+- suggestions: 고객이 바로 클릭해서 보낼 수 있는 구체적인 답변 2~3개
+  • ❌ "직접 경험한 불편함을 말해주세요" (가이드/지시 형태)
+  • ✅ "직접 겪은 불편함에서 시작했어요" (고객이 바로 보낼 수 있는 답변)
+  • ❌ "타겟 사용자를 구체적으로 설명해주세요"
+  • ✅ "20~30대 직장인이 주요 타겟이에요"
+  • 고객의 관점에서 자연스러운 1인칭 답변 형태로 작성
 
 ═══ rfpUpdates 규칙 ═══
 - 고객의 자연스러운 대화에서 정보를 추출하여 배열로 반환
@@ -492,7 +499,7 @@ function generateDeepFallback(rfpData: RFPData, userMessage: string, turnCount: 
     return {
       response: `이해했습니다. 그렇다면 이 서비스를 가장 먼저 사용하게 될 사람은 어떤 상황에 있는 분인가요? 그 분의 하루에서 이 서비스가 어느 시점에 필요할까요?`,
       rfpUpdates: msg.length > 1 ? [{ section: 'additionalRequirements', value: msg }] : [],
-      suggestions: ['구체적인 사용자 유형이 있어요', '아직 타겟을 정하지 못했어요', '여러 유형의 사용자가 있어요'],
+      suggestions: ['20~30대 직장인이 주 타겟이에요', '아직 명확하게 정하진 못했어요', 'B2B, 기업 고객 대상이에요'],
       deepPhase: 'understand',
       progressPercent: 30,
       readyToDefineFeatures: false,
@@ -504,7 +511,7 @@ function generateDeepFallback(rfpData: RFPData, userMessage: string, turnCount: 
     return {
       response: `지금까지 말씀하신 내용을 종합하면, 이 서비스에서 사용자가 가장 자주 하게 될 핵심 행동은 무엇일까요?`,
       rfpUpdates: msg.length > 1 ? [{ section: 'additionalRequirements', value: msg }] : [],
-      suggestions: ['핵심 사용 시나리오를 설명할게요', '벤치마크하는 서비스가 있어요'],
+      suggestions: ['검색하고 비교하는 게 핵심이에요', '참고하는 서비스가 있어요'],
       deepPhase: 'define',
       progressPercent: 55,
       readyToDefineFeatures: true,
