@@ -100,6 +100,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [featureSelection, setFeatureSelection] = useState<Record<string, boolean>>({});
   // ★★★ 근본적 루프 방지: 기능 선택 UI가 한 번이라도 표시되면 영구 true
@@ -1008,7 +1009,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     >건너뛰기</button>
                     {/* "PRD 작성하기" 상시 칩 — 유저 메시지 3개 이상 + overview 있으면 항상 표시 */}
                     {messages.filter(m => m.role === 'user').length >= 3 && rfpData.overview && (
-                      <button onClick={() => setIsComplete(true)} style={{
+                      <button onClick={() => setShowCompleteModal(true)} style={{
                         padding: '7px 16px', borderRadius: 20,
                         border: 'none',
                         background: canComplete
@@ -1026,7 +1027,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-                        {canComplete ? 'PRD 완성하기' : '여기까지 PRD 작성하기'}
+                        {canComplete ? '제품 요구사항 정의서 완성하기' : '여기까지 정의서 작성하기'}
                       </button>
                     )}
                   </div>
@@ -1212,16 +1213,16 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                 boxShadow: '0 4px 12px rgba(var(--color-primary-rgb), 0.3)',
                 transition: 'all var(--duration-normal) var(--ease-out)',
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(var(--color-primary-rgb), 0.35)';
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--color-primary-rgb), 0.3)';
               }}
             >
-              PRD 기획서 완성하기
+              제품 요구사항 정의서 완성하기
             </button>
           ) : (
             <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'flex-end' }}>
@@ -1295,7 +1296,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   </svg>
                 </button>
                 {!isComplete && messages.filter(m => m.role === 'user').length >= 3 && rfpData.overview && (
-                  <button onClick={() => setIsComplete(true)} disabled={loading}
+                  <button onClick={() => setShowCompleteModal(true)} disabled={loading}
                     style={{
                       background: 'none', border: 'none',
                       fontSize: 11, color: canComplete ? 'var(--color-primary)' : '#F59E0B', fontWeight: 600,
@@ -1303,7 +1304,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       transition: 'color var(--duration-fast)',
                     }}
                   >
-                    {canComplete ? '완성하기' : 'PRD 작성'}
+                    {canComplete ? '완성하기' : '정의서 작성'}
                   </button>
                 )}
               </div>
@@ -1315,6 +1316,71 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       {/* Right: Preview Panel */}
       {!isMobile && previewPanel}
       {isMobile && previewPanel}
+
+      {/* ═══ 제품 요구사항 정의서 생성 확인 모달 ═══ */}
+      {showCompleteModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease-out',
+        }}
+        onClick={() => setShowCompleteModal(false)}
+        >
+          <div style={{
+            background: '#fff', borderRadius: 20, padding: '32px 28px',
+            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            animation: 'slideUp 0.25s ease-out',
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: '0 0 8px 0', fontFamily: 'var(--font-kr)' }}>
+                지금까지 내용을 바탕으로<br />제품 요구사항 정의서를 생성하시겠습니까?
+              </h3>
+              <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.6, fontFamily: 'var(--font-kr)' }}>
+                대화에서 수집된 정보를 종합하여<br />전문 수준의 정의서를 자동 생성합니다.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowCompleteModal(false)}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  border: '1px solid #e2e8f0', background: '#fff',
+                  color: '#64748b', fontSize: 14, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font-kr)',
+                }}
+              >
+                계속 대화하기
+              </button>
+              <button
+                onClick={() => {
+                  setShowCompleteModal(false);
+                  setIsComplete(true);
+                  // 바로 PRD 생성 시작
+                  onComplete(rfpData, messages.map(m => ({ role: m.role, content: m.content })));
+                }}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
+                  color: '#fff', fontSize: 14, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'var(--font-kr)',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+                }}
+              >
+                정의서 생성하기
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
