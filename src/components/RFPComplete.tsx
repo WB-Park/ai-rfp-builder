@@ -14,6 +14,7 @@ interface RFPCompleteProps {
   preloadedPrd?: string; // JSON string of PRDResult — skips API call, renders directly
   readOnly?: boolean; // Hide editing features for share page
   chatMessages?: { role: string; content: string }[]; // 대화 히스토리 → PRD 생성에 활용
+  chatMode?: 'quick' | 'deep'; // 대화 모드 → PRD 스타일 분기
 }
 
 interface PRDResult {
@@ -1010,7 +1011,7 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
 }
 
 // ━━━━━ Main Component ━━━━━
-export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, chatMessages }: RFPCompleteProps) {
+export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, chatMessages, chatMode }: RFPCompleteProps) {
   // preloadedPrd가 있으면 바로 파싱해서 사용 (share 페이지)
   const initialPrd = useMemo(() => {
     if (preloadedPrd) {
@@ -1079,7 +1080,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         const res = await fetch('/api/generate-rfp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rfpData, sessionId, chatMessages: chatMessages || [] }),
+          body: JSON.stringify({ rfpData, sessionId, chatMessages: chatMessages || [], chatMode: chatMode || 'quick' }),
         });
         const data = await res.json();
         clearInterval(phaseTimer);

@@ -29,7 +29,7 @@ interface ChatMessage {
 }
 
 interface ChatInterfaceProps {
-  onComplete: (rfpData: RFPData, messages?: { role: string; content: string }[]) => void;
+  onComplete: (rfpData: RFPData, messages?: { role: string; content: string }[], chatMode?: 'quick' | 'deep') => void;
   email: string;
   sessionId?: string;
 }
@@ -1331,7 +1331,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         }}>
           {isComplete ? (
             <button
-              onClick={() => onComplete(rfpData, messages.map(m => ({ role: m.role, content: m.content })))}
+              onClick={() => onComplete(rfpData, messages.map(m => ({ role: m.role, content: m.content })), chatMode)}
               className="animate-bounce-in"
               style={{
                 width: '100%', height: 'var(--btn-height)',
@@ -1489,7 +1489,7 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   setShowCompleteModal(false);
                   setIsComplete(true);
                   // 바로 PRD 생성 시작
-                  onComplete(rfpData, messages.map(m => ({ role: m.role, content: m.content })));
+                  onComplete(rfpData, messages.map(m => ({ role: m.role, content: m.content })), chatMode);
                 }}
                 style={{
                   flex: 1, padding: '12px 0', borderRadius: 12,
