@@ -125,42 +125,42 @@ async function generateDeepModePRD(
 
   console.log(`[DEEP PRD] Starting. Conversation: ${fullConversation.length} chars, Features: ${features.length}`);
 
-  // ── 3개 병렬 호출 (각 max_tokens: 4096 → 30초 이내 완료) ──
+  // ── 3개 병렬 호출 (각 max_tokens: 2500 → 20초 이내 완료) ──
 
   // Call 1a: 핵심 PRD 구조 (executiveSummary, goals, personas, timeline 등)
   const deepCall1a = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    system: `위시켓 수석 IT 컨설턴트. 고객 인터뷰 기반 PRD 작성. 유효한 JSON만 출력. 마크다운 금지. 대화 근거만 사용.`,
+    max_tokens: 2500,
+    system: `위시켓 수석 IT 컨설턴트. 고객 인터뷰 기반 PRD 작성. 유효한 JSON만 출력. 마크다운 금지.`,
     messages: [{
       role: 'user',
-      content: `[고객 인터뷰]\n${fullConversation}\n\n[프로젝트 정보]\n${projectInfo}\n\n아래 JSON 생성:\n{"projectName":"15자 이내 프로젝트명","executiveSummary":"300자. 핵심정의+배경+기능범위+차별점","problemSolutionFit":"200자. 현재문제→해결방식→적합성","targetUsersAnalysis":"200자. 사용자 유형+Pain Point","expertInsight":"400자. 위시켓PM의 (1)성공요인3개 (2)실패패턴3개 (3)개발사선정팁3개 (4)PM추천사항","projectGoals":[{"goal":"목표","metric":"측정지표"}],"userPersonas":[{"name":"이름","role":"역할","needs":"니즈","painPoints":"문제점"}],"timeline":[{"phase":"단계","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"위험","impact":"높음/중간/낮음","mitigation":"대응책","probability":"높음/중간/낮음"}],"techStack":[{"category":"분류","tech":"기술명","rationale":"근거"}],"competitorAnalysis":[{"name":"서비스","strengths":"강점","weaknesses":"약점","differentiation":"차별점"}],"assumptions":["전제"],"constraints":["제약"],"scopeExclusions":["제외사항"],"glossary":[{"term":"용어","definition":"설명"}]}\n\nprojectGoals:3~5개, userPersonas:2~3명, timeline:4단계, risks:4~5개, techStack:3~5개, glossary:5~8개.`
+      content: `[인터뷰]\n${fullConversation}\n\n[프로젝트]\n${projectInfo}\n\nJSON:\n{"projectName":"프로젝트명15자","executiveSummary":"200자.핵심+배경+차별점","problemSolutionFit":"100자.문제→해결","targetUsersAnalysis":"100자.사용자+PainPoint","expertInsight":"200자.위시켓PM의 성공요인3+실패패턴3+개발사팁3","projectGoals":[{"goal":"목표","metric":"지표"}],"userPersonas":[{"name":"이름","role":"역할","needs":"니즈","painPoints":"문제"}],"timeline":[{"phase":"단계","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"위험","impact":"높음/중간","mitigation":"대응"}],"techStack":[{"category":"분류","tech":"기술","rationale":"근거"}],"assumptions":["전제"],"constraints":["제약"],"scopeExclusions":["제외"],"glossary":[{"term":"용어","definition":"설명"}]}\n\ngoals:3개,personas:2명,timeline:4단계,risks:3개,techStack:3개,glossary:5개.`
     }],
   });
 
   // Call 1b: Deep mode 프리미엄 인사이트
   const deepCall1b = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    system: `위시켓 수석 컨설턴트. 고객 인터뷰에서 전략적 인사이트 추출. 유효한 JSON만 출력. 대화 근거만 사용.`,
+    max_tokens: 2500,
+    system: `위시켓 수석 컨설턴트. 전략적 인사이트 추출. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
-      content: `[고객 인터뷰]\n${fullConversation}\n\n[프로젝트]: ${rfpData.overview || ''}\n\n아래 JSON 생성:\n{"strategicNarrative":"400자. 프로젝트의 본질적 문제, 고객 비전, 전략적 방향을 스토리텔링","customerVoiceHighlights":[{"quote":"고객 핵심 발언","insight":"인사이트","implication":"PRD 시사점"}],"decisionLog":[{"decision":"결정사항","rationale":"근거","alternatives":"대안"}],"mvpRationale":"200자. MVP 범위 선정 근거","implementationStrategy":"200자. 최적 구현 전략","successFramework":[{"category":"카테고리","baseline":"현재","target":"6개월목표","stretch":"12개월목표"}],"problemSolutionFit_detail":"200자. 문제-해결 적합성 상세","marketContext":"대화에서 언급된 시장정보. 없으면 '직접 언급 없음'"}\n\ncustomerVoiceHighlights:4~6개, decisionLog:3~5개, successFramework:4개(비즈니스/사용자/기술/운영).`
+      content: `[인터뷰]\n${fullConversation}\n\n[프로젝트]: ${rfpData.overview || ''}\n\nJSON:\n{"strategicNarrative":"200자.본질적문제+비전+전략방향","customerVoiceHighlights":[{"quote":"발언","insight":"인사이트","implication":"시사점"}],"decisionLog":[{"decision":"결정","rationale":"근거","alternatives":"대안"}],"mvpRationale":"100자.MVP범위근거","implementationStrategy":"100자.구현전략","successFramework":[{"category":"카테고리","baseline":"현재","target":"6개월","stretch":"12개월"}],"problemSolutionFit_detail":"100자.적합성상세","marketContext":"시장정보 또는 '직접언급없음'"}\n\nvoices:3개,decisions:3개,framework:3개.`
     }],
   });
 
   // Call 2: 기능 상세 명세
   const deepCall2 = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    system: `시니어 소프트웨어 아키텍트. 고객 인터뷰 기반 기능 명세. 유효한 JSON만 출력.`,
+    max_tokens: 2500,
+    system: `시니어 아키텍트. 기능 명세. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
-      content: `[고객 인터뷰]\n${fullConversation.slice(0, 4000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n[기능 목록]\n${featureList}\n\n각 기능의 명세를 JSON으로:\n{"featureSpecs":[{"name":"기능명(위 목록 일치)","description":"설명 2~3문장","subFeatures":["서브기능 4~6개"],"acceptanceCriteria":["수용기준 3~4개"],"userFlow":"[시작]→[단계]→[결과]","screenSpecs":[{"id":"SCR-001","name":"화면명","purpose":"목적","elements":["UI요소 4~6개"],"scenarios":[["시나리오","조건","동작","반응","✓/✗"]]}],"businessRules":["규칙 2~3개"],"dataEntities":[{"name":"테이블명","fields":"컬럼"}],"errorCases":["에러 2~3개"],"estimatedManDays":0,"dependencies":[]}]}`
+      content: `[인터뷰]\n${fullConversation.slice(0, 3000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n[기능]\n${featureList}\n\nJSON:\n{"featureSpecs":[{"name":"기능명","description":"설명1~2문장","subFeatures":["서브3~4개"],"acceptanceCriteria":["기준2~3개"],"userFlow":"[시작]→[결과]","screenSpecs":[{"id":"SCR-001","name":"화면","purpose":"목적","elements":["요소3~4개"]}],"businessRules":["규칙2개"],"dataEntities":[{"name":"테이블","fields":"컬럼"}],"errorCases":["에러2개"],"estimatedManDays":0}]}`
     }],
   });
 
-  // 3개 병렬 (각 4096 토큰 → 개별 25~35초, 병렬이므로 최대 35초)
+  // 3개 병렬 (각 2500 토큰 → 개별 15~20초, 병렬이므로 최대 20초)
   const [result1a, result1b, result2] = await Promise.allSettled([
     withTimeout(deepCall1a, callTimeout),
     withTimeout(deepCall1b, callTimeout),
@@ -472,7 +472,7 @@ JSON 배열만 출력:
       });
       const featureGenResponse = await Promise.race([
         featureExtractionPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 10000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 8000)),
       ]);
       const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
       const featureMatch = featureText.match(/\[[\s\S]*\]/);
