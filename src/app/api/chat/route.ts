@@ -25,8 +25,13 @@ type ChatMode = 'quick' | 'deep';
 // ═══════════════════════════════════════════════
 //  Claude가 기능 리스트 생성
 // ═══════════════════════════════════════════════
-async function generateAIFeatures(overview: string): Promise<SelectableFeature[] | null> {
+async function generateAIFeatures(overview: string, conversationContext?: string): Promise<SelectableFeature[] | null> {
   if (!process.env.ANTHROPIC_API_KEY || !overview || overview.length < 2) return null;
+
+  // 대화 맥락이 있으면 함께 전달 — 대화에서 나온 구체적 니즈를 기능에 반영
+  const contextBlock = conversationContext
+    ? `\n\n[고객과의 대화 내용 — 이 대화에서 언급된 구체적 니즈, 문제점, 원하는 기능을 반드시 반영하세요]\n${conversationContext.slice(0, 3000)}\n`
+    : '';
 
   try {
     const response = await anthropic.messages.create({
@@ -34,9 +39,9 @@ async function generateAIFeatures(overview: string): Promise<SelectableFeature[]
       max_tokens: 1500,
       messages: [{
         role: 'user',
-        content: `서비스 설명을 분석하여 개발에 필요한 기능 리스트를 JSON 배열로 생성하세요.
+        content: `서비스 설명과 고객 대화를 분석하여 개발에 필요한 기능 리스트를 JSON 배열로 생성하세요.
 
-서비스 설명: "${overview}"
+서비스 설명: "${overview}"${contextBlock}
 
 규칙:
 1. 이 서비스에 실제로 필요한 기능만 추천 (8~15개)
@@ -45,6 +50,9 @@ async function generateAIFeatures(overview: string): Promise<SelectableFeature[]
 4. 기능명은 한국어, 간결하게
 5. 설명은 한 문장으로 핵심만
 6. 서비스와 관련 없는 기능 절대 포함 금지
+7. ★★★ 대화에서 고객이 직접 언급한 기능/니즈를 최우선으로 포함 ★★★
+8. 대화 맥락과 무관한 일반적인 기능(예: 회원가입, 관리자 대시보드 등)은 반드시 제외
+9. 고객의 비즈니스 도메인(업종, 타겟, 상황)에 특화된 기능 위주로 구성
 
 JSON 배열만 출력:
 [{"name": "기능명", "desc": "설명", "category": "must"}]`
@@ -620,6 +628,14 @@ export async function POST(req: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════
+    //  공통: 대화 맥락 구성 (기능 생성용)
+    // ═══════════════════════════════════════════════════════
+    const featureConversationCtx = messages
+      .slice(-20)
+      .map((m: { role: string; content: string }) => `${m.role === 'user' ? '고객' : 'AI PM'}: ${m.content}`)
+      .join('\n');
+
+    // ═══════════════════════════════════════════════════════
     //  공통: JSON 기능 배열 파싱 (기능 선택 완료 시)
     // ═══════════════════════════════════════════════════════
     let featureJustSubmitted = false;
@@ -661,7 +677,7 @@ export async function POST(req: NextRequest) {
           const featureSourceText = currentOverview || rfpData.overview || userText;
           if (featureSourceText && featureSourceText.length >= 2) {
             try {
-              const aiFeatures = await generateAIFeatures(featureSourceText);
+              const aiFeatures = await generateAIFeatures(featureSourceText, featureConversationCtx);
               if (aiFeatures && aiFeatures.length >= 3) {
                 selectableFeatures = aiFeatures;
               }
@@ -698,7 +714,7 @@ export async function POST(req: NextRequest) {
           const featureSourceText = rfpData.overview || userText;
           if (featureSourceText && featureSourceText.length >= 2) {
             try {
-              const aiFeatures = await generateAIFeatures(featureSourceText);
+              const aiFeatures = await generateAIFeatures(featureSourceText, featureConversationCtx);
               if (aiFeatures && aiFeatures.length >= 3) {
                 selectableFeatures = aiFeatures;
                 isComplete = false;
@@ -762,7 +778,7 @@ export async function POST(req: NextRequest) {
           const featureSourceText = currentOverview || rfpData.overview || userText;
           if (featureSourceText && featureSourceText.length >= 2) {
             try {
-              const aiFeatures = await generateAIFeatures(featureSourceText);
+              const aiFeatures = await generateAIFeatures(featureSourceText, featureConversationCtx);
               if (aiFeatures && aiFeatures.length >= 3) {
                 selectableFeatures = aiFeatures;
               }
@@ -793,7 +809,7 @@ export async function POST(req: NextRequest) {
           const featureSourceText = rfpData.overview || userText;
           if (featureSourceText && featureSourceText.length >= 2) {
             try {
-              const aiFeatures = await generateAIFeatures(featureSourceText);
+              const aiFeatures = await generateAIFeatures(featureSourceText, featureConversationCtx);
               if (aiFeatures && aiFeatures.length >= 3) {
                 selectableFeatures = aiFeatures;
                 isComplete = false;

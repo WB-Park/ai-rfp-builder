@@ -1038,7 +1038,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   // B-2: Feature priority filter
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'P0' | 'P1' | 'P2'>('all');
   // A-2: Expand/collapse all
-  const [expandAll, setExpandAll] = useState<boolean | null>(null);
+  const [expandAll, setExpandAll] = useState<boolean | null>(true);
   // (검색 기능 제거됨)
 
   // A-1: Intersection Observer for Floating TOC
@@ -1062,7 +1062,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     { icon: '📊', label: '프로젝트 데이터 분석 중...', sub: '수집된 정보를 구조화하고 있습니다' },
     { icon: '🧠', label: 'AI 기획서 초안 작성 중...', sub: '기능 명세와 아키텍처를 설계합니다' },
     { icon: '✨', label: '전문가 인사이트 생성 중...', sub: '10,000건+ 위시켓 데이터 기반 분석' },
-    { icon: '📋', label: '최종 PRD 문서 조합 중...', sub: '섹션별 검수 및 품질 보증 단계' },
+    { icon: '📋', label: '최종 제품 요구사항 정의서 조합 중...', sub: '섹션별 검수 및 품질 보증 단계' },
   ];
 
   useEffect(() => {
@@ -1550,7 +1550,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   // Generate markdown for copy
   const generateMarkdown = useCallback((d: PRDResult): string => {
-    let md = `# ${d.projectName} — PRD 기획서\n`;
+    let md = `# ${d.projectName} — 제품 요구사항 정의서(PRD)\n`;
     md += `> 문서 버전: ${d.documentMeta?.version || '1.0'} | 작성일: ${d.documentMeta?.createdAt || '-'} | ${d.documentMeta?.generatedBy || 'Wishket AI'}\n\n`;
     md += `## 1. 프로젝트 스코프\n${d.executiveSummary}\n\n`;
     if ((d.projectGoals?.length ?? 0) > 0) {
@@ -1700,7 +1700,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg, padding: 20 }}>
         <div style={{ maxWidth: 500, textAlign: 'center' }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.textPrimary, marginBottom: 12 }}>PRD 기획서 생성 실패</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.textPrimary, marginBottom: 12 }}>제품 요구사항 정의서(PRD) 생성 실패</h2>
           <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, marginBottom: 24 }}>
             기획서를 생성하는 중에 오류가 발생했습니다.
           </p>
@@ -1730,12 +1730,12 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     ...(() => {
       let n = prdData.expertInsight ? 12 : 11;
       const extra: { num: string; title: string; id: string }[] = [];
-      extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
       if ((prdData.approvalProcess?.length ?? 0) > 0) extra.push({ num: String(n++), title: '승인 프로세스', id: 'sec-approval' });
       if ((prdData.qaStrategy?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'QA 전략', id: 'sec-qa' });
       if ((prdData.apiEndpoints?.length ?? 0) > 0) extra.push({ num: String(n++), title: 'API 명세', id: 'sec-api' });
       if ((prdData.dataModel?.length ?? 0) > 0) extra.push({ num: String(n++), title: '데이터 모델', id: 'sec-datamodel' });
       if ((prdData.competitorAnalysis?.length ?? 0) > 0) extra.push({ num: String(n++), title: '경쟁 서비스 분석', id: 'sec-competitor' });
+      extra.push({ num: String(n++), title: '용어 정의', id: 'sec-glossary' });
       return extra;
     })(),
   ];
@@ -2653,27 +2653,6 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           </>
         )}
 
-        <SectionDivider />
-
-        {/* 13. Glossary */}
-        <div id="sec-glossary">
-          <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-glossary')?.num || '14')} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" id="sec-glossary" />
-          <Card style={{ padding: '28px 32px' }}>
-            <div style={{ display: 'grid', gap: 4 }}>
-              {prdData.glossary?.map((g, i) => (
-                <div key={i} style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: i < (prdData.glossary?.length || 0) - 1 ? `1px solid ${C.borderLight}` : 'none', alignItems: 'baseline' }}>
-                  <span style={{
-                    fontWeight: 700, fontSize: 13, color: C.blue,
-                    minWidth: 90, fontFamily: '"SF Mono", Monaco, monospace',
-                    background: C.blueBg, padding: '3px 8px', borderRadius: 4,
-                  }}>{g.term}</span>
-                  <span style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, flex: 1 }}>{g.definition}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
         {(prdData.apiEndpoints?.length ?? 0) > 0 && <SectionDivider />}
 
         {/* ━━ FORGE v2: API Endpoints ━━ */}
@@ -2781,6 +2760,27 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             </div>
           </div>
         )}
+
+        <SectionDivider />
+
+        {/* Glossary — API명세/데이터모델/경쟁분석 뒤에 배치 */}
+        <div id="sec-glossary">
+          <SectionHeaderAnchored number={String(tocSections.find(s => s.id === 'sec-glossary')?.num || '14')} title="용어 정의" subtitle="본 문서에서 사용되는 주요 용어" id="sec-glossary" />
+          <Card style={{ padding: '28px 32px' }}>
+            <div style={{ display: 'grid', gap: 4 }}>
+              {prdData.glossary?.map((g, i) => (
+                <div key={i} style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: i < (prdData.glossary?.length || 0) - 1 ? `1px solid ${C.borderLight}` : 'none', alignItems: 'baseline' }}>
+                  <span style={{
+                    fontWeight: 700, fontSize: 13, color: C.blue,
+                    minWidth: 90, fontFamily: '"SF Mono", Monaco, monospace',
+                    background: C.blueBg, padding: '3px 8px', borderRadius: 4,
+                  }}>{g.term}</span>
+                  <span style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, flex: 1 }}>{g.definition}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
 
         {/* Reference & Additional */}
         {prdData.referenceServices && prdData.referenceServices !== '해당 없음' && (
@@ -2915,7 +2915,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 신청이 완료되었습니다!
               </h3>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.6 }}>
-                위시켓 전문 매니저가 PRD를 검토한 뒤,<br />
+                위시켓 전문 매니저가 제품 요구사항 정의서를 검토한 뒤,<br />
                 프로젝트에 가장 적합한 개발 파트너를 추천해 드리겠습니다.
               </p>
             </div>
@@ -2929,7 +2929,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 ⚡ 무료 · 평균 3일 이내 매칭
               </div>
               <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
-                이 PRD에 딱 맞는 개발 파트너를 찾아보세요
+                이 정의서에 딱 맞는 개발 파트너를 찾아보세요
               </h3>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
                 위시켓에 등록된 10,000+ 검증된 개발사/프리랜서 중<br />
@@ -2996,7 +2996,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 </button>
               </div>
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-                <span>✓ PRD 자동 첨부</span>
+                <span>✓ 정의서 자동 첨부</span>
                 <span>✓ 평균 3건 추천</span>
                 <span>✓ 수수료 0원</span>
               </div>
