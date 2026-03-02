@@ -2661,7 +2661,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           </div>
           {/* 전제 조건 & 제약사항 — 비기능 섹션 하위로 통합 */}
           <div style={{ marginTop: 14 }} className="prd-two-col" id="sec-assumptions">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
               <Card>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary, margin: '0 0 14px 0' }}>📌 전제 조건 (Assumptions)</h3>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>

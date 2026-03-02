@@ -663,7 +663,7 @@ export default function SharedPRDView({ rfpDocument, projectName, shareId, viewC
 
         {/* 10. Assumptions & Constraints */}
         <SectionHeader number="10" title="전제 조건 & 제약사항" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
           <Card>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, margin: '0 0 12px 0' }}>📌 전제 조건</h3>
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
