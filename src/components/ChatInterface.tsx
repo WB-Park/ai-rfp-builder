@@ -342,7 +342,8 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
       const finalMessages = [...newMessages, assistantMsg];
       setMessages(finalMessages);
 
-      if (data.selectableFeatures && data.selectableFeatures.length > 0) {
+      // ★★★ 기능 리스트: featureSelectorShown이 이미 true이거나, coreFeatures가 이미 있으면 무시
+      if (data.selectableFeatures && data.selectableFeatures.length > 0 && !featureSelectorShown && updatedRfpData.coreFeatures.length === 0) {
         const initialSelection: Record<string, boolean> = {};
         for (const f of data.selectableFeatures) {
           initialSelection[f.name] = f.category === 'must';

@@ -816,14 +816,15 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Deep 전용: 기능 선택 UI — Quick mode의 게이트 시스템 대신
-        // AI의 readyToDefineFeatures 판단 + 대화 깊이로 결정
+        // Deep 전용: 기능 선택 UI
+        // ★ 5중 게이트: 하나라도 실패하면 기능 리스트 표시 안 함
         let selectableFeatures: SelectableFeature[] | null = null;
-        const shouldShowFeatures = !featureSelectorAlreadyShown
-          && !featureJustSubmitted
-          && rfpData.coreFeatures.length === 0
-          && aiResult.readyToDefineFeatures
-          && turnCount >= 3;  // 최소 3턴 이상 대화 후
+        const shouldShowFeatures = !featureSelectorAlreadyShown  // 1. 이전에 표시한 적 없음
+          && !featureJustSubmitted                                // 2. 방금 기능 제출하지 않음
+          && rfpData.coreFeatures.length === 0                    // 3. 기능이 아직 없음
+          && aiResult.readyToDefineFeatures                       // 4. AI가 준비됐다고 판단
+          && turnCount >= 3                                       // 5. 최소 3턴
+          && !featureSubmitUpdate;                                 // 6. 이번 턴에 기능 JSON 파싱된 적 없음
 
         if (shouldShowFeatures) {
           const featureConversationCtx = messages
@@ -845,7 +846,7 @@ export async function POST(req: NextRequest) {
         let isComplete = aiResult.conversationComplete;
 
         // 안전장치: 완료 시 기능 미수집이면 기능 선택 먼저
-        if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures && !featureSelectorAlreadyShown && !featureJustSubmitted) {
+        if (isComplete && rfpData.coreFeatures.length === 0 && !selectableFeatures && !featureSelectorAlreadyShown && !featureJustSubmitted && !featureSubmitUpdate) {
           const featureConversationCtx = messages
             .slice(-20)
             .map((m: { role: string; content: string }) => `${m.role === 'user' ? '고객' : 'PM'}: ${m.content}`)
