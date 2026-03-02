@@ -919,9 +919,22 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                   )}
                 </div>
 
-                {/* Inline options + 직접입력 버튼 */}
+                {/* Inline options + 모두 + 잘 모르겠음 + PRD 작성하기 칩 */}
                 {msg.role === 'assistant' && i === messages.length - 1 && !loading && !isComplete && (
                   <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {/* "모두" 칩 — 선택지가 2개 이상일 때만 표시 */}
+                    {msg.inlineOptions && msg.inlineOptions.length >= 2 && (
+                      <button onClick={() => sendMessage(msg.inlineOptions!.join(', '))} style={{
+                        padding: '7px 14px', borderRadius: 20,
+                        border: '1.5px solid var(--color-primary)',
+                        background: 'var(--color-primary)', color: 'white',
+                        fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-kr)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                      >모두</button>
+                    )}
                     {msg.inlineOptions && msg.inlineOptions.length > 0 && msg.inlineOptions.map((option, oi) => (
                       <button key={oi} onClick={() => sendMessage(option)} style={{
                         padding: '7px 14px', borderRadius: 20,
@@ -934,6 +947,19 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-primary)'; }}
                       >{option}</button>
                     ))}
+                    {/* "잘 모르겠음" 칩 — 선택지가 있을 때만 */}
+                    {msg.inlineOptions && msg.inlineOptions.length > 0 && (
+                      <button onClick={() => sendMessage('잘 모르겠어요, 추천해주세요')} style={{
+                        padding: '7px 14px', borderRadius: 20,
+                        border: '1.5px dashed var(--text-quaternary)',
+                        background: 'transparent', color: 'var(--text-quaternary)',
+                        fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+                      >잘 모르겠음</button>
+                    )}
                     <button onClick={() => {
                       const el = inputRef.current;
                       if (el) {
@@ -960,36 +986,37 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                       </svg>
                       직접 입력하기
                     </button>
-                    {(
-                      <button onClick={() => sendMessage('건너뛰기')} style={{
-                        padding: '7px 14px', borderRadius: 20,
-                        border: '1.5px dashed var(--text-quaternary)',
-                        background: 'transparent', color: 'var(--text-quaternary)',
-                        fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
-                        cursor: 'pointer', transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
-                      >건너뛰기</button>
-                    )}
-                    {canComplete && (
+                    <button onClick={() => sendMessage('건너뛰기')} style={{
+                      padding: '7px 14px', borderRadius: 20,
+                      border: '1.5px dashed var(--text-quaternary)',
+                      background: 'transparent', color: 'var(--text-quaternary)',
+                      fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-kr)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--text-quaternary)'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+                    >건너뛰기</button>
+                    {/* "PRD 작성하기" 상시 칩 — 유저 메시지 3개 이상 + overview 있으면 항상 표시 */}
+                    {messages.filter(m => m.role === 'user').length >= 3 && rfpData.overview && (
                       <button onClick={() => setIsComplete(true)} style={{
                         padding: '7px 16px', borderRadius: 20,
                         border: 'none',
-                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
+                        background: canComplete
+                          ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))'
+                          : 'linear-gradient(135deg, #F59E0B, #FBBF24)',
                         color: 'white',
                         fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-kr)',
                         cursor: 'pointer', transition: 'all 0.15s',
-                        boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+                        boxShadow: canComplete ? '0 2px 8px rgba(37,99,235,0.25)' : '0 2px 8px rgba(245,158,11,0.25)',
                         display: 'flex', alignItems: 'center', gap: 4,
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.35)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(37,99,235,0.25)'; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-                        PRD 완성하기
+                        {canComplete ? 'PRD 완성하기' : '여기까지 PRD 작성하기'}
                       </button>
                     )}
                   </div>
@@ -1257,16 +1284,16 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
                     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </button>
-                {canComplete && !isComplete && (
+                {!isComplete && messages.filter(m => m.role === 'user').length >= 3 && rfpData.overview && (
                   <button onClick={() => setIsComplete(true)} disabled={loading}
                     style={{
                       background: 'none', border: 'none',
-                      fontSize: 11, color: '#F59E0B', fontWeight: 600,
+                      fontSize: 11, color: canComplete ? 'var(--color-primary)' : '#F59E0B', fontWeight: 600,
                       cursor: 'pointer', padding: '4px', whiteSpace: 'nowrap',
                       transition: 'color var(--duration-fast)',
                     }}
                   >
-                    완성하기
+                    {canComplete ? '완성하기' : 'PRD 작성'}
                   </button>
                 )}
               </div>
