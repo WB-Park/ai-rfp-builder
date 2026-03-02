@@ -119,16 +119,17 @@ async function generateDeepModePRD(
 
   console.log(`[DEEP PRD] Timeout budget: elapsed=${elapsed}ms, callTimeout=${callTimeout}ms`);
 
-  // Deep mode: 대화 컨텍스트를 최대한 활용 (10000자까지 — 프롬프트 오버헤드 고려)
-  const fullConversation = conversationContext.slice(0, 10000);
+  // Deep mode: 대화 컨텍스트 (6000자 — API 응답 속도와 품질 균형)
+  const fullConversation = conversationContext.slice(0, 6000);
   const projectInfo = `서비스: ${rfpData.overview || '(미입력)'}\n타겟: ${rfpData.targetUsers || '(미입력)'}\n기능:\n${featureList || '(미입력)'}\n참고: ${rfpData.referenceServices || '없음'}\n기술: ${rfpData.techRequirements || '없음'}\n추가: ${rfpData.additionalRequirements || '없음'}`;
 
   console.log(`[DEEP PRD] Starting. Conversation: ${fullConversation.length} chars, Features: ${features.length}`);
 
   // ── Deep Call 1: 핵심 분석 (전략+인사이트+구조화 데이터 통합) ──
+  // max_tokens 8000: 20개+ 필드의 상세 내용을 모두 생성하려면 4096으로는 부족
   const deepCall1 = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
+    max_tokens: 8000,
     system: `당신은 위시켓 13년차 수석 IT 컨설턴트입니다. 고객 인터뷰를 기반으로 PRD를 작성합니다.
 반드시 유효한 JSON만 출력하세요. 마크다운/추가 텍스트 절대 금지.
 대화에서 나온 정보만 사용하고, 대화에 없는 내용은 생성하지 마세요.`,
@@ -161,10 +162,13 @@ async function generateDeepModePRD(
       console.error(`[DEEP PRD] Call failed:`, result.status === 'rejected' ? result.reason?.message : 'unknown');
       return {};
     }
+    const stopReason = result.value.stop_reason;
     const content = result.value.content[0];
     if (content.type !== 'text') return {};
     const text = content.text;
-    // JSON 추출: 가장 바깥쪽 {} 찾기
+    console.log(`[DEEP PRD] Response: ${text.length} chars, stop_reason=${stopReason}`);
+
+    // 1차: 완전한 JSON 추출 (가장 바깥쪽 {} 찾기)
     let depth = 0, start = -1;
     for (let i = 0; i < text.length; i++) {
       if (text[i] === '{') { if (start === -1) start = i; depth++; }
@@ -172,7 +176,30 @@ async function generateDeepModePRD(
         try { return JSON.parse(text.slice(start, i + 1)); } catch { /* continue scanning */ start = -1; }
       }}
     }
-    // Fallback: regex
+
+    // 2차: max_tokens로 잘린 경우 → 열린 중괄호 닫아서 복구 시도
+    if (stopReason === 'max_tokens' && start !== -1 && depth > 0) {
+      console.log(`[DEEP PRD] Truncated JSON detected (depth=${depth}). Attempting recovery...`);
+      let truncated = text.slice(start);
+      // 마지막 완전한 값 뒤에서 자르기 (불완전한 문자열/값 제거)
+      const lastComplete = truncated.lastIndexOf('",');
+      if (lastComplete > truncated.length * 0.5) {
+        truncated = truncated.slice(0, lastComplete + 1);
+      }
+      // 열린 배열/객체 닫기
+      for (let i = 0; i < depth; i++) truncated += '}';
+      // 열린 배열 닫기
+      const openBrackets = (truncated.match(/\[/g) || []).length;
+      const closeBrackets = (truncated.match(/\]/g) || []).length;
+      for (let i = 0; i < openBrackets - closeBrackets; i++) truncated += ']';
+      try {
+        const recovered = JSON.parse(truncated);
+        console.log(`[DEEP PRD] ✅ Recovered truncated JSON (${Object.keys(recovered).length} keys)`);
+        return recovered;
+      } catch (e) { console.error(`[DEEP PRD] Recovery failed:`, (e as Error).message); }
+    }
+
+    // 3차: regex fallback
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) { console.error(`[DEEP PRD] No JSON found in response (${text.length} chars)`); return {}; }
     try { return JSON.parse(match[0]); } catch (e) { console.error(`[DEEP PRD] JSON parse failed:`, (e as Error).message); return {}; }

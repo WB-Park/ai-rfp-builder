@@ -48,12 +48,16 @@ export async function POST(req: NextRequest) {
     }
 
     // rfp_sessions 테이블에 messages/rfpData 저장 (기존 세션이면 업데이트)
+    // ★ JSONB 컬럼에는 객체/배열을 직접 전달 (JSON.stringify 하면 이중 인코딩됨)
+    const parsedMessages = typeof messages === 'string' ? JSON.parse(messages) : (messages || []);
+    const parsedRfpData = typeof rfpData === 'string' ? JSON.parse(rfpData) : (rfpData || {});
+
     const { error } = await supabase
       .from('rfp_sessions')
       .update({
-        messages: JSON.stringify(messages || []),
+        messages: parsedMessages,
         current_step: currentStep || 1,
-        rfp_data: typeof rfpData === 'string' ? rfpData : JSON.stringify(rfpData || {}),
+        rfp_data: parsedRfpData,
         updated_at: new Date().toISOString(),
       })
       .eq('id', sessionId);
