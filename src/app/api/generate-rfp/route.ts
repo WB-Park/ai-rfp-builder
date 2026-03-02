@@ -454,15 +454,10 @@ JSON 배열만 출력:
     try {
       return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now, globalStartTime);
     } catch (deepError: any) {
-      const elapsedAfterDeep = Date.now() - globalStartTime;
-      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}) after ${elapsedAfterDeep}ms`);
-      // Vercel 60초 제한: Deep mode에서 이미 45초 이상 소요했으면 Quick mode 시도 불가
-      if (elapsedAfterDeep > 45000) {
-        console.error(`[generate-rfp] ⚠️ No time for Quick mode fallback (${elapsedAfterDeep}ms elapsed). Using minimal fallback.`);
-        return generateMinimalFallback(rfpData);
-      }
-      console.log(`[generate-rfp] Falling back to Quick mode (${55000 - elapsedAfterDeep}ms remaining)`);
-      // Quick mode 폴백 — 남은 시간에 맞춰 타임아웃 조정 (아래에서 처리)
+      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}) after ${Date.now() - globalStartTime}ms`);
+      // Deep mode 실패 시 Quick mode로 폴백하지 않음 — 목적이 완전히 다른 기능
+      // 에러를 그대로 throw하여 클라이언트에서 "다시 생성하기" 유도
+      throw deepError;
     }
   }
 
@@ -1076,7 +1071,16 @@ export async function POST(req: NextRequest) {
       try {
         result = await generateFullAIPRD(rfpData, chatMessages, chatMode);
       } catch (aiError: any) {
-        console.error('AI PRD generation failed, using fallback:', aiError?.message || aiError);
+        console.error('AI PRD generation failed:', aiError?.message || aiError);
+        // Deep mode 실패 시: Quick mode 폴백 없이 에러 반환 → 클라이언트에서 재시도 유도
+        if (chatMode === 'deep') {
+          return NextResponse.json({
+            error: 'Deep mode PRD 생성에 실패했습니다. 다시 시도해주세요.',
+            errorCode: 'DEEP_MODE_FAILED',
+            retryable: true,
+          }, { status: 500 });
+        }
+        // Quick mode 실패 시에만 minimal fallback
         result = generateMinimalFallback(rfpData);
       }
     } else {
