@@ -381,8 +381,8 @@ function PriorityBadge({ priority, label }: { priority: string; label: string })
 }
 
 // ━━━━━ Feature Detail (Redesigned — Full-width Pro Layout) ━━━━━
-function FeatureDetail({ feature, index }: { feature: any; index: string }) {
-  const [expanded, setExpanded] = useState(false);
+function FeatureDetail({ feature, index, defaultExpanded }: { feature: any; index: string; defaultExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(defaultExpanded || false);
   const hasDetail = ((feature.subFeatures?.length ?? 0) > 0) || feature.userFlow || ((feature.screenSpecs?.length ?? 0) > 0) || ((feature.acceptanceCriteria?.length ?? 0) > 0);
 
   return (
@@ -648,7 +648,7 @@ const ModuleCard = memo(function ModuleCard({ module, forceExpand }: { module: a
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.border}`, padding: '18px 20px', background: 'rgba(248,250,252,0.5)' }}>
           {module.features?.map((feature: any, idx: number) => (
-            <FeatureDetail key={idx} feature={feature} index={feature.id || `${module.priority}-${idx + 1}`} />
+            <FeatureDetail key={idx} feature={feature} index={feature.id || `${module.priority}-${idx + 1}`} defaultExpanded={idx === 0} />
           ))}
         </div>
       )}
@@ -783,14 +783,18 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: stri
         height: 56, gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
+          <div style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs><linearGradient id="stickyTopBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#2563EB"/><stop offset="100%" stopColor="#1D4ED8"/></linearGradient></defs>
+              <rect width="32" height="32" rx="8" fill="url(#stickyTopBg)"/>
+              <rect x="8" y="5" width="16" height="20" rx="2" fill="white" opacity="0.95"/>
+              <path d="M20 5L24 9H20V5Z" fill="#BFDBFE"/>
+              <rect x="11" y="10" width="10" height="1.5" rx="0.75" fill="#2563EB" opacity="0.7"/>
+              <rect x="11" y="13.5" width="8" height="1.2" rx="0.6" fill="#93C5FD"/>
+              <rect x="11" y="16.5" width="9" height="1.2" rx="0.6" fill="#93C5FD"/>
+              <rect x="11" y="19.5" width="6" height="1.2" rx="0.6" fill="#93C5FD"/>
+              <circle cx="24" cy="22" r="5" fill="#F59E0B"/>
+              <path d="M24 18.5L24.8 21.2L27.5 22L24.8 22.8L24 25.5L23.2 22.8L20.5 22L23.2 21.2Z" fill="white"/>
             </svg>
           </div>
           <span style={{
@@ -1036,6 +1040,14 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   const [prdData, setPrdData] = useState<PRDResult | null>(initialPrd);
   const [loading, setLoading] = useState(!initialPrd);
+
+  // 결과페이지 타이틀 동적 변경 — 문서 이름을 브라우저 탭에 반영
+  useEffect(() => {
+    if (prdData?.projectName) {
+      document.title = `${prdData.projectName} — PRD 기획서 | 위시켓`;
+    }
+    return () => { document.title = 'AI PRD 빌더 | 위시켓'; };
+  }, [prdData?.projectName]);
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [sharing, setSharing] = useState(false);
@@ -1412,10 +1424,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         });
       }
 
-      // 8. 일정 계획
+      // 8. 예상 일정 (참고용)
       if ((d.timeline?.length ?? 0) > 0) {
         body.push(pageBreak());
-        body.push(h1('8', '일정 계획'));
+        body.push(h1('8', '예상 일정 (참고용)'));
         body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
           new TableRow({ children: [hCell('단계', 25), hCell('기간', 15), hCell('산출물', 60)] }),
           ...d.timeline.map(t => new TableRow({ children: [
@@ -1618,7 +1630,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       md += `### ${n.category}\n`;
       n.items?.forEach(item => { md += `- ${item}\n`; });
     });
-    md += `\n## 8. 일정 계획\n`;
+    md += `\n## 8. 예상 일정 (참고용)\n`;
     md += `| 단계 | 기간 | 산출물 |\n|------|------|--------|\n`;
     d.timeline?.forEach(t => { md += `| ${t.phase} | ${t.duration} | ${t.deliverables.join(', ')} |\n`; });
     md += `\n## 9. 전제 조건 & 제약사항\n`;
@@ -1757,7 +1769,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     { num: '8', title: '핵심 기능 요구사항', id: 'sec-features' },
     { num: '9', title: '성공 지표 프레임워크', id: 'sec-goals' },
     { num: '10', title: '기술 스택', id: 'sec-tech' },
-    { num: '11', title: '구현 전략 & 로드맵', id: 'sec-timeline' },
+    { num: '11', title: '구현 전략 & 예상 로드맵', id: 'sec-timeline' },
     { num: '12', title: '리스크 관리', id: 'sec-risks' },
     ...(prdData.expertInsight ? [{ num: '13', title: 'PM 전문가 인사이트', id: 'sec-expert' }] : []),
     ...((prdData.deepModeInsights?.decisionLog?.length ?? 0) > 0 ? [{ num: '14', title: '의사결정 로그', id: 'sec-decisions' }] : []),
@@ -1782,7 +1794,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     { num: '6', title: '성공 지표', id: 'sec-goals' },
     { num: '7', title: '기술 스택', id: 'sec-tech' },
     { num: '8', title: '비기능적 요구사항 & 제약조건', id: 'sec-nfr' },
-    { num: '9', title: 'MVP 및 로드맵', id: 'sec-timeline' },
+    { num: '9', title: '예상 일정 & 로드맵', id: 'sec-timeline' },
     { num: '10', title: '리스크 관리', id: 'sec-risks' },
     ...(prdData.expertInsight ? [{ num: '11', title: '전문가 인사이트', id: 'sec-expert' }] : []),
     ...(() => {
@@ -2690,7 +2702,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         {/* 9. Timeline */}
         <div id="sec-timeline">
-          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-timeline')?.num || '9'} title={isDeepMode ? '구현 전략 & 로드맵' : 'MVP 및 로드맵'} subtitle="단계별 출시 계획 및 산출물" id="sec-timeline" />
+          <SectionHeaderAnchored number={tocSections.find(s => s.id === 'sec-timeline')?.num || '9'} title={isDeepMode ? '구현 전략 & 예상 로드맵 (참고용)' : '예상 일정 & 로드맵 (참고용)'} subtitle="프로젝트 규모 기반 참고 일정 · 실제 일정은 개발사 협의 후 확정" id="sec-timeline" />
           {/* B-3: Gantt Chart */}
           <GanttChart timeline={prdData.timeline} />
           <Card>
@@ -2728,6 +2740,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   </div>
                 </div>
               ))}
+            </div>
+            <div style={{ marginTop: 16, padding: '10px 14px', background: '#FEF3C7', borderRadius: 8, fontSize: 12, color: '#92400E', lineHeight: 1.5 }}>
+              💡 위 일정은 프로젝트 규모와 유사 프로젝트 데이터를 기반으로 AI가 산출한 <strong>참고용 예상 일정</strong>입니다. 실제 개발 일정은 개발사와의 협의를 통해 확정해주세요.
             </div>
           </Card>
           {/* Deep mode: 구현 전략 */}

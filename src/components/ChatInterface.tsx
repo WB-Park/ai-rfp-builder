@@ -1037,12 +1037,20 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
               {msg.role === 'assistant' && (
                 <div style={{
                   width: 32, height: 32, borderRadius: 'var(--radius-sm)',
-                  background: 'var(--color-primary-alpha)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden',
                   marginRight: 'var(--space-sm)', flexShrink: 0, marginTop: 2,
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs><linearGradient id="chatBotBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#2563EB"/><stop offset="100%" stopColor="#1D4ED8"/></linearGradient></defs>
+                    <rect width="32" height="32" rx="8" fill="url(#chatBotBg)"/>
+                    <rect x="8" y="5" width="16" height="20" rx="2" fill="white" opacity="0.95"/>
+                    <path d="M20 5L24 9H20V5Z" fill="#BFDBFE"/>
+                    <rect x="11" y="10" width="10" height="1.5" rx="0.75" fill="#2563EB" opacity="0.7"/>
+                    <rect x="11" y="13.5" width="8" height="1.2" rx="0.6" fill="#93C5FD"/>
+                    <rect x="11" y="16.5" width="9" height="1.2" rx="0.6" fill="#93C5FD"/>
+                    <rect x="11" y="19.5" width="6" height="1.2" rx="0.6" fill="#93C5FD"/>
+                    <circle cx="24" cy="22" r="5" fill="#F59E0B"/>
+                    <path d="M24 18.5L24.8 21.2L27.5 22L24.8 22.8L24 25.5L23.2 22.8L20.5 22L23.2 21.2Z" fill="white"/>
                   </svg>
                 </div>
               )}
