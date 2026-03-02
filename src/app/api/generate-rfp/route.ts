@@ -119,41 +119,51 @@ async function generateDeepModePRD(
 
   console.log(`[DEEP PRD] Timeout budget: elapsed=${elapsed}ms, callTimeout=${callTimeout}ms`);
 
-  // Deep mode: 대화 컨텍스트 (6000자 — API 응답 속도와 품질 균형)
-  const fullConversation = conversationContext.slice(0, 6000);
-  const projectInfo = `서비스: ${rfpData.overview || '(미입력)'}\n타겟: ${rfpData.targetUsers || '(미입력)'}\n기능:\n${featureList || '(미입력)'}\n참고: ${rfpData.referenceServices || '없음'}\n기술: ${rfpData.techRequirements || '없음'}\n추가: ${rfpData.additionalRequirements || '없음'}`;
+  // Deep mode: 대화 컨텍스트 (5000자 — 속도 최적화)
+  const fullConversation = conversationContext.slice(0, 5000);
+  const projectInfo = `서비스: ${rfpData.overview || '(미입력)'}\n타겟: ${rfpData.targetUsers || '(미입력)'}\n기능:\n${featureList || '(미입력)'}`;
 
   console.log(`[DEEP PRD] Starting. Conversation: ${fullConversation.length} chars, Features: ${features.length}`);
 
-  // ── Deep Call 1: 핵심 분석 (전략+인사이트+구조화 데이터 통합) ──
-  // max_tokens 8000: 20개+ 필드의 상세 내용을 모두 생성하려면 4096으로는 부족
-  const deepCall1 = anthropic.messages.create({
+  // ── 3개 병렬 호출 (각 max_tokens: 4096 → 30초 이내 완료) ──
+
+  // Call 1a: 핵심 PRD 구조 (executiveSummary, goals, personas, timeline 등)
+  const deepCall1a = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 8000,
-    system: `당신은 위시켓 13년차 수석 IT 컨설턴트입니다. 고객 인터뷰를 기반으로 PRD를 작성합니다.
-반드시 유효한 JSON만 출력하세요. 마크다운/추가 텍스트 절대 금지.
-대화에서 나온 정보만 사용하고, 대화에 없는 내용은 생성하지 마세요.`,
+    max_tokens: 4096,
+    system: `위시켓 수석 IT 컨설턴트. 고객 인터뷰 기반 PRD 작성. 유효한 JSON만 출력. 마크다운 금지. 대화 근거만 사용.`,
     messages: [{
       role: 'user',
-      content: `[고객 인터뷰]\n${fullConversation}\n\n[프로젝트 정보]\n${projectInfo}\n\n위 대화를 분석하여 아래 JSON을 생성하세요. 모든 내용은 대화에서 근거를 찾아 작성하세요.\n\n{"projectName":"서비스 본질이 드러나는 15자 이내 프로젝트명","executiveSummary":"600자 이상. 1문단:프로젝트 핵심 정의, 2문단:고객이 시작하게 된 배경(대화기반), 3문단:핵심 기능 범위, 4문단:차별점과 가치제안(대화에서 고객이 강조한 포인트)","problemSolutionFit":"400자 이상. 고객이 설명한 현재 문제→제안하는 해결방식→적합성 근거(대화기반)","targetUsersAnalysis":"400자 이상. Primary/Secondary 사용자, 행동패턴, Pain Point(대화에서 고객이 설명한 내용 기반)","strategicNarrative":"600자 이상. 프로젝트가 해결하는 본질적 문제, 고객의 비전과 열망, 전략적 방향(대화기반 스토리텔링)","customerVoiceHighlights":[{"quote":"고객 핵심 발언 요약","insight":"제품 인사이트","implication":"PRD 시사점"}],"marketContext":"대화에서 고객이 언급한 시장/경쟁 정보만. 언급없으면 '직접적 언급 없음'","expertInsight":"800자 이상. 위시켓PM: (1)성공요인TOP3(수치포함) (2)실패패턴TOP3 (3)개발사선정체크리스트5개 (4)예산최적화3개 (5)계약필수조항3개 (6)PM추천사항","projectGoals":[{"goal":"구체적 목표","metric":"SMART 측정지표"}],"userPersonas":[{"name":"한국이름","role":"직업+나이+상황","needs":"구체적 니즈","painPoints":"현재 문제점"}],"timeline":[{"phase":"단계명","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"프로젝트특화 위험","impact":"높음/중간/낮음","mitigation":"구체적 대응책","probability":"높음/중간/낮음"}],"techStack":[{"category":"분류","tech":"기술명","rationale":"선택 근거"}],"competitorAnalysis":[{"name":"서비스명","strengths":"강점","weaknesses":"약점","differentiation":"차별점"}],"assumptions":["대화에서 파악된 전제만"],"constraints":["대화에서 고객이 언급한 제약만"],"scopeExclusions":["고객이 명시적으로 제외한 것만"],"decisionLog":[{"decision":"결정사항","rationale":"근거","alternatives":"대안"}],"mvpRationale":"300자 이상. MVP 범위 선정 근거(대화기반)","implementationStrategy":"300자 이상. 최적 구현 전략","successFramework":[{"category":"비즈니스/사용자/기술/운영","baseline":"현재상태","target":"6개월목표","stretch":"12개월목표"}],"glossary":[{"term":"용어","definition":"설명"}]}\n\ncustomerVoiceHighlights:5~8개, projectGoals:4~6개, userPersonas:2~4명, timeline:5단계, risks:5~7개, techStack:4~6개, successFramework:4개, glossary:8~12개.`
+      content: `[고객 인터뷰]\n${fullConversation}\n\n[프로젝트 정보]\n${projectInfo}\n\n아래 JSON 생성:\n{"projectName":"15자 이내 프로젝트명","executiveSummary":"300자. 핵심정의+배경+기능범위+차별점","problemSolutionFit":"200자. 현재문제→해결방식→적합성","targetUsersAnalysis":"200자. 사용자 유형+Pain Point","expertInsight":"400자. 위시켓PM의 (1)성공요인3개 (2)실패패턴3개 (3)개발사선정팁3개 (4)PM추천사항","projectGoals":[{"goal":"목표","metric":"측정지표"}],"userPersonas":[{"name":"이름","role":"역할","needs":"니즈","painPoints":"문제점"}],"timeline":[{"phase":"단계","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"위험","impact":"높음/중간/낮음","mitigation":"대응책","probability":"높음/중간/낮음"}],"techStack":[{"category":"분류","tech":"기술명","rationale":"근거"}],"competitorAnalysis":[{"name":"서비스","strengths":"강점","weaknesses":"약점","differentiation":"차별점"}],"assumptions":["전제"],"constraints":["제약"],"scopeExclusions":["제외사항"],"glossary":[{"term":"용어","definition":"설명"}]}\n\nprojectGoals:3~5개, userPersonas:2~3명, timeline:4단계, risks:4~5개, techStack:3~5개, glossary:5~8개.`
     }],
   });
 
-  // ── Deep Call 2: 기능 상세 명세 ──
+  // Call 1b: Deep mode 프리미엄 인사이트
+  const deepCall1b = anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    system: `위시켓 수석 컨설턴트. 고객 인터뷰에서 전략적 인사이트 추출. 유효한 JSON만 출력. 대화 근거만 사용.`,
+    messages: [{
+      role: 'user',
+      content: `[고객 인터뷰]\n${fullConversation}\n\n[프로젝트]: ${rfpData.overview || ''}\n\n아래 JSON 생성:\n{"strategicNarrative":"400자. 프로젝트의 본질적 문제, 고객 비전, 전략적 방향을 스토리텔링","customerVoiceHighlights":[{"quote":"고객 핵심 발언","insight":"인사이트","implication":"PRD 시사점"}],"decisionLog":[{"decision":"결정사항","rationale":"근거","alternatives":"대안"}],"mvpRationale":"200자. MVP 범위 선정 근거","implementationStrategy":"200자. 최적 구현 전략","successFramework":[{"category":"카테고리","baseline":"현재","target":"6개월목표","stretch":"12개월목표"}],"problemSolutionFit_detail":"200자. 문제-해결 적합성 상세","marketContext":"대화에서 언급된 시장정보. 없으면 '직접 언급 없음'"}\n\ncustomerVoiceHighlights:4~6개, decisionLog:3~5개, successFramework:4개(비즈니스/사용자/기술/운영).`
+    }],
+  });
+
+  // Call 2: 기능 상세 명세
   const deepCall2 = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
-    system: `시니어 소프트웨어 아키텍트입니다. 고객 인터뷰 기반으로 기능 명세를 작성합니다.
-반드시 유효한 JSON만 출력. 마크다운 금지.`,
+    system: `시니어 소프트웨어 아키텍트. 고객 인터뷰 기반 기능 명세. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
-      content: `[고객 인터뷰]\n${fullConversation.slice(0, 6000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n[타겟]: ${rfpData.targetUsers || ''}\n\n[기능 목록]\n${featureList}\n\n각 기능의 상세 명세를 JSON으로 작성하세요. 대화에서 고객이 강조한 기능은 2배 상세하게.\n\n{"featureSpecs":[{"name":"기능명(위 목록과 일치)","description":"대화맥락 반영 설명 3~4문장","subFeatures":["서브기능 5~8개"],"acceptanceCriteria":["수용기준 4~6개(측정가능)"],"userFlow":"[시작]→[단계1]→[분기]\\n├─✓성공→[결과]\\n└─✗실패→[처리]","screenSpecs":[{"id":"SCR-001","name":"화면명","purpose":"목적","elements":["UI요소 5~8개"],"scenarios":[["시나리오","사전조건","동작","반응","✓/✗"]]}],"businessRules":["규칙 3~5개(수치/조건 필수)"],"dataEntities":[{"name":"테이블명","fields":"컬럼(타입포함)"}],"errorCases":["에러 3~5개"],"estimatedManDays":0,"dependencies":[]}]}`
+      content: `[고객 인터뷰]\n${fullConversation.slice(0, 4000)}\n\n[프로젝트]: ${rfpData.overview || ''}\n[기능 목록]\n${featureList}\n\n각 기능의 명세를 JSON으로:\n{"featureSpecs":[{"name":"기능명(위 목록 일치)","description":"설명 2~3문장","subFeatures":["서브기능 4~6개"],"acceptanceCriteria":["수용기준 3~4개"],"userFlow":"[시작]→[단계]→[결과]","screenSpecs":[{"id":"SCR-001","name":"화면명","purpose":"목적","elements":["UI요소 4~6개"],"scenarios":[["시나리오","조건","동작","반응","✓/✗"]]}],"businessRules":["규칙 2~3개"],"dataEntities":[{"name":"테이블명","fields":"컬럼"}],"errorCases":["에러 2~3개"],"estimatedManDays":0,"dependencies":[]}]}`
     }],
   });
 
-  // 2개 호출 병렬 (동적 타임아웃)
-  const [result1, result2] = await Promise.allSettled([
-    withTimeout(deepCall1, callTimeout),
+  // 3개 병렬 (각 4096 토큰 → 개별 25~35초, 병렬이므로 최대 35초)
+  const [result1a, result1b, result2] = await Promise.allSettled([
+    withTimeout(deepCall1a, callTimeout),
+    withTimeout(deepCall1b, callTimeout),
     withTimeout(deepCall2, callTimeout),
   ]);
 
@@ -205,18 +215,27 @@ async function generateDeepModePRD(
     try { return JSON.parse(match[0]); } catch (e) { console.error(`[DEEP PRD] JSON parse failed:`, (e as Error).message); return {}; }
   }
 
-  const data1 = parseResult(result1);
+  const data1a = parseResult(result1a);
+  const data1b = parseResult(result1b);
   const data2 = parseResult(result2);
 
-  const call1Keys = Object.keys(data1);
-  const call2Specs = (data2.featureSpecs || []).length;
-  console.log(`[DEEP PRD] Call1 keys(${call1Keys.length}): ${call1Keys.join(',')}, Call2 featureSpecs: ${call2Specs}`);
+  // Call 1a + 1b 병합 (1a: 핵심 PRD 구조, 1b: 프리미엄 인사이트)
+  const data1 = { ...data1a, ...data1b };
+  // problemSolutionFit_detail → problemSolutionFit 매핑 (1b에서 충돌 방지용 필드명)
+  if (data1.problemSolutionFit_detail && !data1a.problemSolutionFit) {
+    data1.problemSolutionFit = data1.problemSolutionFit_detail;
+  }
 
-  // ── 실패 감지: Call1이 핵심 필드 3개 미만이면 실패로 판정 ──
-  const criticalFields = ['executiveSummary', 'strategicNarrative', 'projectGoals', 'expertInsight'];
+  const call1aKeys = Object.keys(data1a);
+  const call1bKeys = Object.keys(data1b);
+  const call2Specs = (data2.featureSpecs || []).length;
+  console.log(`[DEEP PRD] Call1a keys(${call1aKeys.length}): ${call1aKeys.join(',')}, Call1b keys(${call1bKeys.length}): ${call1bKeys.join(',')}, Call2 featureSpecs: ${call2Specs}`);
+
+  // ── 실패 감지: Call1a가 핵심 필드 2개 미만이면 실패로 판정 ──
+  const criticalFields = ['executiveSummary', 'projectGoals', 'expertInsight'];
   const hasCritical = criticalFields.filter(f => data1[f] && (typeof data1[f] === 'string' ? data1[f].length > 20 : Array.isArray(data1[f]) && data1[f].length > 0)).length;
   if (hasCritical < 2) {
-    console.error(`[DEEP PRD] ⚠️ Call1 critically failed (only ${hasCritical}/${criticalFields.length} fields). Throwing to trigger quick-mode fallback.`);
+    console.error(`[DEEP PRD] ⚠️ Call1a critically failed (only ${hasCritical}/${criticalFields.length} fields). Throwing error.`);
     throw new Error('DEEP_MODE_CALL1_FAILED');
   }
 
