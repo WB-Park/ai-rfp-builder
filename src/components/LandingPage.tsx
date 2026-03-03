@@ -326,7 +326,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 28, fontWeight: 800, color: C.white,
                 lineHeight: 1.35, letterSpacing: '-0.03em', marginBottom: 12,
               }}>
-                앱 아이디어만 말하세요<br />
+                만들고 싶은 거, 말만 하세요<br />
                 <span style={{ color: C.blueSoft }}>개발 견적받을 문서가 나옵니다</span>
               </h1>
 
@@ -389,7 +389,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800,
                 color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em', marginBottom: 16,
               }}>
-                앱 아이디어, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 견적받을 수 있는 문서가 나옵니다</span>
+                만들고 싶은 거, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 견적받을 수 있는 문서가 나옵니다</span>
               </h1>
 
               {/* Sub */}
