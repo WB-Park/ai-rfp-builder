@@ -54,11 +54,20 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       url: shareUrl,
       siteName: '위시켓 AI PRD 빌더',
       locale: 'ko_KR',
+      images: [
+        {
+          url: `https://wishket-prd.com/api/og?title=${encodeURIComponent(projectName)}&features=${featureCount}`,
+          width: 1200,
+          height: 630,
+          alt: `${projectName} — AI PRD 기획서`,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${projectName} — AI PRD 기획서`,
       description,
+      images: [`https://wishket-prd.com/api/og?title=${encodeURIComponent(projectName)}&features=${featureCount}`],
     },
   };
 }

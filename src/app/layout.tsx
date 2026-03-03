@@ -37,12 +37,21 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: "위시켓 AI PRD 빌더",
     locale: "ko_KR",
+    images: [
+      {
+        url: `${SITE_URL}/api/og`,
+        width: 1200,
+        height: 630,
+        alt: "AI PRD 빌더 — 대화만으로 완성하는 전문 기획서 | 위시켓",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "AI PRD 빌더 — 대화만으로 완성하는 전문 기획서",
     description:
       "아이디어만 말하면 개발사에 바로 전달 가능한 기획서가 완성됩니다",
+    images: [`${SITE_URL}/api/og`],
   },
   robots: {
     index: true,
