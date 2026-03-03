@@ -93,33 +93,33 @@ export async function GET(req: NextRequest) {
         }}
       >
         {/* Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '36px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #2563EB, #3B82F6)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563EB, #3B82F6)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span style={{ fontSize: '18px', fontWeight: 700, color: '#60A5FA', letterSpacing: '3px' }}>WISHKET AI</span>
+          <span style={{ fontSize: '22px', fontWeight: 700, color: '#60A5FA', letterSpacing: '3px' }}>WISHKET AI</span>
         </div>
 
         {/* Main headline */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '52px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.03em', lineHeight: 1.25 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '64px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
             소프트웨어 기획서(PRD),
           </span>
-          <span style={{ fontSize: '52px', fontWeight: 800, color: '#60A5FA', letterSpacing: '-0.03em', lineHeight: 1.25 }}>
+          <span style={{ fontSize: '64px', fontWeight: 800, color: '#60A5FA', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
             AI와 대화 몇 번이면 끝
           </span>
         </div>
 
         {/* Subtitle */}
-        <p style={{ fontSize: '22px', fontWeight: 400, color: '#94A3B8', marginTop: '28px', lineHeight: 1.5, textAlign: 'center', maxWidth: '900px' }}>
+        <p style={{ fontSize: '26px', fontWeight: 400, color: '#94A3B8', marginTop: '24px', lineHeight: 1.5, textAlign: 'center', maxWidth: '1000px' }}>
           아이디어만 말하면 개발사에 바로 전달 가능한 기획서가 완성됩니다
         </p>
 
         {/* CTA pill */}
-        <div style={{ display: 'flex', alignItems: 'center', marginTop: '40px', padding: '14px 36px', borderRadius: '14px', background: 'linear-gradient(135deg, #2563EB, #3B82F6)', boxShadow: '0 8px 32px rgba(37, 99, 235, 0.35)' }}>
-          <span style={{ fontSize: '20px', fontWeight: 700, color: '#FFFFFF' }}>무료로 기획서 만들기 →</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: '36px', padding: '16px 42px', borderRadius: '16px', background: 'linear-gradient(135deg, #2563EB, #3B82F6)', boxShadow: '0 8px 32px rgba(37, 99, 235, 0.35)' }}>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF' }}>무료로 기획서 만들기 →</span>
         </div>
 
         {/* Bottom domain */}
