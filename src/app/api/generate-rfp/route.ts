@@ -125,23 +125,28 @@ async function generateDeepModePRD(
 
   console.log(`[DEEP PRD] Starting. Conversation: ${fullConversation.length} chars, Features: ${features.length}`);
 
-  // ── 3개 병렬 호출 (각 max_tokens: 2500 → 20초 이내 완료) ──
+  // features=0일 때 Call1a에 기능 추출도 함께 지시
+  const call1aFeatureInstruction = features.length === 0
+    ? '\n\n★중요: 기능 목록이 없습니다. 인터뷰 대화에서 핵심 기능 6~10개를 직접 추출하여 projectGoals와 scopeExclusions에 반영하세요.'
+    : '';
+
+  // ── 3개 병렬 호출 (max_tokens 4000으로 JSON 잘림 방지) ──
 
   // Call 1a: 핵심 PRD 구조 (executiveSummary, goals, personas, timeline 등)
   const deepCall1a = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2500,
+    max_tokens: 4000,
     system: `위시켓 수석 IT 컨설턴트. 고객 인터뷰 기반 PRD 작성. 유효한 JSON만 출력. 마크다운 금지.`,
     messages: [{
       role: 'user',
-      content: `[인터뷰]\n${fullConversation}\n\n[프로젝트]\n${projectInfo}\n\nJSON:\n{"projectName":"프로젝트명15자","executiveSummary":"200자.핵심+배경+차별점","problemSolutionFit":"100자.문제→해결","targetUsersAnalysis":"100자.사용자+PainPoint","expertInsight":"200자.위시켓PM의 성공요인3+실패패턴3+개발사팁3","projectGoals":[{"goal":"목표","metric":"지표"}],"userPersonas":[{"name":"이름","role":"역할","needs":"니즈","painPoints":"문제"}],"timeline":[{"phase":"단계","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"위험","impact":"높음/중간","mitigation":"대응"}],"techStack":[{"category":"분류","tech":"기술","rationale":"근거"}],"assumptions":["전제"],"constraints":["제약"],"scopeExclusions":["제외"],"glossary":[{"term":"용어","definition":"설명"}]}\n\ngoals:3개,personas:2명,timeline:4단계,risks:3개,techStack:3개,glossary:5개.`
+      content: `[인터뷰]\n${fullConversation}\n\n[프로젝트]\n${projectInfo}${call1aFeatureInstruction}\n\nJSON:\n{"projectName":"프로젝트명15자","executiveSummary":"200자.핵심+배경+차별점","problemSolutionFit":"100자.문제→해결","targetUsersAnalysis":"100자.사용자+PainPoint","expertInsight":"200자.위시켓PM의 성공요인3+실패패턴3+개발사팁3","projectGoals":[{"goal":"목표","metric":"지표"}],"userPersonas":[{"name":"이름","role":"역할","needs":"니즈","painPoints":"문제"}],"timeline":[{"phase":"단계","duration":"기간","deliverables":["산출물"]}],"risks":[{"risk":"위험","impact":"높음/중간","mitigation":"대응"}],"techStack":[{"category":"분류","tech":"기술","rationale":"근거"}],"assumptions":["전제"],"constraints":["제약"],"scopeExclusions":["제외"],"glossary":[{"term":"용어","definition":"설명"}]}\n\ngoals:3개,personas:2명,timeline:4단계,risks:3개,techStack:3개,glossary:5개.`
     }],
   });
 
   // Call 1b: Deep mode 프리미엄 인사이트
   const deepCall1b = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 3500,
+    max_tokens: 4000,
     system: `위시켓 수석 컨설턴트. 전략적 인사이트 추출. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
@@ -149,10 +154,10 @@ async function generateDeepModePRD(
     }],
   });
 
-  // Call 2: 기능 상세 명세
+  // Call 2: 기능 상세 명세 (features=0이면 대화에서 직접 추출)
   const deepCall2 = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2500,
+    max_tokens: 4000,
     system: `시니어 아키텍트. 기능 명세. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
@@ -160,7 +165,7 @@ async function generateDeepModePRD(
     }],
   });
 
-  // 3개 병렬 (각 2500 토큰 → 개별 15~20초, 병렬이므로 최대 20초)
+  // 3개 병렬 (각 4000 토큰, 병렬이므로 최대 25초)
   const [result1a, result1b, result2] = await Promise.allSettled([
     withTimeout(deepCall1a, callTimeout),
     withTimeout(deepCall1b, callTimeout),
@@ -484,40 +489,31 @@ async function generateFullAIPRD(rfpData: RFPData, chatMessages?: { role: string
   console.log(`[generate-rfp] Conversation context: ${hasConversation ? `${chatMessages?.length || 0} messages, ${conversationContext.length} chars` : 'none'}, Features: ${features.length}`);
 
   // ★ 핵심: coreFeatures가 비어있으면 대화 컨텍스트에서 AI로 기능 추출
-  // 타임아웃: 10초 (Vercel 60초 중 최대 10초만 기능추출에 사용)
+  // 기능 추출: Haiku로 빠르게 (Sonnet 대비 3~5배 빠름, 기능 목록 추출에는 충분)
   if (features.length === 0 && (hasConversation || (rfpData.overview && rfpData.overview.length >= 5))) {
-    console.log('[generate-rfp] coreFeatures empty — auto-extracting from conversation');
+    console.log('[generate-rfp] coreFeatures empty — auto-extracting with Haiku');
     try {
       const featureExtractionPromise = anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
+        model: 'claude-haiku-4-20250414',
+        max_tokens: 1500,
         messages: [{
           role: 'user',
-          content: `${hasConversation ? `다음은 고객과 AI PM이 나눈 대화입니다. 이 대화 전체를 분석하여 이 프로젝트에 필요한 핵심 기능을 추출하세요.
+          content: `${hasConversation ? `대화를 분석하여 프로젝트 핵심 기능을 추출하세요.
 
-[대화 내용]
-${conversationContext}
+[대화]
+${conversationContext.slice(0, 4000)}
 
-[프로젝트 정보 요약]` : '다음 프로젝트 정보에서 핵심 기능을 추출하세요.\n\n[프로젝트 정보]'}
+[프로젝트]` : '프로젝트 정보에서 핵심 기능을 추출하세요.\n\n[프로젝트]'}
 - 서비스: ${rfpData.overview || '(미입력)'}
 - 타겟: ${rfpData.targetUsers || '(미입력)'}
-- 기술: ${rfpData.techRequirements || '(미입력)'}
-- 추가 요구: ${rfpData.additionalRequirements || '(미입력)'}
 
-규칙:
-1. 대화에서 논의된 모든 기능을 빠짐없이 추출 (6~12개)
-2. 대화에서 고객이 중요하다고 언급한 기능은 반드시 P1
-3. P1: 서비스 핵심 기능 (3~5개), P2: 중요 기능 (2~4개), P3: 부가 기능 (1~3개)
-4. 기능명은 한국어, 간결하게 (15자 이내)
-5. 설명은 대화 맥락을 반영한 구체적 한 문장
-
-JSON 배열만 출력:
-[{"name": "기능명", "description": "대화에서 논의된 맥락 반영한 설명", "priority": "P1"}]`
+규칙: 6~12개. P1(핵심3~5), P2(중요2~3), P3(부가1~2). 기능명 15자이내. JSON 배열만 출력:
+[{"name":"기능명","description":"설명","priority":"P1"}]`
         }],
       });
       const featureGenResponse = await Promise.race([
         featureExtractionPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 20000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 15000)),
       ]);
       const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
       const featureMatch = featureText.match(/\[[\s\S]*\]/);
@@ -529,7 +525,7 @@ JSON 배열만 출력:
             description: f.description || f.name,
             priority: f.priority === 'P1' ? 'P1' : f.priority === 'P2' ? 'P2' : 'P3',
           }));
-          console.log(`[generate-rfp] Auto-extracted ${features.length} features from ${hasConversation ? 'conversation' : 'overview'}`);
+          console.log(`[generate-rfp] Auto-extracted ${features.length} features via Haiku (${Date.now() - globalStartTime}ms)`);
         }
       }
     } catch (featureError) {
@@ -540,14 +536,26 @@ JSON 배열만 출력:
   const featureList = features.map((f, i) => `${i + 1}. ${f.name} (${f.priority}) — ${f.description || '설명 없음'}`).join('\n');
   const now = new Date().toISOString().split('T')[0];
 
-  // ★ Deep mode는 완전히 다른 프롬프트 체계로 PRD 생성
+  // ★ Deep mode는 완전히 다른 프롬프트 체계로 PRD 생성 (실패 시 1회 자동 재시도)
   if (isDeepMode && hasConversation) {
+    // 1차 시도
     try {
       return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now, globalStartTime);
-    } catch (deepError: any) {
-      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}) after ${Date.now() - globalStartTime}ms. Falling back to Quick mode.`);
-      // Deep mode 실패 시 Quick mode로 폴백하여 사용자에게 결과를 반환
-      // (500 에러보다 Quick mode 결과라도 주는 것이 UX에 유리)
+    } catch (deepError1: any) {
+      const elapsed1 = Date.now() - globalStartTime;
+      console.error(`[generate-rfp] ⚠️ Deep mode 1st attempt failed (${deepError1?.message}) after ${elapsed1}ms`);
+
+      // 남은 시간이 25초 이상이면 자동 재시도 (60초 제한 고려)
+      if (elapsed1 < 35000) {
+        console.log(`[generate-rfp] 🔄 Deep mode auto-retry (${60000 - elapsed1}ms remaining)`);
+        try {
+          return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now, globalStartTime);
+        } catch (deepError2: any) {
+          console.error(`[generate-rfp] ⚠️ Deep mode 2nd attempt also failed (${deepError2?.message}) after ${Date.now() - globalStartTime}ms`);
+          throw deepError2;
+        }
+      }
+      throw deepError1;
     }
   }
 
@@ -1162,8 +1170,13 @@ export async function POST(req: NextRequest) {
         result = await generateFullAIPRD(rfpData, chatMessages, chatMode);
       } catch (aiError: any) {
         console.error('AI PRD generation failed:', aiError?.message || aiError);
-        // Deep/Quick 모두 실패 시 minimal fallback으로 결과 반환
-        console.warn(`[generate-rfp] AI failed (${chatMode}): ${aiError?.message}. Using minimal fallback.`);
+        if (chatMode === 'deep') {
+          return NextResponse.json({
+            error: 'Deep mode PRD 생성에 실패했습니다. 다시 시도해주세요.',
+            errorCode: 'DEEP_MODE_FAILED',
+            retryable: true,
+          }, { status: 500 });
+        }
         result = generateMinimalFallback(rfpData);
       }
     } else {
