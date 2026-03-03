@@ -489,31 +489,40 @@ async function generateFullAIPRD(rfpData: RFPData, chatMessages?: { role: string
   console.log(`[generate-rfp] Conversation context: ${hasConversation ? `${chatMessages?.length || 0} messages, ${conversationContext.length} chars` : 'none'}, Features: ${features.length}`);
 
   // ★ 핵심: coreFeatures가 비어있으면 대화 컨텍스트에서 AI로 기능 추출
-  // 기능 추출: Haiku로 빠르게 (Sonnet 대비 3~5배 빠름, 기능 목록 추출에는 충분)
+  // 기능 추출: Sonnet으로 정확하게 (타임아웃 20초)
   if (features.length === 0 && (hasConversation || (rfpData.overview && rfpData.overview.length >= 5))) {
-    console.log('[generate-rfp] coreFeatures empty — auto-extracting with Haiku');
+    console.log('[generate-rfp] coreFeatures empty — auto-extracting from conversation');
     try {
       const featureExtractionPromise = anthropic.messages.create({
-        model: 'claude-haiku-4-20250414',
-        max_tokens: 1500,
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: `${hasConversation ? `대화를 분석하여 프로젝트 핵심 기능을 추출하세요.
+          content: `${hasConversation ? `다음은 고객과 AI PM이 나눈 대화입니다. 이 대화 전체를 분석하여 이 프로젝트에 필요한 핵심 기능을 추출하세요.
 
-[대화]
-${conversationContext.slice(0, 4000)}
+[대화 내용]
+${conversationContext}
 
-[프로젝트]` : '프로젝트 정보에서 핵심 기능을 추출하세요.\n\n[프로젝트]'}
+[프로젝트 정보 요약]` : '다음 프로젝트 정보에서 핵심 기능을 추출하세요.\n\n[프로젝트 정보]'}
 - 서비스: ${rfpData.overview || '(미입력)'}
 - 타겟: ${rfpData.targetUsers || '(미입력)'}
+- 기술: ${rfpData.techRequirements || '(미입력)'}
+- 추가 요구: ${rfpData.additionalRequirements || '(미입력)'}
 
-규칙: 6~12개. P1(핵심3~5), P2(중요2~3), P3(부가1~2). 기능명 15자이내. JSON 배열만 출력:
-[{"name":"기능명","description":"설명","priority":"P1"}]`
+규칙:
+1. 대화에서 논의된 모든 기능을 빠짐없이 추출 (6~12개)
+2. 대화에서 고객이 중요하다고 언급한 기능은 반드시 P1
+3. P1: 서비스 핵심 기능 (3~5개), P2: 중요 기능 (2~4개), P3: 부가 기능 (1~3개)
+4. 기능명은 한국어, 간결하게 (15자 이내)
+5. 설명은 대화 맥락을 반영한 구체적 한 문장
+
+JSON 배열만 출력:
+[{"name": "기능명", "description": "대화에서 논의된 맥락 반영한 설명", "priority": "P1"}]`
         }],
       });
       const featureGenResponse = await Promise.race([
         featureExtractionPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 15000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 20000)),
       ]);
       const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
       const featureMatch = featureText.match(/\[[\s\S]*\]/);
@@ -525,7 +534,7 @@ ${conversationContext.slice(0, 4000)}
             description: f.description || f.name,
             priority: f.priority === 'P1' ? 'P1' : f.priority === 'P2' ? 'P2' : 'P3',
           }));
-          console.log(`[generate-rfp] Auto-extracted ${features.length} features via Haiku (${Date.now() - globalStartTime}ms)`);
+          console.log(`[generate-rfp] Auto-extracted ${features.length} features (${Date.now() - globalStartTime}ms)`);
         }
       }
     } catch (featureError) {
