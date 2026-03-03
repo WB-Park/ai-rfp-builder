@@ -1,18 +1,26 @@
 'use client';
 
-// AI PRD Builder — Landing Page v6
-// PROBE 검증 수정 + MIRROR 모바일 히어로 개선:
-//   [GUARD] S1: Footer 죽은 링크 → <a> + 실제 URL
-//   [GUARD] D1: userCount fallback 427 제거 → 0이면 대체 문구
-//   [GUARD] S2: FAQ +/- 아이콘 → state 기반 회전 애니메이션
-//   [GUARD] S3/D2: Final CTA 에러 독립 표시
-//   [GUARD] S6: isMobile 초기값 FOUC 방지
-//   [GUARD] D4: Footer 모바일 padding 조정
-//   [GUARD] D5: 게스트 시작도 세션 기록 (리드 추적)
-//   [ELEVATE] E-4: 비교표 직후 인라인 CTA
-//   [ELEVATE] E-5: StickyBar 모바일 사회적 증거
-//   [ELEVATE] E-6: 데모 탭 5초 자동 순환
-//   [MIRROR] 모바일 히어로 간소화: 이메일폼 제거, 트러스트칩 3개, 스텝 제거, 호흡 공간 확보
+// AI PRD Builder — Landing Page v7
+// MIRROR 전체 개선 반영:
+//   [M-1] 서브카피 → 결과물 구체 설명
+//   [M-2] "AI 개발문서 빌더" → "AI 요구사항 빌더"
+//   [M-3] "개발문서 완성+PDF" → "요구사항 문서 완성 + PDF"
+//   [M-4] 모바일 데모 포맷 개선
+//   [M-5] StickyBar: 히어로 CTA 기준 IntersectionObserver
+//   [I-1] PC 히어로 이메일 폼 제거
+//   [I-2] 데모 탭 클릭 시 타이머 리셋
+//   [I-3] 데모 프리뷰 CTA 버튼 추가
+//   [R-1] How It Works → Features 순서
+//   [R-2] WHY 3포인트 카드 텍스트 압축
+//   [R-3] 비교표를 데모 다음으로 이동
+//   [R-4] userCount < 100이면 정성적 표현
+//   [R-5] 가상 후기 → 익명 사용 사례
+//   [R-6] 타겟 페르소나 안심 문구
+//   [R-7] 데모 문서 목차 프리뷰
+//   [R-8] Before/After 스토리텔링
+//   [O-1] 개발사 인정 포맷 신뢰 문구
+//   [O-2] 무료 모델 투명 안내
+//   [O-3] "5분" → "5~10분"
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
@@ -146,30 +154,55 @@ const FOOTER_COLS = [
 export default function LandingPage({ onStart }: LandingPageProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [finalError, setFinalError] = useState(''); // [S3] Final CTA 독립 에러
+  const [finalError, setFinalError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [guestLoading, setGuestLoading] = useState(false); // [D5] 게스트 로딩
+  const [guestLoading, setGuestLoading] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const heroInputRef = useRef<HTMLInputElement>(null);
   const [demoTab, setDemoTab] = useState(0);
-  const [openFaq, setOpenFaq] = useState<number[]>([0, 1]); // [S2] FAQ state
+  const [openFaq, setOpenFaq] = useState<number[]>([0, 1]);
+
+  // [M-5] Hero CTA 가시성 — IntersectionObserver
+  const heroCTARef = useRef<HTMLButtonElement>(null);
+  const [heroCtaVisible, setHeroCtaVisible] = useState(true);
+
+  useEffect(() => {
+    const el = heroCTARef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroCtaVisible(entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // [D1] 사용자 수 — fallback 제거
   const [userCount, setUserCount] = useState(0);
   useEffect(() => {
     fetch('/api/lead?count=true').then(r => r.json()).then(d => {
       if (d.count && d.count > 0) setUserCount(d.count);
-      // fallback 없음 — 0이면 대체 문구 표시
     }).catch(() => { /* 0 유지 */ });
   }, []);
 
-  // [E-6] 데모 탭 자동 순환 (5초)
-  useEffect(() => {
-    const timer = setInterval(() => {
+  // [I-2] 데모 탭 자동 순환 — 탭 클릭 시 리셋
+  const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startDemoTimer = useCallback(() => {
+    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
+    demoTimerRef.current = setInterval(() => {
       setDemoTab(prev => (prev + 1) % DEMO_TABS.length);
     }, 5000);
-    return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    startDemoTimer();
+    return () => { if (demoTimerRef.current) clearInterval(demoTimerRef.current); };
+  }, [startDemoTimer]);
+
+  const handleDemoTabClick = useCallback((i: number) => {
+    setDemoTab(i);
+    startDemoTimer(); // 타이머 리셋
+  }, [startDemoTimer]);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
@@ -245,7 +278,6 @@ export default function LandingPage({ onStart }: LandingPageProps) {
     }
   };
 
-  // [S6] FOUC 방지 — useIsMobile 커스텀 훅 사용
   const isMobile = useIsMobile();
 
   const sectionPad: React.CSSProperties = { padding: isMobile ? '56px 16px' : '80px 24px', maxWidth: 1080, margin: '0 auto' };
@@ -256,9 +288,13 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
   const currentDemo = DEMO_TABS[demoTab];
 
+  // [R-4] 100명 미만이면 정성적 표현
+  const badgeText = userCount >= 100
+    ? `스타트업 대표 ${userCount.toLocaleString()}명이 이미 사용`
+    : '스타트업 대표 · 1인 창업자 · 비개발자를 위한 AI';
+
   return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
-      {/* 모바일 글로벌 스타일 */}
       <style>{`
         @keyframes heroPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.25)} 50%{box-shadow:0 4px 30px rgba(37,99,235,0.5)} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
@@ -280,7 +316,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: C.white }}>wishket</span>
             <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)' }} />
-            <span style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, fontWeight: 500 }}>AI 개발문서 빌더</span>
+            {/* [M-2] AI 요구사항 빌더 */}
+            <span style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, fontWeight: 500 }}>AI 요구사항 빌더</span>
           </div>
           <button onClick={handleGuestStart} disabled={guestLoading} style={{
             padding: isMobile ? '10px 16px' : '8px 20px', borderRadius: 10, border: 'none', cursor: guestLoading ? 'wait' : 'pointer',
@@ -305,10 +342,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         }} />
 
         <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {/* [MIRROR] 모바일 히어로: 간소화된 구조 */}
           {isMobile ? (
             <>
-              {/* Badge */}
+              {/* Badge — [R-4] */}
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '6px 14px', borderRadius: 100,
@@ -316,12 +352,10 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 marginBottom: 16,
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.blueText }}>
-                  {userCount > 0 ? `스타트업 대표 ${userCount.toLocaleString()}명이 이미 사용` : '스타트업 대표 · 1인 창업자 · 비개발자를 위한 AI'}
-                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.blueText }}>{badgeText}</span>
               </div>
 
-              {/* Headline — 깔끔하게 2줄 */}
+              {/* Headline */}
               <h1 style={{
                 fontSize: 28, fontWeight: 800, color: C.white,
                 lineHeight: 1.35, letterSpacing: '-0.03em', marginBottom: 12,
@@ -330,16 +364,21 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 <span style={{ color: C.blueSoft }}>개발 견적받을 문서가 나옵니다</span>
               </h1>
 
-              {/* Sub — 핵심 1줄 */}
+              {/* [M-1] 서브카피 — 결과물 구체 설명 */}
               <p style={{
                 fontSize: 15, color: C.textLight, lineHeight: 1.6,
                 marginBottom: 28, padding: '0 8px',
               }}>
-                뭘 만들고 싶은지 AI에게 말하면, 개발사에 바로 보낼 수 있는 문서 완성
+                기능 우선순위, 예산 추정, 개발 일정까지 —<br />개발사가 바로 견적 낼 수 있는 수준으로 정리해드립니다
               </p>
 
-              {/* 메인 CTA 1개 — 깨끗하게 */}
-              <button onClick={handleGuestStart} disabled={guestLoading} style={{
+              {/* [R-6] 안심 문구 */}
+              <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>
+                개발 지식이 없어도 괜찮습니다. AI가 질문하면 답만 하세요.
+              </p>
+
+              {/* 메인 CTA — [M-5] ref 연결 */}
+              <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} style={{
                 width: '100%', height: 56, borderRadius: 14, border: 'none',
                 background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                 color: C.white, fontSize: 17, fontWeight: 700,
@@ -351,12 +390,12 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
 
-              {/* Trust chips — 3개로 축소, 1줄 */}
+              {/* Trust chips — [O-3] 5~10분 */}
               <div style={{
                 display: 'flex', justifyContent: 'center',
                 gap: 16, marginTop: 20,
               }}>
-                {['회원가입 불필요', '완전 무료', '5분 완성'].map(t => (
+                {['회원가입 불필요', '완전 무료', '5~10분 완성'].map(t => (
                   <span key={t} style={{
                     fontSize: 12, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
                   }}>
@@ -369,9 +408,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               </div>
             </>
           ) : (
-            /* ━━ PC Hero (기존 유지) ━━ */
+            /* ━━ PC Hero ━━ */
             <>
-              {/* Badge */}
+              {/* Badge — [R-4] */}
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '8px 18px', borderRadius: 100,
@@ -379,9 +418,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 marginBottom: 28,
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.blueText }}>
-                  {userCount > 0 ? `스타트업 대표 ${userCount.toLocaleString()}명이 이미 사용` : '스타트업 대표 · 1인 창업자 · 비개발자를 위한 AI'}
-                </span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: C.blueText }}>{badgeText}</span>
               </div>
 
               {/* Headline */}
@@ -392,16 +429,21 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 만들고 싶은 거, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 견적받을 수 있는 문서가 나옵니다</span>
               </h1>
 
-              {/* Sub */}
+              {/* [M-1] 서브카피 — 결과물 구체 설명 */}
               <p style={{
                 fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
-                lineHeight: 1.65, maxWidth: 560, margin: '0 auto 36px',
+                lineHeight: 1.65, maxWidth: 600, margin: '0 auto 20px',
               }}>
-                뭘 만들고 싶은지 <strong style={{ color: C.white }}>AI와 대화</strong>하면, 개발사에 <strong style={{ color: C.blueSoft }}>바로 보낼 수 있는 전문 문서</strong>가 완성됩니다. 무료로 PDF까지 받아보세요.
+                기능 우선순위, 예산 추정, 개발 일정까지 — <strong style={{ color: C.white }}>개발사가 바로 견적 낼 수 있는 수준</strong>으로 정리해드립니다. 무료로 PDF까지 받아보세요.
               </p>
 
-              {/* 메인 CTA */}
-              <button onClick={handleGuestStart} disabled={guestLoading} style={{
+              {/* [R-6] 안심 문구 */}
+              <p style={{ fontSize: 14, color: C.gray400, marginBottom: 32 }}>
+                개발 지식이 없어도 괜찮습니다. AI가 질문하면 답만 하세요.
+              </p>
+
+              {/* [I-1] 메인 CTA만 — 이메일 폼 제거 + [M-5] ref */}
+              <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} style={{
                 padding: '0 40px', height: 58, borderRadius: 14, border: 'none',
                 background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                 color: C.white, fontSize: 18, fontWeight: 700,
@@ -414,45 +456,12 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
 
-              {/* 서브: 이메일 */}
-              <form onSubmit={handleEmailStart} style={{
-                maxWidth: 480, margin: '0 auto 8px',
-                display: 'flex', gap: 6, alignItems: 'center',
-              }}>
-                <div style={{ fontSize: 13, color: C.gray400, whiteSpace: 'nowrap', marginRight: 4 }}>또는</div>
-                <input
-                  ref={heroInputRef}
-                  type="email"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                  placeholder="이메일 입력 시 PDF도 발송"
-                  style={{
-                    flex: 1, height: 44, padding: '0 14px', borderRadius: 10,
-                    border: error ? '1.5px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.05)', color: C.white, fontSize: 14,
-                    outline: 'none', transition: 'border-color 0.2s',
-                  }}
-                />
-                <button type="submit" disabled={loading} style={{
-                  padding: '0 16px', height: 44, borderRadius: 10, border: 'none',
-                  background: 'rgba(255,255,255,0.1)', color: C.blueSoft,
-                  fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
-                  opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
-                  transition: 'all 0.2s',
-                }}>
-                  {loading ? '...' : 'PDF 받기'}
-                </button>
-              </form>
-              {error && (
-                <p style={{ color: '#EF4444', fontSize: 13, marginTop: 4, marginBottom: 4 }}>{error}</p>
-              )}
-
-              {/* Trust chips */}
+              {/* Trust chips — [O-3] 5~10분 */}
               <div style={{
                 display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
                 gap: 16, marginTop: 24,
               }}>
-                {['회원가입 불필요', '완전 무료', '5분이면 완료', 'PDF 다운로드', '데이터 보호'].map(t => (
+                {['회원가입 불필요', '완전 무료', '5~10분이면 완료', 'PDF 다운로드', '데이터 보호'].map(t => (
                   <span key={t} style={{
                     fontSize: 13, color: C.textLight, display: 'flex', alignItems: 'center', gap: 5,
                   }}>
@@ -468,7 +477,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 ))}
               </div>
 
-              {/* Step indicator — PC만 */}
+              {/* Step indicator — [M-3] 요구사항 문서 완성 + PDF */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 gap: 6, marginTop: 36, flexWrap: 'wrap',
@@ -476,7 +485,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 {[
                   { n: '1', t: '아이디어 말하기' },
                   { n: '2', t: 'AI가 질문 & 정리' },
-                  { n: '3', t: '개발문서 완성 + PDF' },
+                  { n: '3', t: '요구사항 문서 완성 + PDF' },
                 ].map((s, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{
@@ -495,7 +504,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </section>
 
-      {/* ━━ Demo Preview — 3개 탭 + 자동 순환 ━━ */}
+      {/* ━━ Demo Preview — [I-2] 탭 클릭 리셋 + [I-3] CTA + [R-7] 목차 + [M-4] 모바일 개선 ━━ */}
       <section style={{
         background: `linear-gradient(180deg, ${C.navyMid} 0%, ${C.bg} 100%)`,
         padding: isMobile ? '0 16px 48px' : '0 24px 80px',
@@ -517,7 +526,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840' }} />
             <div style={{ display: 'flex', gap: 4, marginLeft: 12 }}>
               {DEMO_TABS.map((tab, i) => (
-                <button key={tab.id} onClick={() => setDemoTab(i)} style={{
+                <button key={tab.id} onClick={() => handleDemoTabClick(i)} style={{
                   padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
                   background: demoTab === i ? C.blueBg : 'transparent',
                   color: demoTab === i ? C.blueSoft : C.textLight,
@@ -534,9 +543,10 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: C.blueSoft }}>AI 결과물 미리보기</span>
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.white, marginBottom: 20 }}>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: C.white, marginBottom: 20 }}>
               {currentDemo.title}
             </div>
+            {/* [M-4] 모바일 stat 2x2 그리드 개선 */}
             <div style={{ display: 'flex', gap: isMobile ? 8 : 12, marginBottom: 20, flexWrap: 'wrap' }}>
               {currentDemo.stats.map((s, i) => (
                 <div key={i} style={{
@@ -564,6 +574,40 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 }}>{f.tag}</span>
               </div>
             ))}
+
+            {/* [R-7] 문서 목차 프리뷰 */}
+            <div style={{
+              marginTop: 16, padding: isMobile ? '12px' : '16px', borderRadius: 10,
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.gray400, marginBottom: 10, letterSpacing: '0.05em' }}>
+                📑 완성 문서 목차
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 4 : 6 }}>
+                {[
+                  '1. Executive Summary',
+                  '2. 프로젝트 개요 · 목표',
+                  '3. 핵심 기능 명세 (P1/P2/P3)',
+                  '4. 비기능 요구사항',
+                  '5. 기술 스택 추천',
+                  '6. MVP 로드맵 · 일정',
+                  '7. 예산 추정',
+                  '8. 리스크 · 고려사항',
+                ].map((item, i) => (
+                  <div key={i} style={{ fontSize: isMobile ? 11 : 12, color: C.textLight, padding: '3px 0' }}>{item}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* [I-3] 데모 프리뷰 CTA */}
+            <button onClick={handleGuestStart} disabled={guestLoading} style={{
+              width: '100%', marginTop: 16, padding: '12px 0', borderRadius: 10, border: `1px solid ${C.blue}`,
+              background: C.blueBg, color: C.blueSoft, fontSize: 14, fontWeight: 600,
+              cursor: guestLoading ? 'wait' : 'pointer', transition: 'all 0.2s',
+              opacity: guestLoading ? 0.7 : 1,
+            }}>
+              이런 결과를 받아보세요 →
+            </button>
           </div>
         </div>
         <p style={{ textAlign: 'center', fontSize: 12, color: C.gray500, marginTop: 12 }}>
@@ -571,11 +615,141 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </p>
       </section>
 
-      {/* ━━ Features ━━ */}
-      <section style={{ background: C.bg, ...sectionPad }}>
+      {/* ━━ [R-3] 비교표 — 데모 바로 다음 ━━ */}
+      <section style={{ background: C.bg, padding: isMobile ? '40px 16px' : '60px 24px' }}>
+        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+          <p style={{ fontSize: 13, color: C.blue, textAlign: 'center', fontWeight: 600, marginBottom: 8, letterSpacing: '0.05em' }}>
+            비교해보세요
+          </p>
+          <h2 style={{ ...secTitle, marginBottom: 8 }}>ChatGPT vs 위시켓 AI</h2>
+          {/* [O-1] 신뢰 문구 */}
+          <p style={{ fontSize: isMobile ? 13 : 14, color: C.textMuted, textAlign: 'center', marginBottom: 32 }}>
+            위시켓 파트너 개발사 <strong style={{ color: C.blue }}>65,000곳</strong>이 인정하는 포맷으로 출력합니다
+          </p>
+          <div style={{
+            display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: 20,
+          }}>
+            {/* ChatGPT */}
+            <div style={{
+              background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
+              border: '1px solid rgba(0,0,0,0.06)', opacity: 0.85,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <span style={{
+                  width: 32, height: 32, borderRadius: 8, background: C.gray100,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+                }}>💬</span>
+                <span style={{ fontSize: 17, fontWeight: 700, color: C.gray600 }}>일반 ChatGPT</span>
+              </div>
+              {[
+                { t: '기능 우선순위 분류', v: '없음' },
+                { t: '예산 추정 정확도', v: '근거 없음' },
+                { t: '개발 일정 추정', v: '부정확' },
+                { t: '개발사 전달 포맷', v: '미지원' },
+                { t: '외주 맥락 이해', v: '없음' },
+              ].map((row, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 0', borderBottom: i < 4 ? `1px solid ${C.gray100}` : 'none',
+                }}>
+                  <span style={{ fontSize: 14, color: C.gray500 }}>{row.t}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.gray400 }}>{row.v}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 위시켓 AI */}
+            <div style={{
+              background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
+              border: `2px solid ${C.blue}`,
+              boxShadow: `0 4px 24px ${C.blueGlow}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <span style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: C.white, fontWeight: 800,
+                }}>W</span>
+                <span style={{ fontSize: 17, fontWeight: 700, color: C.textDark }}>위시켓 AI</span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 100,
+                  background: C.blueBg, color: C.blue, marginLeft: 'auto',
+                }}>추천</span>
+              </div>
+              {[
+                { t: '기능 우선순위 분류', v: 'P1/P2/P3 자동' },
+                { t: '예산 추정 정확도', v: '±20% 범위' },
+                { t: '개발 일정 추정', v: '업종별 실전 기반' },
+                { t: '개발사 전달 포맷', v: 'RFP + PDF' },
+                { t: '외주 맥락 이해', v: '116,000건 학습' },
+              ].map((row, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 0', borderBottom: i < 4 ? `1px solid ${C.gray100}` : 'none',
+                }}>
+                  <span style={{ fontSize: 14, color: C.gray700, fontWeight: 500 }}>{row.t}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.blue }}>{row.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 비교표 직후 인라인 CTA */}
+          <div style={{ textAlign: 'center', marginTop: 32 }}>
+            <button onClick={handleGuestStart} disabled={guestLoading} style={{
+              padding: isMobile ? '0 28px' : '0 32px', height: 50, borderRadius: 12, border: 'none',
+              background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+              color: C.white, fontSize: isMobile ? 15 : 16, fontWeight: 700,
+              cursor: guestLoading ? 'wait' : 'pointer',
+              boxShadow: `0 4px 20px ${C.blueGlow}`,
+              transition: 'all 0.2s',
+              opacity: guestLoading ? 0.7 : 1,
+            }}>
+              직접 확인해보기 →
+            </button>
+            <p style={{ fontSize: 13, color: C.gray500, marginTop: 8 }}>무료 · 회원가입 불필요 · 5~10분</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ━━ [R-1] How It Works — 먼저 배치 (PC만) ━━ */}
+      {!isMobile && (
+        <section style={{ background: C.white, ...sectionPad }}>
+          <h2 style={secTitle}>정말 간단합니다</h2>
+          <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
+            프롬프트 작성? 필요 없습니다. AI가 질문하고 당신은 답만 하세요.
+          </p>
+          <div style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            gap: 32, marginTop: 48, flexWrap: 'wrap',
+          }}>
+            {[
+              { step: 1, title: '"이런 거 만들고 싶어요"', desc: '한 줄이면 충분합니다. AI가 알아서 분류하고 관련 질문을 시작합니다.' },
+              { step: 2, title: 'AI가 질문 → 당신이 답변', desc: '타겟 사용자, 핵심 기능, 예산 등 7가지를 대화로 정리합니다.' },
+              { step: 3, title: '문서 완성!', desc: '개발사에 바로 전달 가능한 전문 문서. PDF 다운로드까지.' },
+            ].map((s, i) => (
+              <div key={i} style={{ flex: '1 1 240px', maxWidth: 300, textAlign: 'center' }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: 14, margin: '0 auto 16px',
+                  background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 20, fontWeight: 800, color: C.white,
+                  boxShadow: `0 4px 16px ${C.blueGlow}`,
+                }}>{s.step}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.textDark, marginBottom: 8 }}>{s.title}</div>
+                <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.65 }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ━━ [R-1] Features — How It Works 다음 ━━ */}
+      <section style={{ background: isMobile ? C.white : C.bg, ...sectionPad }}>
         <h2 style={secTitle}>{isMobile ? '개발자에게 바로 전달 가능한 문서' : '개발사가 바로 견적 낼 수 있는 문서'}</h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
-          {isMobile ? 'AI가 질문하면 답만 하세요. 5분이면 완성됩니다.' : '위시켓 13년 외주 매칭 경험이 녹아든 AI가 만들어드립니다'}
+          {isMobile ? 'AI가 질문하면 답만 하세요. 5~10분이면 완성됩니다.' : '위시켓 13년 외주 매칭 경험이 녹아든 AI가 만들어드립니다'}
         </p>
 
         <div style={{
@@ -614,42 +788,14 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             </div>
           ))}
         </div>
+        {/* [R-6] 페르소나 안심 */}
+        <p style={{ textAlign: 'center', fontSize: 13, color: C.gray500, marginTop: 24 }}>
+          💡 개발 용어를 몰라도 괜찮아요. AI가 쉬운 말로 질문합니다.
+        </p>
       </section>
 
-      {/* ━━ How It Works — PC만 ━━ */}
-      {!isMobile && (
-        <section style={{ background: C.white, ...sectionPad }}>
-          <h2 style={secTitle}>정말 간단합니다</h2>
-          <p style={{ fontSize: 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
-            프롬프트 작성? 필요 없습니다. AI가 질문하고 당신은 답만 하세요.
-          </p>
-          <div style={{
-            display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
-            gap: 32, marginTop: 48, flexWrap: 'wrap',
-          }}>
-            {[
-              { step: 1, title: '"이런 앱 만들고 싶어요"', desc: '한 줄이면 충분합니다. AI가 알아서 분류하고 관련 질문을 시작합니다.' },
-              { step: 2, title: 'AI가 질문 → 당신이 답변', desc: '타겟 사용자, 핵심 기능, 예산 등 7가지를 대화로 정리합니다.' },
-              { step: 3, title: '문서 완성!', desc: '개발사에 바로 전달 가능한 전문 문서. PDF 다운로드 + 이메일 발송.' },
-            ].map((s, i) => (
-              <div key={i} style={{ flex: '1 1 240px', maxWidth: 300, textAlign: 'center' }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 14, margin: '0 auto 16px',
-                  background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20, fontWeight: 800, color: C.white,
-                  boxShadow: `0 4px 16px ${C.blueGlow}`,
-                }}>{s.step}</div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: C.textDark, marginBottom: 8 }}>{s.title}</div>
-                <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.65 }}>{s.desc}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ━━ WHY WISHKET AI + 비교표 ━━ */}
-      <section style={{ background: isMobile ? C.white : C.bg, ...sectionPad }}>
+      {/* ━━ WHY WISHKET AI — [R-2] 3포인트 카드 텍스트 압축 ━━ */}
+      <section style={{ background: isMobile ? C.bg : C.white, ...sectionPad }}>
         <p style={{ fontSize: 13, color: C.blue, textAlign: 'center', fontWeight: 600, marginBottom: 8, letterSpacing: '0.05em' }}>
           WHY WISHKET AI
         </p>
@@ -658,7 +804,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           {isMobile ? '같은 질문, 전혀 다른 결과' : '116,000건의 실전 프로젝트 데이터가 만드는 차이'}
         </p>
 
-        {/* 기술 차별화 3포인트 */}
+        {/* [R-2] 기술 차별화 3포인트 — 텍스트 압축 + 태그뱃지 강조 */}
         <div style={{
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
           gap: 16, marginBottom: 40,
@@ -666,17 +812,17 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           {[
             {
               icon: '🧠', title: '외주 전문 질문 로직',
-              desc: '116,000건 프로젝트 분석으로 설계된 7단계 질문. 일반 AI는 모르는 외주 맥락(계약 구조, 검수 기준, 커뮤니케이션 방식)을 자동으로 짚어냅니다.',
+              desc: '116,000건 프로젝트에서 설계된 7단계 질문. 외주 계약·검수·커뮤니케이션 맥락까지 자동으로 짚어냅니다.',
               highlight: '7단계 전문 질문',
             },
             {
               icon: '📊', title: '실전 데이터 기반 추정',
-              desc: '13년간 2,178억 규모 거래 데이터에서 업종별·규모별 예산 범위와 개발 기간을 참조합니다. ChatGPT의 근거 없는 추측과는 차원이 다릅니다.',
+              desc: '13년간 2,178억 거래 데이터에서 업종별·규모별 예산 범위와 개발 기간을 참조합니다.',
               highlight: '±20% 예산 정확도',
             },
             {
               icon: '📋', title: '개발사 전달 포맷',
-              desc: '기능 우선순위(P1/P2/P3), 기술 스택 추천, MVP 스코프까지. 개발사가 바로 견적을 낼 수 있는 실전 RFP 포맷으로 출력합니다.',
+              desc: '기능 우선순위, 기술 스택, MVP 스코프까지. 개발사가 바로 견적을 낼 수 있는 실전 RFP 포맷.',
               highlight: '바로 견적 요청 가능',
             },
           ].map((item, i) => (
@@ -694,101 +840,92 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             </div>
           ))}
         </div>
+      </section>
 
-        {/* Before/After 비교표 */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-          gap: 20,
-        }}>
-          {/* ChatGPT */}
+      {/* ━━ [R-8] Before / After 스토리텔링 ━━ */}
+      <section style={{
+        background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`,
+        padding: isMobile ? '48px 16px' : '72px 24px',
+      }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: 'clamp(20px, 4vw, 30px)', fontWeight: 800, color: C.white, marginBottom: 12 }}>
+            {isMobile ? '이렇게 달라집니다' : '위시켓 AI 전과 후'}
+          </h2>
+          <p style={{ fontSize: 14, color: C.textLight, marginBottom: 36 }}>
+            같은 아이디어, 전혀 다른 시작
+          </p>
           <div style={{
-            background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
-            border: '1px solid rgba(0,0,0,0.06)', opacity: 0.85,
+            display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto 1fr',
+            gap: isMobile ? 16 : 24, alignItems: 'stretch',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <span style={{
-                width: 32, height: 32, borderRadius: 8, background: C.gray100,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
-              }}>💬</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: C.gray600 }}>일반 ChatGPT</span>
+            {/* Before */}
+            <div style={{
+              background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
+              border: '1px solid rgba(255,255,255,0.08)', textAlign: 'left',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', marginBottom: 14, letterSpacing: '0.05em' }}>BEFORE</div>
+              {[
+                '"앱 만들고 싶은데 뭘 어떻게 요청하지…"',
+                '개발사에 전화하면 "문서 보내주세요"',
+                'ChatGPT한테 물어봐도 뜬구름 답변',
+                '견적 요청서 형식도 모르겠음',
+                '결국 3일 넘게 문서 작성만…',
+              ].map((t, i) => (
+                <div key={i} style={{
+                  fontSize: 13, color: C.textLight, lineHeight: 1.7, marginBottom: 6,
+                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                }}>
+                  <span style={{ color: '#EF4444', flexShrink: 0 }}>✕</span>
+                  {t}
+                </div>
+              ))}
             </div>
-            {[
-              { t: '기능 우선순위 분류', v: '없음' },
-              { t: '예산 추정 정확도', v: '근거 없음' },
-              { t: '개발 일정 추정', v: '부정확' },
-              { t: '개발사 전달 포맷', v: '미지원' },
-              { t: '외주 맥락 이해', v: '없음' },
-            ].map((row, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 0', borderBottom: i < 4 ? `1px solid ${C.gray100}` : 'none',
-              }}>
-                <span style={{ fontSize: 14, color: C.gray500 }}>{row.t}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.gray400 }}>{row.v}</span>
-              </div>
-            ))}
-          </div>
 
-          {/* 위시켓 AI */}
-          <div style={{
-            background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
-            border: `2px solid ${C.blue}`,
-            boxShadow: `0 4px 24px ${C.blueGlow}`,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <span style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: C.white, fontWeight: 800,
-              }}>W</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: C.textDark }}>위시켓 AI</span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 100,
-                background: C.blueBg, color: C.blue, marginLeft: 'auto',
-              }}>추천</span>
+            {/* Arrow */}
+            {!isMobile && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 32, color: C.blueSoft }}>→</span>
+              </div>
+            )}
+            {isMobile && (
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: 24, color: C.blueSoft }}>↓</span>
+              </div>
+            )}
+
+            {/* After */}
+            <div style={{
+              background: 'rgba(37,99,235,0.08)', borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
+              border: `1px solid rgba(37,99,235,0.2)`, textAlign: 'left',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.blueSoft, marginBottom: 14, letterSpacing: '0.05em' }}>AFTER</div>
+              {[
+                'AI에게 아이디어만 말하면 끝',
+                '7단계 대화로 요구사항 자동 정리',
+                '기능 우선순위 P1/P2/P3 분류 완료',
+                '현실적 예산·일정 추정 포함',
+                'PDF 다운 → 개발사에 바로 전달',
+              ].map((t, i) => (
+                <div key={i} style={{
+                  fontSize: 13, color: C.white, lineHeight: 1.7, marginBottom: 6,
+                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                }}>
+                  <span style={{ color: '#34D399', flexShrink: 0 }}>✓</span>
+                  {t}
+                </div>
+              ))}
             </div>
-            {[
-              { t: '기능 우선순위 분류', v: 'P1/P2/P3 자동' },
-              { t: '예산 추정 정확도', v: '±20% 범위' },
-              { t: '개발 일정 추정', v: '업종별 실전 기반' },
-              { t: '개발사 전달 포맷', v: 'RFP + PDF' },
-              { t: '외주 맥락 이해', v: '116,000건 학습' },
-            ].map((row, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 0', borderBottom: i < 4 ? `1px solid ${C.gray100}` : 'none',
-              }}>
-                <span style={{ fontSize: 14, color: C.gray700, fontWeight: 500 }}>{row.t}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.blue }}>{row.v}</span>
-              </div>
-            ))}
           </div>
-        </div>
-
-        {/* [E-4] 비교표 직후 인라인 CTA */}
-        <div style={{ textAlign: 'center', marginTop: 32 }}>
-          <button onClick={handleGuestStart} disabled={guestLoading} style={{
-            padding: isMobile ? '0 28px' : '0 32px', height: 50, borderRadius: 12, border: 'none',
-            background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-            color: C.white, fontSize: isMobile ? 15 : 16, fontWeight: 700,
-            cursor: guestLoading ? 'wait' : 'pointer',
-            boxShadow: `0 4px 20px ${C.blueGlow}`,
-            transition: 'all 0.2s',
-            opacity: guestLoading ? 0.7 : 1,
-          }}>
-            직접 확인해보기 →
-          </button>
-          <p style={{ fontSize: 13, color: C.gray500, marginTop: 8 }}>무료 · 회원가입 불필요 · 5분</p>
         </div>
       </section>
 
       {/* ━━ Stats ━━ */}
       <section style={{
-        background: `linear-gradient(135deg, ${C.navy}, ${C.navyLight})`,
+        background: C.bg,
         padding: isMobile ? '40px 16px' : '56px 24px', textAlign: 'center',
       }}>
-        <p style={{ fontSize: isMobile ? 13 : 14, color: C.textLight, marginBottom: isMobile ? 24 : 28, padding: isMobile ? '0 8px' : 0 }}>
-          {isMobile ? '위시켓 실전 데이터 기반 AI' : '위시켓의 실전 데이터로 훈련된 AI가 가장 현실적인 개발 문서를 만들어드립니다'}
+        <p style={{ fontSize: isMobile ? 13 : 14, color: C.textMuted, marginBottom: isMobile ? 24 : 28, padding: isMobile ? '0 8px' : 0 }}>
+          {isMobile ? '위시켓 실전 데이터 기반 AI' : '위시켓의 실전 데이터로 훈련된 AI가 가장 현실적인 요구사항 문서를 만들어드립니다'}
         </p>
         <div style={{
           maxWidth: 900, margin: '0 auto',
@@ -802,66 +939,87 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             { v: '65,000+', l: '검증된 IT 파트너' },
           ].map((s, i) => (
             <div key={i}>
-              <div style={{ fontSize: 'clamp(26px, 4vw, 38px)', fontWeight: 800, color: C.blueSoft }}>{s.v}</div>
-              <div style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, marginTop: 4 }}>{s.l}</div>
+              <div style={{ fontSize: 'clamp(26px, 4vw, 38px)', fontWeight: 800, color: C.blue }}>{s.v}</div>
+              <div style={{ fontSize: isMobile ? 12 : 14, color: C.textMuted, marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
         </div>
-        <p style={{ fontSize: 11, color: C.gray600, marginTop: 16 }}>* 위시켓 공식 누적 실적 기준</p>
+        <p style={{ fontSize: 11, color: C.gray500, marginTop: 16 }}>* 위시켓 공식 누적 실적 기준</p>
       </section>
 
-      {/* ━━ Social Proof ━━ */}
-      <section style={{ background: C.bg, ...sectionPad }}>
-        <h2 style={secTitle}>{isMobile ? '사용자들이 말합니다' : '실제 사용자 후기'}</h2>
+      {/* ━━ [R-5] Social Proof — 익명 사용 사례 ━━ */}
+      <section style={{ background: C.white, ...sectionPad }}>
+        <h2 style={secTitle}>{isMobile ? '이런 분들이 사용했습니다' : '이런 프로젝트에 사용되고 있습니다'}</h2>
         <p style={{ fontSize: isMobile ? 14 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10, marginBottom: 44 }}>
-          아이디어를 개발 문서로 바꾼 분들의 이야기
+          아이디어를 요구사항 문서로 바꾼 분들의 이야기
         </p>
         <div style={{
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 20,
         }}>
           {[
-            { name: '김태현', role: '스타트업 대표', text: '개발사에 보낼 문서를 3일이나 쓰고 있었는데, 여기서 5분 만에 끝났어요. 개발사 대표님이 "이렇게 잘 정리된 요구사항은 처음"이라고 하셨습니다.', rating: 5 },
-            { name: '이수진', role: 'PM', text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. ChatGPT한테 물어보면 뜬구름 잡는 소리만 하는데, 여기는 외주 맥락을 정확히 알고 있더라고요.', rating: 5 },
-            { name: '박민수', role: '1인 창업자', text: '개발을 아예 몰라서 뭘 어떻게 요청해야 할지 막막했는데, AI가 질문해주니까 답만 하면 됐어요. 예산 추정이 조금 넓은 범위로 나오는 건 아쉽지만, 첫 견적 요청에는 충분했습니다.', rating: 4 },
-          ].map((review, i) => (
+            {
+              role: '스타트업 대표',
+              project: '펫케어 앱',
+              text: '개발사에 보낼 문서를 며칠간 고민했는데, 여기서 10분 만에 완성했습니다. 문서를 보낸 개발사 3곳 모두 "요구사항이 잘 정리되어 있다"고 하더라고요.',
+              result: '개발사 3곳에서 견적 수령',
+              icon: '🐾',
+            },
+            {
+              role: '1인 창업자',
+              project: 'B2B SaaS',
+              text: '개발을 아예 몰라서 뭘 어떻게 요청해야 할지 막막했는데, AI가 질문해주니까 답만 하면 됐어요. 투자자 미팅에서도 기술 설명이 가능해졌습니다.',
+              result: '투자 미팅 기술 설명에 활용',
+              icon: '💼',
+            },
+            {
+              role: 'PM',
+              project: '사내 관리 시스템',
+              text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. 개발팀과 소통 시간이 체감상 절반으로 줄었습니다. 예산 범위가 좀 넓긴 하지만 초기 논의에는 충분했습니다.',
+              result: '개발팀 소통 시간 절반 단축',
+              icon: '📋',
+            },
+          ].map((c, i) => (
             <div key={i} style={{
-              background: C.white, borderRadius: 16, padding: '24px',
+              background: C.bg, borderRadius: 16, padding: '24px',
               border: '1px solid rgba(0,0,0,0.05)',
             }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-                {Array.from({ length: 5 }).map((_, j) => (
-                  <span key={j} style={{ color: j < review.rating ? '#FBBF24' : C.gray200, fontSize: 16 }}>★</span>
-                ))}
-              </div>
-              <p style={{ fontSize: 14, color: C.gray700, lineHeight: 1.7, marginBottom: 16 }}>
-                &ldquo;{review.text}&rdquo;
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
+                  width: 40, height: 40, borderRadius: 12,
                   background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 700, color: C.white,
-                }}>{review.name[0]}</div>
+                  fontSize: 18,
+                }}>{c.icon}</div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{review.name}</div>
-                  <div style={{ fontSize: 12, color: C.gray500 }}>{review.role}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{c.role}</div>
+                  <div style={{ fontSize: 12, color: C.gray500 }}>{c.project} 프로젝트</div>
                 </div>
+              </div>
+              <p style={{ fontSize: 14, color: C.gray700, lineHeight: 1.7, marginBottom: 14 }}>
+                &ldquo;{c.text}&rdquo;
+              </p>
+              <div style={{
+                display: 'inline-block', padding: '4px 12px', borderRadius: 100,
+                background: 'rgba(52,211,153,0.1)', fontSize: 12, fontWeight: 600, color: '#059669',
+              }}>
+                ✓ {c.result}
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ━━ FAQ — [S2] state 기반 +/- 회전 ━━ */}
-      <section style={{ background: C.white, ...sectionPad }}>
+      {/* ━━ FAQ — [O-2] 무료 모델 + [O-3] 5~10분 ━━ */}
+      <section style={{ background: C.bg, ...sectionPad }}>
         <h2 style={secTitle}>자주 묻는 질문</h2>
         <div style={{ maxWidth: 680, margin: '40px auto 0' }}>
           {[
             { q: '정말 무료인가요?', a: '네, 완전 무료입니다. 회원가입도 필요 없고, 이메일을 입력하면 완성된 문서를 PDF로 받아보실 수 있습니다. 이메일 없이도 바로 시작할 수 있어요.' },
+            { q: '왜 무료인가요? 수익은 어떻게 내나요?', a: '문서 생성은 완전 무료입니다. 마음에 드는 문서가 완성되면, 원하실 경우 위시켓에서 검증된 개발사와 매칭을 도와드립니다. 매칭 수수료로 운영되기 때문에 문서 생성에는 비용이 전혀 들지 않습니다.' },
             { q: 'ChatGPT랑 뭐가 다른가요?', a: '위시켓의 13년 외주 매칭 경험(116,000건 프로젝트)이 반영되어 있습니다. 기능 우선순위(P1/P2/P3), 현실적 예산·일정 추정, 개발사에 바로 전달 가능한 포맷 등 외주에 특화된 결과물을 제공합니다.' },
-            { q: '문서 완성까지 얼마나 걸리나요?', a: '평균 5분이면 충분합니다. AI가 핵심 질문을 하고, 답변만 해주시면 개발사 전달용 문서가 자동 생성됩니다.' },
+            { q: '개발 지식이 없어도 사용할 수 있나요?', a: '네, 개발을 전혀 모르셔도 됩니다. AI가 쉬운 말로 질문하고, 답변만 해주시면 전문적인 요구사항 문서가 자동으로 만들어집니다. 스타트업 대표님, 1인 창업자분들이 가장 많이 사용하고 계십니다.' },
+            { q: '문서 완성까지 얼마나 걸리나요?', a: '평균 5~10분이면 충분합니다. AI가 핵심 질문을 하고, 답변만 해주시면 개발사 전달용 문서가 자동 생성됩니다.' },
             { q: '생성된 문서를 수정할 수 있나요?', a: '문서 완성 후 각 섹션별로 AI 재생성이 가능합니다. 원하는 부분만 다시 생성하여 수정할 수 있어요.' },
             { q: '개인정보는 안전한가요?', a: '입력하신 이메일은 문서 발송에만 사용되며, 마케팅 목적으로 활용하지 않습니다. 프로젝트 정보는 문서 생성에만 사용되고 제3자에게 공유되지 않습니다.' },
           ].map((faq, i) => (
@@ -917,7 +1075,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textLight, marginBottom: 32, maxWidth: 480, margin: '0 auto 32px' }}>
           {isMobile ? (
-            <>아이디어만 말하면, <strong style={{ color: C.blueSoft }}>개발 견적받을 문서가 5분이면 완성</strong></>
+            <>아이디어만 말하면, <strong style={{ color: C.blueSoft }}>개발 견적받을 문서가 5~10분이면 완성</strong></>
           ) : (
             <>아이디어만 있으면 됩니다. 나머지는 <strong style={{ color: C.blueSoft }}>AI가 정리해서 개발사에 보낼 문서로 만들어드립니다.</strong><br />이메일을 입력하면 PDF로도 보내드립니다.</>
           )}
@@ -937,7 +1095,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
           </button>
 
-          {/* 서브: 이메일 — [S3] 독립 에러 */}
+          {/* 서브: 이메일 */}
           <form onSubmit={handleFinalEmailStart} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: C.gray500 }}>또는</span>
             <input
@@ -961,19 +1119,17 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               {loading ? '...' : 'PDF 받기'}
             </button>
           </form>
-          {/* [S3] Final CTA 독립 에러 표시 */}
           {finalError && (
             <p style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>{finalError}</p>
           )}
         </div>
 
-        {/* 보안 메시지 */}
         <p style={{ fontSize: 12, color: C.gray600, marginTop: 20, maxWidth: 400, margin: '20px auto 0' }}>
           입력된 정보는 문서 생성에만 사용되며, 제3자에게 공유되지 않습니다.
         </p>
       </section>
 
-      {/* ━━ Footer — [S1] 실제 링크 ━━ */}
+      {/* ━━ Footer ━━ */}
       <footer style={{ background: C.gray50, borderTop: `1px solid ${C.gray200}`, padding: isMobile ? '32px 16px 72px' : '44px 24px 28px' }}>
         <div style={{ maxWidth: 1080, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 28, flexWrap: 'wrap' }}>
@@ -1003,7 +1159,6 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               <div style={{ fontSize: isMobile ? 13 : 12, color: C.gray500, marginTop: 2 }}>10:00-18:00 주말·공휴일 제외</div>
               <div style={{ fontSize: isMobile ? 13 : 12, color: C.gray500 }}>help@wishket.com</div>
             </div>
-            {/* [S1] Footer 링크 — <a> 태그 + 실제 URL */}
             {FOOTER_COLS.map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.gray700, marginBottom: 10 }}>{col.title}</div>
@@ -1032,23 +1187,21 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </div>
       </footer>
 
-      {/* ━━ Sticky Bottom Bar — [E-5] 모바일 사회적 증거 추가 ━━ */}
-      <StickyBar onStart={handleGuestStart} userCount={userCount} guestLoading={guestLoading} />
+      {/* ━━ Sticky Bottom Bar — [M-5] heroCtaVisible 기반 ━━ */}
+      <StickyBar onStart={handleGuestStart} userCount={userCount} guestLoading={guestLoading} heroCtaVisible={heroCtaVisible} />
     </div>
   );
 }
 
-// ─── Sticky Bottom Bar ───
-function StickyBar({ onStart, userCount, guestLoading }: { onStart: () => void; userCount: number; guestLoading: boolean }) {
-  const [visible, setVisible] = useState(false);
+// ─── [M-5] Sticky Bottom Bar — 히어로 CTA 기준 노출 ───
+function StickyBar({ onStart, userCount, guestLoading, heroCtaVisible }: {
+  onStart: () => void; userCount: number; guestLoading: boolean; heroCtaVisible: boolean;
+}) {
   const [dismissed, setDismissed] = useState(false);
-  const isMobile = useIsMobile(); // 커스텀 훅 사용 (중복 제거)
+  const isMobile = useIsMobile();
 
-  useEffect(() => {
-    const fn = () => setVisible(window.scrollY > 400);
-    window.addEventListener('scroll', fn);
-    return () => window.removeEventListener('scroll', fn);
-  }, []);
+  // [M-5] 히어로 CTA가 보이면 숨기고, 안 보이면 표시
+  const visible = !heroCtaVisible;
 
   if (!visible || dismissed) return null;
 
@@ -1066,17 +1219,17 @@ function StickyBar({ onStart, userCount, guestLoading }: { onStart: () => void; 
         alignItems: 'center', justifyContent: 'space-between',
         gap: isMobile ? 4 : 0,
       }}>
-        {/* [E-5] 모바일에서도 사회적 증거 표시 */}
-        {isMobile && userCount > 0 && (
+        {/* [R-4] 100명 미만이면 정성적 표현 */}
+        {isMobile && (
           <div style={{ fontSize: 11, color: C.gray400, textAlign: 'center' }}>
-            {userCount.toLocaleString()}명이 이미 사용 중
+            {userCount >= 100 ? `${userCount.toLocaleString()}명이 이미 사용 중` : '스타트업 대표 · 1인 창업자가 사용 중'}
           </div>
         )}
         {!isMobile && (
           <span style={{ fontSize: 15, color: '#CBD5E1' }}>
-            {userCount > 0
+            {userCount >= 100
               ? <><span style={{ color: '#93C5FD', fontWeight: 600 }}>{userCount.toLocaleString()}명</span>이 이미 사용했습니다</>
-              : <>아이디어를 <span style={{ color: '#93C5FD', fontWeight: 600 }}>개발 문서</span>로 5분 만에 무료 변환</>
+              : <>아이디어를 <span style={{ color: '#93C5FD', fontWeight: 600 }}>요구사항 문서</span>로 무료 변환</>
             }
           </span>
         )}
