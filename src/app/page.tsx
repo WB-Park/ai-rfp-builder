@@ -32,6 +32,10 @@ export default function Home() {
     setPhase('complete');
   };
 
+  const handleBack = () => {
+    setPhase('landing');
+  };
+
   switch (phase) {
     case 'landing':
       return <LandingPage onStart={handleStart} />;
@@ -41,11 +45,12 @@ export default function Home() {
           onComplete={handleChatComplete}
           email={email}
           sessionId={sessionId}
+          onBack={handleBack}
         />
       );
     case 'complete':
       return rfpData ? (
-        <RFPComplete rfpData={rfpData} email={email} sessionId={sessionId} chatMessages={chatMessages} chatMode={chatMode} />
+        <RFPComplete rfpData={rfpData} email={email} sessionId={sessionId} chatMessages={chatMessages} chatMode={chatMode} onBack={handleBack} />
       ) : null;
     default:
       return null;

@@ -32,6 +32,7 @@ interface ChatInterfaceProps {
   onComplete: (rfpData: RFPData, messages?: { role: string; content: string }[], chatMode?: 'quick' | 'deep') => void;
   email: string;
   sessionId?: string;
+  onBack?: () => void;
 }
 
 // 마크다운 → HTML (인사이트+질문 통합 버블 지원)
@@ -85,7 +86,7 @@ function getThinkingLabel(mode: ChatMode): string {
 // (Deep Mode v2: 가이드 칩 폐지 — 대화형 시작으로 전환)
 
 
-export default function ChatInterface({ onComplete, email, sessionId }: ChatInterfaceProps) {
+export default function ChatInterface({ onComplete, email, sessionId, onBack }: ChatInterfaceProps) {
   // ── 모드 선택 ──
   const [chatMode, setChatMode] = useState<ChatMode>(null);
   const [deepPhase, setDeepPhase] = useState<string>('conversation');
@@ -948,6 +949,24 @@ export default function ChatInterface({ onComplete, email, sessionId }: ChatInte
         <div className="glass-header" style={{ padding: isMobile ? '12px 16px' : '16px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  aria-label="홈으로 돌아가기"
+                  style={{
+                    width: 28, height: 28, borderRadius: 6,
+                    border: '1px solid var(--border-default)',
+                    background: 'var(--surface-1)', color: 'var(--text-tertiary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', fontSize: 14, transition: 'all 0.2s',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-1)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                >
+                  ←
+                </button>
+              )}
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
                 background: isComplete ? 'var(--color-success)' : canComplete ? '#F59E0B' : 'var(--color-primary)',

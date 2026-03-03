@@ -80,8 +80,8 @@ const DEMO_TABS = [
     stats: [
       { v: '7개', l: '핵심 기능', c: C.blueSoft },
       { v: 'P1/P2/P3', l: '우선순위 분류', c: '#A78BFA' },
-      { v: '3,000만', l: '예상 예산', c: '#FBBF24' },
-      { v: '12주', l: 'MVP 일정', c: '#34D399' },
+      { v: 'React+Node', l: '기술 스택', c: '#FBBF24' },
+      { v: '42페이지', l: '문서 분량', c: '#34D399' },
     ],
     features: [
       { name: '회원가입 · 소셜 로그인', tag: 'P1 필수', tagColor: '#EF4444' },
@@ -97,8 +97,8 @@ const DEMO_TABS = [
     stats: [
       { v: '12개', l: '핵심 기능', c: C.blueSoft },
       { v: 'P1/P2/P3', l: '우선순위 분류', c: '#A78BFA' },
-      { v: '5,500만', l: '예상 예산', c: '#FBBF24' },
-      { v: '16주', l: 'MVP 일정', c: '#34D399' },
+      { v: 'Next.js+Java', l: '기술 스택', c: '#FBBF24' },
+      { v: '58페이지', l: '문서 분량', c: '#34D399' },
     ],
     features: [
       { name: '상품 등록 · 카테고리 관리', tag: 'P1 필수', tagColor: '#EF4444' },
@@ -114,8 +114,8 @@ const DEMO_TABS = [
     stats: [
       { v: '9개', l: '핵심 기능', c: C.blueSoft },
       { v: 'P1/P2/P3', l: '우선순위 분류', c: '#A78BFA' },
-      { v: '8,000만', l: '예상 예산', c: '#FBBF24' },
-      { v: '20주', l: 'MVP 일정', c: '#34D399' },
+      { v: 'React+Go', l: '기술 스택', c: '#FBBF24' },
+      { v: '51페이지', l: '문서 분량', c: '#34D399' },
     ],
     features: [
       { name: '워크스페이스 · 팀 관리', tag: 'P1 필수', tagColor: '#EF4444' },
@@ -369,7 +369,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 15, color: C.textLight, lineHeight: 1.6,
                 marginBottom: 28, padding: '0 8px',
               }}>
-                기능 우선순위, 예산 추정, 개발 일정까지 —<br />개발사가 바로 견적 낼 수 있는 수준으로 정리해드립니다
+                뭘 만들고 싶은지 대화하면, 핵심 기능·우선순위·기술 요구사항이<br />체계적으로 정리된 문서가 완성됩니다
               </p>
 
               {/* [R-6] 안심 문구 */}
@@ -434,7 +434,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
                 lineHeight: 1.65, maxWidth: 600, margin: '0 auto 20px',
               }}>
-                기능 우선순위, 예산 추정, 개발 일정까지 — <strong style={{ color: C.white }}>개발사가 바로 견적 낼 수 있는 수준</strong>으로 정리해드립니다. 무료로 PDF까지 받아보세요.
+                뭘 만들고 싶은지 대화하면, <strong style={{ color: C.white }}>핵심 기능·우선순위·기술 요구사항</strong>이 체계적으로 정리된 문서가 완성됩니다. 무료로 PDF까지 받아보세요.
               </p>
 
               {/* [R-6] 안심 문구 */}
@@ -590,8 +590,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                   '3. 핵심 기능 명세 (P1/P2/P3)',
                   '4. 비기능 요구사항',
                   '5. 기술 스택 추천',
-                  '6. MVP 로드맵 · 일정',
-                  '7. 예산 추정',
+                  '6. 화면 명세 · 시나리오',
+                  '7. 기술 스택 추천',
                   '8. 리스크 · 고려사항',
                 ].map((item, i) => (
                   <div key={i} style={{ fontSize: isMobile ? 11 : 12, color: C.textLight, padding: '3px 0' }}>{item}</div>
@@ -644,8 +644,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               </div>
               {[
                 { t: '기능 우선순위 분류', v: '없음' },
-                { t: '예산 추정 정확도', v: '근거 없음' },
-                { t: '개발 일정 추정', v: '부정확' },
+                { t: '화면·시나리오 명세', v: '없음' },
+                { t: '비기능 요구사항', v: '누락' },
                 { t: '개발사 전달 포맷', v: '미지원' },
                 { t: '외주 맥락 이해', v: '없음' },
               ].map((row, i) => (
@@ -679,8 +679,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               </div>
               {[
                 { t: '기능 우선순위 분류', v: 'P1/P2/P3 자동' },
-                { t: '예산 추정 정확도', v: '±20% 범위' },
-                { t: '개발 일정 추정', v: '업종별 실전 기반' },
+                { t: '화면·시나리오 명세', v: '화면별 상세 정의' },
+                { t: '비기능 요구사항', v: '자동 포함' },
                 { t: '개발사 전달 포맷', v: 'RFP + PDF' },
                 { t: '외주 맥락 이해', v: '116,000건 학습' },
               ].map((row, i) => (
@@ -726,7 +726,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           }}>
             {[
               { step: 1, title: '"이런 거 만들고 싶어요"', desc: '한 줄이면 충분합니다. AI가 알아서 분류하고 관련 질문을 시작합니다.' },
-              { step: 2, title: 'AI가 질문 → 당신이 답변', desc: '타겟 사용자, 핵심 기능, 예산 등 7가지를 대화로 정리합니다.' },
+              { step: 2, title: 'AI가 질문 → 당신이 답변', desc: '타겟 사용자, 핵심 기능, 기술 요구사항 등을 대화로 정리합니다.' },
               { step: 3, title: '문서 완성!', desc: '개발사에 바로 전달 가능한 전문 문서. PDF 다운로드까지.' },
             ].map((s, i) => (
               <div key={i} style={{ flex: '1 1 240px', maxWidth: 300, textAlign: 'center' }}>
@@ -757,9 +757,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           gap: 16, marginTop: 44,
         }}>
           {[
-            { n: '01', title: '빠짐없는 요구사항 정리', desc: isMobile ? '7단계 질문으로 개요부터 예산까지 빠짐없이' : '7단계 전문 질문으로 프로젝트 개요부터 기술 요구사항, 예산까지 빠짐없이 정리', icon: '📄' },
+            { n: '01', title: '빠짐없는 요구사항 정리', desc: isMobile ? '7단계 질문으로 개요부터 기술 스택까지 빠짐없이' : '7단계 전문 질문으로 프로젝트 개요부터 기술 요구사항, 화면 명세까지 빠짐없이 정리', icon: '📄' },
             { n: '02', title: '기능별 우선순위', desc: isMobile ? 'P1/P2/P3 자동 분류 + MVP 로드맵' : 'P1/P2/P3 자동 분류 + 구현 난이도 분석. MVP부터 시작하는 로드맵 제시', icon: '🎯' },
-            { n: '03', title: '실전 예산·일정', desc: isMobile ? '13년 매칭 데이터 기반 현실적 추정' : '13년 매칭 데이터 기반, 프로젝트 유형별 현실적인 예산 범위와 기간 추정', icon: '💰' },
+            { n: '03', title: '화면별 상세 명세', desc: isMobile ? '각 화면 UI 요소·시나리오·에러 케이스까지' : '각 화면의 UI 요소, 사용자 시나리오, 에러 케이스까지 개발사가 바로 구현 가능한 수준으로', icon: '📱' },
             { n: '04', title: '개발사 바로 전달', desc: isMobile ? 'PDF 다운로드 → 개발사에 그대로 전달' : '완성된 문서를 PDF로 다운로드. 그대로 개발사에 보내면 정확한 견적을 받을 수 있어요', icon: '🚀' },
           ].map(item => (
             <div key={item.n} style={{
@@ -816,9 +816,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               highlight: '7단계 전문 질문',
             },
             {
-              icon: '📊', title: '실전 데이터 기반 추정',
-              desc: '13년간 2,178억 거래 데이터에서 업종별·규모별 예산 범위와 개발 기간을 참조합니다.',
-              highlight: '±20% 예산 정확도',
+              icon: '📊', title: '요구사항 자동 체계화',
+              desc: '대화만으로 핵심 기능, 우선순위, 기술 스택, 화면 명세까지 빠짐없이 정리. 개발사가 바로 이해할 수 있는 구조로 출력합니다.',
+              highlight: '체계적 문서 구조',
             },
             {
               icon: '📋', title: '개발사 전달 포맷',
@@ -903,7 +903,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 'AI에게 아이디어만 말하면 끝',
                 '7단계 대화로 요구사항 자동 정리',
                 '기능 우선순위 P1/P2/P3 분류 완료',
-                '현실적 예산·일정 추정 포함',
+                '기술 스택·비기능 요구사항 포함',
                 'PDF 다운 → 개발사에 바로 전달',
               ].map((t, i) => (
                 <div key={i} style={{
@@ -975,7 +975,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             {
               role: 'PM',
               project: '사내 관리 시스템',
-              text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. 개발팀과 소통 시간이 체감상 절반으로 줄었습니다. 예산 범위가 좀 넓긴 하지만 초기 논의에는 충분했습니다.',
+              text: '기능 우선순위랑 화면 명세까지 자동으로 나와서 놀랐어요. 개발팀과 소통 시간이 체감상 절반으로 줄었습니다. 요구사항이 체계적으로 정리되니 견적 논의도 수월해졌어요.',
               result: '개발팀 소통 시간 절반 단축',
               icon: '📋',
             },
@@ -1017,7 +1017,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           {[
             { q: '정말 무료인가요?', a: '네, 완전 무료입니다. 회원가입도 필요 없고, 이메일을 입력하면 완성된 문서를 PDF로 받아보실 수 있습니다. 이메일 없이도 바로 시작할 수 있어요.' },
             { q: '왜 무료인가요? 수익은 어떻게 내나요?', a: '문서 생성은 완전 무료입니다. 마음에 드는 문서가 완성되면, 원하실 경우 위시켓에서 검증된 개발사와 매칭을 도와드립니다. 매칭 수수료로 운영되기 때문에 문서 생성에는 비용이 전혀 들지 않습니다.' },
-            { q: 'ChatGPT랑 뭐가 다른가요?', a: '위시켓의 13년 외주 매칭 경험(116,000건 프로젝트)이 반영되어 있습니다. 기능 우선순위(P1/P2/P3), 현실적 예산·일정 추정, 개발사에 바로 전달 가능한 포맷 등 외주에 특화된 결과물을 제공합니다.' },
+            { q: 'ChatGPT랑 뭐가 다른가요?', a: '위시켓의 13년 외주 매칭 경험(116,000건 프로젝트)이 반영되어 있습니다. 기능 우선순위(P1/P2/P3), 화면별 상세 명세, 개발사에 바로 전달 가능한 포맷 등 외주에 특화된 결과물을 제공합니다.' },
             { q: '개발 지식이 없어도 사용할 수 있나요?', a: '네, 개발을 전혀 모르셔도 됩니다. AI가 쉬운 말로 질문하고, 답변만 해주시면 전문적인 요구사항 문서가 자동으로 만들어집니다. 스타트업 대표님, 1인 창업자분들이 가장 많이 사용하고 계십니다.' },
             { q: '문서 완성까지 얼마나 걸리나요?', a: '평균 5~10분이면 충분합니다. AI가 핵심 질문을 하고, 답변만 해주시면 개발사 전달용 문서가 자동 생성됩니다.' },
             { q: '생성된 문서를 수정할 수 있나요?', a: '문서 완성 후 각 섹션별로 AI 재생성이 가능합니다. 원하는 부분만 다시 생성하여 수정할 수 있어요.' },

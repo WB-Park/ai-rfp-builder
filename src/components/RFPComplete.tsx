@@ -15,6 +15,7 @@ interface RFPCompleteProps {
   readOnly?: boolean; // Hide editing features for share page
   chatMessages?: { role: string; content: string }[]; // 대화 히스토리 → PRD 생성에 활용
   chatMode?: 'quick' | 'deep'; // 대화 모드 → PRD 스타일 분기
+  onBack?: () => void; // 홈으로 돌아가기
 }
 
 interface PRDResult {
@@ -744,7 +745,7 @@ function FloatingTOC({ sections, activeSection }: { sections: { num: string; tit
 }
 
 // ━━━━━ Sticky Top Bar — Project Title + URL Copy + CTA ━━━━━
-function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: string; onCTAClick: () => void; shareUrl?: string }) {
+function StickyTopBar({ projectName, onCTAClick, shareUrl, onBack }: { projectName: string; onCTAClick: () => void; shareUrl?: string; onBack?: () => void }) {
   const [visible, setVisible] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   useEffect(() => {
@@ -783,6 +784,22 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl }: { projectName: stri
         height: 56, gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              aria-label="홈으로 돌아가기"
+              style={{
+                width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0, fontSize: 16, transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+            >
+              ←
+            </button>
+          )}
           <div style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs><linearGradient id="stickyTopBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#2563EB"/><stop offset="100%" stopColor="#1D4ED8"/></linearGradient></defs>
@@ -1028,7 +1045,7 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
 }
 
 // ━━━━━ Main Component ━━━━━
-export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, chatMessages, chatMode }: RFPCompleteProps) {
+export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, chatMessages, chatMode, onBack }: RFPCompleteProps) {
   // preloadedPrd가 있으면 바로 파싱해서 사용 (share 페이지)
   const initialPrd = useMemo(() => {
     if (preloadedPrd) {
@@ -1867,7 +1884,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
-      <StickyTopBar projectName={prdData.projectName} shareUrl={shareUrl} onCTAClick={() => {
+      <StickyTopBar projectName={prdData.projectName} shareUrl={shareUrl} onBack={readOnly ? undefined : onBack} onCTAClick={() => {
         const ctaEl = document.querySelector('.wishket-cta-section');
         if (ctaEl) ctaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }} />
@@ -1899,6 +1916,24 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           pointerEvents: 'none',
         }} />
         <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* 홈으로 돌아가기 버튼 */}
+          {!readOnly && onBack && (
+            <button
+              onClick={onBack}
+              className="no-print"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.7)', padding: '6px 14px', borderRadius: 8,
+                fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 20,
+                backdropFilter: 'blur(12px)', transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+            >
+              ← 새 문서 만들기
+            </button>
+          )}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'rgba(255,255,255,0.08)', padding: '6px 16px', borderRadius: 24,
