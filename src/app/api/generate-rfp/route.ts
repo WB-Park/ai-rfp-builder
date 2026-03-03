@@ -141,7 +141,7 @@ async function generateDeepModePRD(
   // Call 1b: Deep mode 프리미엄 인사이트
   const deepCall1b = anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2500,
+    max_tokens: 3500,
     system: `위시켓 수석 컨설턴트. 전략적 인사이트 추출. 유효한 JSON만 출력.`,
     messages: [{
       role: 'user',
@@ -231,12 +231,15 @@ async function generateDeepModePRD(
   const call2Specs = (data2.featureSpecs || []).length;
   console.log(`[DEEP PRD] Call1a keys(${call1aKeys.length}): ${call1aKeys.join(',')}, Call1b keys(${call1bKeys.length}): ${call1bKeys.join(',')}, Call2 featureSpecs: ${call2Specs}`);
 
-  // ── 실패 감지: Call1a가 핵심 필드 2개 미만이면 실패로 판정 ──
+  // ── 실패 감지: Call1a가 핵심 필드 전부 비어있으면 실패로 판정 ──
   const criticalFields = ['executiveSummary', 'projectGoals', 'expertInsight'];
-  const hasCritical = criticalFields.filter(f => data1[f] && (typeof data1[f] === 'string' ? data1[f].length > 20 : Array.isArray(data1[f]) && data1[f].length > 0)).length;
-  if (hasCritical < 2) {
-    console.error(`[DEEP PRD] ⚠️ Call1a critically failed (only ${hasCritical}/${criticalFields.length} fields). Throwing error.`);
+  const hasCritical = criticalFields.filter(f => data1[f] && (typeof data1[f] === 'string' ? data1[f].length > 10 : Array.isArray(data1[f]) && data1[f].length > 0)).length;
+  if (hasCritical === 0) {
+    console.error(`[DEEP PRD] ⚠️ Call1a critically failed (0/${criticalFields.length} fields). Throwing error.`);
     throw new Error('DEEP_MODE_CALL1_FAILED');
+  }
+  if (hasCritical < 2) {
+    console.warn(`[DEEP PRD] ⚠️ Call1a partially succeeded (${hasCritical}/${criticalFields.length} fields). Proceeding with available data.`);
   }
 
   // ── Feature Modules 조립 ──
@@ -514,7 +517,7 @@ JSON 배열만 출력:
       });
       const featureGenResponse = await Promise.race([
         featureExtractionPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 12000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('FEATURE_EXTRACTION_TIMEOUT')), 20000)),
       ]);
       const featureText = featureGenResponse.content[0].type === 'text' ? featureGenResponse.content[0].text : '';
       const featureMatch = featureText.match(/\[[\s\S]*\]/);
@@ -542,10 +545,9 @@ JSON 배열만 출력:
     try {
       return await generateDeepModePRD(anthropic, rfpData, features, featureList, conversationContext, now, globalStartTime);
     } catch (deepError: any) {
-      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}) after ${Date.now() - globalStartTime}ms`);
-      // Deep mode 실패 시 Quick mode로 폴백하지 않음 — 목적이 완전히 다른 기능
-      // 에러를 그대로 throw하여 클라이언트에서 "다시 생성하기" 유도
-      throw deepError;
+      console.error(`[generate-rfp] ⚠️ Deep mode failed (${deepError?.message}) after ${Date.now() - globalStartTime}ms. Falling back to Quick mode.`);
+      // Deep mode 실패 시 Quick mode로 폴백하여 사용자에게 결과를 반환
+      // (500 에러보다 Quick mode 결과라도 주는 것이 UX에 유리)
     }
   }
 
@@ -1160,15 +1162,8 @@ export async function POST(req: NextRequest) {
         result = await generateFullAIPRD(rfpData, chatMessages, chatMode);
       } catch (aiError: any) {
         console.error('AI PRD generation failed:', aiError?.message || aiError);
-        // Deep mode 실패 시: Quick mode 폴백 없이 에러 반환 → 클라이언트에서 재시도 유도
-        if (chatMode === 'deep') {
-          return NextResponse.json({
-            error: 'Deep mode PRD 생성에 실패했습니다. 다시 시도해주세요.',
-            errorCode: 'DEEP_MODE_FAILED',
-            retryable: true,
-          }, { status: 500 });
-        }
-        // Quick mode 실패 시에만 minimal fallback
+        // Deep/Quick 모두 실패 시 minimal fallback으로 결과 반환
+        console.warn(`[generate-rfp] AI failed (${chatMode}): ${aiError?.message}. Using minimal fallback.`);
         result = generateMinimalFallback(rfpData);
       }
     } else {
