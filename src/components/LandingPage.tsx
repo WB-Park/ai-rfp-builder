@@ -280,7 +280,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: C.white }}>wishket</span>
             <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)' }} />
-            <span style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, fontWeight: 500 }}>AI 기획서 빌더</span>
+            <span style={{ fontSize: isMobile ? 12 : 14, color: C.textLight, fontWeight: 500 }}>AI 개발문서 빌더</span>
           </div>
           <button onClick={handleGuestStart} disabled={guestLoading} style={{
             padding: isMobile ? '10px 16px' : '8px 20px', borderRadius: 10, border: 'none', cursor: guestLoading ? 'wait' : 'pointer',
@@ -317,7 +317,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.blueText }}>
-                  {userCount > 0 ? `${userCount.toLocaleString()}명이 기획서 작성 완료` : '위시켓 13년 외주 경험 × AI'}
+                  {userCount > 0 ? `스타트업 대표 ${userCount.toLocaleString()}명이 이미 사용` : '스타트업 대표 · 1인 창업자 · 비개발자를 위한 AI'}
                 </span>
               </div>
 
@@ -326,8 +326,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 28, fontWeight: 800, color: C.white,
                 lineHeight: 1.35, letterSpacing: '-0.03em', marginBottom: 12,
               }}>
-                기획서 작성,<br />
-                <span style={{ color: C.blueSoft }}>AI가 5분 만에 끝</span>
+                앱 아이디어만 말하세요<br />
+                <span style={{ color: C.blueSoft }}>개발 견적받을 문서가 나옵니다</span>
               </h1>
 
               {/* Sub — 핵심 1줄 */}
@@ -335,7 +335,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 15, color: C.textLight, lineHeight: 1.6,
                 marginBottom: 28, padding: '0 8px',
               }}>
-                대화만 하면 개발사 전달용 기획서 완성
+                뭘 만들고 싶은지 AI에게 말하면, 개발사에 바로 보낼 수 있는 문서 완성
               </p>
 
               {/* 메인 CTA 1개 — 깨끗하게 */}
@@ -348,7 +348,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 animation: 'heroPulse 2.5s ease-in-out infinite',
                 opacity: guestLoading ? 0.7 : 1,
               }}>
-                {guestLoading ? '준비 중...' : '무료로 기획서 만들기 →'}
+                {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
 
               {/* Trust chips — 3개로 축소, 1줄 */}
@@ -380,7 +380,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
                 <span style={{ fontSize: 14, fontWeight: 600, color: C.blueText }}>
-                  {userCount > 0 ? `${userCount.toLocaleString()}명이 기획서 작성 완료` : '위시켓 13년 외주 경험 × AI'}
+                  {userCount > 0 ? `스타트업 대표 ${userCount.toLocaleString()}명이 이미 사용` : '스타트업 대표 · 1인 창업자 · 비개발자를 위한 AI'}
                 </span>
               </div>
 
@@ -389,7 +389,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800,
                 color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em', marginBottom: 16,
               }}>
-                소프트웨어 기획서(PRD),<br /><span style={{ color: C.blueSoft }}>AI와 대화 몇 번이면 끝</span>
+                앱 아이디어, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 견적받을 수 있는 문서가 나옵니다</span>
               </h1>
 
               {/* Sub */}
@@ -397,7 +397,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
                 lineHeight: 1.65, maxWidth: 560, margin: '0 auto 36px',
               }}>
-                보통 <strong style={{ color: C.white }}>3일</strong> 걸리는 기획서 작성. AI가 <strong style={{ color: C.blueSoft }}>5분</strong> 만에 개발사에 <strong style={{ color: C.blueSoft }}>바로 전달 가능한 기획서</strong>를 무료로 작성하고, PDF로 이메일에 보내드립니다.
+                뭘 만들고 싶은지 <strong style={{ color: C.white }}>AI와 대화</strong>하면, 개발사에 <strong style={{ color: C.blueSoft }}>바로 보낼 수 있는 전문 문서</strong>가 완성됩니다. 무료로 PDF까지 받아보세요.
               </p>
 
               {/* 메인 CTA */}
@@ -411,7 +411,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 display: 'block', margin: '0 auto 12px',
                 opacity: guestLoading ? 0.7 : 1,
               }}>
-                {guestLoading ? '준비 중...' : '무료로 기획서 만들기 →'}
+                {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
 
               {/* 서브: 이메일 */}
@@ -476,7 +476,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 {[
                   { n: '1', t: '아이디어 말하기' },
                   { n: '2', t: 'AI가 질문 & 정리' },
-                  { n: '3', t: '기획서 완성 + PDF' },
+                  { n: '3', t: '개발문서 완성 + PDF' },
                 ].map((s, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{
@@ -532,7 +532,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               display: 'inline-block', padding: '4px 12px', borderRadius: 100,
               background: C.blueBg, marginBottom: 16,
             }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.blueSoft }}>RFP 기획서 완성</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.blueSoft }}>AI 결과물 미리보기</span>
             </div>
             <div style={{ fontSize: 20, fontWeight: 700, color: C.white, marginBottom: 20 }}>
               {currentDemo.title}
@@ -567,15 +567,15 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           </div>
         </div>
         <p style={{ textAlign: 'center', fontSize: 12, color: C.gray500, marginTop: 12 }}>
-          * 실제 AI가 생성한 기획서 결과물입니다. 업종별로 다른 결과가 나옵니다.
+          * 실제 AI가 생성한 결과물입니다. 업종별로 다른 결과가 나옵니다.
         </p>
       </section>
 
       {/* ━━ Features ━━ */}
       <section style={{ background: C.bg, ...sectionPad }}>
-        <h2 style={secTitle}>{isMobile ? '이런 기획서, 이렇게 쉽게' : 'ChatGPT에서는 절대 못 받는 기획서'}</h2>
+        <h2 style={secTitle}>{isMobile ? '개발자에게 바로 전달 가능한 문서' : '개발사가 바로 견적 낼 수 있는 문서'}</h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
-          {isMobile ? 'AI가 질문하면 답만 하세요. 5분이면 완성됩니다.' : '위시켓 13년 외주 매칭 경험이 녹아든 AI의 결과물'}
+          {isMobile ? 'AI가 질문하면 답만 하세요. 5분이면 완성됩니다.' : '위시켓 13년 외주 매칭 경험이 녹아든 AI가 만들어드립니다'}
         </p>
 
         <div style={{
@@ -583,10 +583,10 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           gap: 16, marginTop: 44,
         }}>
           {[
-            { n: '01', title: '체계적인 기획서', desc: isMobile ? '7단계 질문으로 개요부터 예산까지 빠짐없이' : '7단계 전문 질문으로 프로젝트 개요부터 기술 요구사항, 예산까지 빠짐없이 정리', icon: '📄' },
+            { n: '01', title: '빠짐없는 요구사항 정리', desc: isMobile ? '7단계 질문으로 개요부터 예산까지 빠짐없이' : '7단계 전문 질문으로 프로젝트 개요부터 기술 요구사항, 예산까지 빠짐없이 정리', icon: '📄' },
             { n: '02', title: '기능별 우선순위', desc: isMobile ? 'P1/P2/P3 자동 분류 + MVP 로드맵' : 'P1/P2/P3 자동 분류 + 구현 난이도 분석. MVP부터 시작하는 로드맵 제시', icon: '🎯' },
             { n: '03', title: '실전 예산·일정', desc: isMobile ? '13년 매칭 데이터 기반 현실적 추정' : '13년 매칭 데이터 기반, 프로젝트 유형별 현실적인 예산 범위와 기간 추정', icon: '💰' },
-            { n: '04', title: '개발사 바로 전달', desc: isMobile ? 'PDF 다운로드 → 개발사에 그대로 전달' : '완성된 기획서를 PDF로 다운로드. 그대로 개발사에 보내면 정확한 견적을 받을 수 있어요', icon: '🚀' },
+            { n: '04', title: '개발사 바로 전달', desc: isMobile ? 'PDF 다운로드 → 개발사에 그대로 전달' : '완성된 문서를 PDF로 다운로드. 그대로 개발사에 보내면 정확한 견적을 받을 수 있어요', icon: '🚀' },
           ].map(item => (
             <div key={item.n} style={{
               background: C.white, borderRadius: 16, padding: isMobile ? '20px 16px' : '28px 24px',
@@ -630,7 +630,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             {[
               { step: 1, title: '"이런 앱 만들고 싶어요"', desc: '한 줄이면 충분합니다. AI가 알아서 분류하고 관련 질문을 시작합니다.' },
               { step: 2, title: 'AI가 질문 → 당신이 답변', desc: '타겟 사용자, 핵심 기능, 예산 등 7가지를 대화로 정리합니다.' },
-              { step: 3, title: '기획서 완성!', desc: '개발사에 바로 전달 가능한 전문 기획서. PDF 다운로드 + 이메일 발송.' },
+              { step: 3, title: '문서 완성!', desc: '개발사에 바로 전달 가능한 전문 문서. PDF 다운로드 + 이메일 발송.' },
             ].map((s, i) => (
               <div key={i} style={{ flex: '1 1 240px', maxWidth: 300, textAlign: 'center' }}>
                 <div style={{
@@ -653,7 +653,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         <p style={{ fontSize: 13, color: C.blue, textAlign: 'center', fontWeight: 600, marginBottom: 8, letterSpacing: '0.05em' }}>
           WHY WISHKET AI
         </p>
-        <h2 style={secTitle}>{isMobile ? 'ChatGPT와 뭐가 다를까?' : 'ChatGPT로는 절대 안 되는 이유'}</h2>
+        <h2 style={secTitle}>{isMobile ? 'ChatGPT와 뭐가 다를까?' : '왜 ChatGPT 대신 이걸 쓸까요?'}</h2>
         <p style={{ fontSize: isMobile ? 14 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10, marginBottom: 40, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
           {isMobile ? '같은 질문, 전혀 다른 결과' : '116,000건의 실전 프로젝트 데이터가 만드는 차이'}
         </p>
@@ -741,7 +741,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: C.white, fontWeight: 800,
               }}>W</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: C.textDark }}>위시켓 AI 기획서</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: C.textDark }}>위시켓 AI</span>
               <span style={{
                 fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 100,
                 background: C.blueBg, color: C.blue, marginLeft: 'auto',
@@ -788,7 +788,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         padding: isMobile ? '40px 16px' : '56px 24px', textAlign: 'center',
       }}>
         <p style={{ fontSize: isMobile ? 13 : 14, color: C.textLight, marginBottom: isMobile ? 24 : 28, padding: isMobile ? '0 8px' : 0 }}>
-          {isMobile ? '위시켓 실전 데이터 기반 AI' : '위시켓의 실전 데이터로 훈련된 AI가 가장 현실적인 기획서를 작성합니다'}
+          {isMobile ? '위시켓 실전 데이터 기반 AI' : '위시켓의 실전 데이터로 훈련된 AI가 가장 현실적인 개발 문서를 만들어드립니다'}
         </p>
         <div style={{
           maxWidth: 900, margin: '0 auto',
@@ -814,16 +814,16 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       <section style={{ background: C.bg, ...sectionPad }}>
         <h2 style={secTitle}>{isMobile ? '사용자들이 말합니다' : '실제 사용자 후기'}</h2>
         <p style={{ fontSize: isMobile ? 14 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10, marginBottom: 44 }}>
-          AI 기획서 빌더로 기획서를 완성한 분들의 이야기
+          아이디어를 개발 문서로 바꾼 분들의 이야기
         </p>
         <div style={{
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 20,
         }}>
           {[
-            { name: '김태현', role: '스타트업 대표', text: '개발사에 보낼 기획서를 3일이나 쓰고 있었는데, 여기서 5분 만에 끝났어요. 개발사 대표님이 "이렇게 잘 정리된 RFP는 처음"이라고 하셨습니다.', rating: 5 },
-            { name: '이수진', role: '기획자', text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. ChatGPT한테 물어보면 뜬구름 잡는 소리만 하는데, 여기는 외주 맥락을 정확히 알고 있더라고요.', rating: 5 },
-            { name: '박민수', role: '1인 사업자', text: '개발을 아예 몰라서 뭘 어떻게 요청해야 할지 막막했는데, AI가 질문해주니까 답만 하면 됐어요. 예산 추정이 조금 넓은 범위로 나오는 건 아쉽지만, 첫 견적 요청에는 충분했습니다.', rating: 4 },
+            { name: '김태현', role: '스타트업 대표', text: '개발사에 보낼 문서를 3일이나 쓰고 있었는데, 여기서 5분 만에 끝났어요. 개발사 대표님이 "이렇게 잘 정리된 요구사항은 처음"이라고 하셨습니다.', rating: 5 },
+            { name: '이수진', role: 'PM', text: '기능 우선순위랑 타임라인까지 자동으로 나와서 놀랐어요. ChatGPT한테 물어보면 뜬구름 잡는 소리만 하는데, 여기는 외주 맥락을 정확히 알고 있더라고요.', rating: 5 },
+            { name: '박민수', role: '1인 창업자', text: '개발을 아예 몰라서 뭘 어떻게 요청해야 할지 막막했는데, AI가 질문해주니까 답만 하면 됐어요. 예산 추정이 조금 넓은 범위로 나오는 건 아쉽지만, 첫 견적 요청에는 충분했습니다.', rating: 4 },
           ].map((review, i) => (
             <div key={i} style={{
               background: C.white, borderRadius: 16, padding: '24px',
@@ -859,11 +859,11 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         <h2 style={secTitle}>자주 묻는 질문</h2>
         <div style={{ maxWidth: 680, margin: '40px auto 0' }}>
           {[
-            { q: '정말 무료인가요?', a: '네, 완전 무료입니다. 회원가입도 필요 없고, 이메일을 입력하면 완성된 기획서를 PDF로 받아보실 수 있습니다. 이메일 없이도 바로 시작할 수 있어요.' },
+            { q: '정말 무료인가요?', a: '네, 완전 무료입니다. 회원가입도 필요 없고, 이메일을 입력하면 완성된 문서를 PDF로 받아보실 수 있습니다. 이메일 없이도 바로 시작할 수 있어요.' },
             { q: 'ChatGPT랑 뭐가 다른가요?', a: '위시켓의 13년 외주 매칭 경험(116,000건 프로젝트)이 반영되어 있습니다. 기능 우선순위(P1/P2/P3), 현실적 예산·일정 추정, 개발사에 바로 전달 가능한 포맷 등 외주에 특화된 결과물을 제공합니다.' },
-            { q: '기획서 완성까지 얼마나 걸리나요?', a: '평균 5분이면 충분합니다. AI가 핵심 질문을 하고, 답변만 해주시면 전문 기획서가 자동 생성됩니다.' },
-            { q: '생성된 기획서를 수정할 수 있나요?', a: '기획서 완성 후 각 섹션별로 AI 재생성이 가능합니다. 원하는 부분만 다시 생성하여 수정할 수 있어요.' },
-            { q: '개인정보는 안전한가요?', a: '입력하신 이메일은 기획서 발송에만 사용되며, 마케팅 목적으로 활용하지 않습니다. 프로젝트 정보는 기획서 생성에만 사용되고 제3자에게 공유되지 않습니다.' },
+            { q: '문서 완성까지 얼마나 걸리나요?', a: '평균 5분이면 충분합니다. AI가 핵심 질문을 하고, 답변만 해주시면 개발사 전달용 문서가 자동 생성됩니다.' },
+            { q: '생성된 문서를 수정할 수 있나요?', a: '문서 완성 후 각 섹션별로 AI 재생성이 가능합니다. 원하는 부분만 다시 생성하여 수정할 수 있어요.' },
+            { q: '개인정보는 안전한가요?', a: '입력하신 이메일은 문서 발송에만 사용되며, 마케팅 목적으로 활용하지 않습니다. 프로젝트 정보는 문서 생성에만 사용되고 제3자에게 공유되지 않습니다.' },
           ].map((faq, i) => (
             <div key={i} style={{
               borderBottom: `1px solid ${C.gray200}`, padding: '20px 0',
@@ -917,9 +917,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textLight, marginBottom: 32, maxWidth: 480, margin: '0 auto 32px' }}>
           {isMobile ? (
-            <>보통 3일 걸리는 기획서, <strong style={{ color: C.blueSoft }}>5분이면 무료로 완성</strong></>
+            <>아이디어만 말하면, <strong style={{ color: C.blueSoft }}>개발 견적받을 문서가 5분이면 완성</strong></>
           ) : (
-            <>개발사에 바로 전달 가능한 기획서를 <strong style={{ color: C.blueSoft }}>5분 만에 무료로 만들어보세요.</strong><br />이메일을 입력하면 PDF로도 보내드립니다.</>
+            <>아이디어만 있으면 됩니다. 나머지는 <strong style={{ color: C.blueSoft }}>AI가 정리해서 개발사에 보낼 문서로 만들어드립니다.</strong><br />이메일을 입력하면 PDF로도 보내드립니다.</>
           )}
         </p>
 
@@ -934,7 +934,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
             transition: 'all 0.2s', display: 'block', margin: '0 auto 16px',
             opacity: guestLoading ? 0.7 : 1,
           }}>
-            {guestLoading ? '준비 중...' : '무료로 기획서 만들기 →'}
+            {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
           </button>
 
           {/* 서브: 이메일 — [S3] 독립 에러 */}
@@ -969,7 +969,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
         {/* 보안 메시지 */}
         <p style={{ fontSize: 12, color: C.gray600, marginTop: 20, maxWidth: 400, margin: '20px auto 0' }}>
-          입력된 정보는 기획서 생성에만 사용되며, 제3자에게 공유되지 않습니다.
+          입력된 정보는 문서 생성에만 사용되며, 제3자에게 공유되지 않습니다.
         </p>
       </section>
 
@@ -1075,8 +1075,8 @@ function StickyBar({ onStart, userCount, guestLoading }: { onStart: () => void; 
         {!isMobile && (
           <span style={{ fontSize: 15, color: '#CBD5E1' }}>
             {userCount > 0
-              ? <><span style={{ color: '#93C5FD', fontWeight: 600 }}>{userCount.toLocaleString()}명</span>이 이미 기획서를 만들었습니다</>
-              : <>내 프로젝트 <span style={{ color: '#93C5FD', fontWeight: 600 }}>기획서</span>를 AI가 5분 만에 무료 작성</>
+              ? <><span style={{ color: '#93C5FD', fontWeight: 600 }}>{userCount.toLocaleString()}명</span>이 이미 사용했습니다</>
+              : <>아이디어를 <span style={{ color: '#93C5FD', fontWeight: 600 }}>개발 문서</span>로 5분 만에 무료 변환</>
             }
           </span>
         )}
@@ -1090,7 +1090,7 @@ function StickyBar({ onStart, userCount, guestLoading }: { onStart: () => void; 
             flex: isMobile ? 1 : undefined, minHeight: 44,
             opacity: guestLoading ? 0.7 : 1,
           }}>
-            {isMobile ? '무료 기획서 만들기' : '바로 시작하기'}
+            {isMobile ? '무료로 시작하기' : '바로 시작하기'}
           </button>
           <button onClick={() => setDismissed(true)} style={{
             background: 'none', border: 'none', color: '#94A3B8',
