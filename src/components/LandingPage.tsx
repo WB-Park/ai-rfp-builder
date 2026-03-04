@@ -361,7 +361,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 lineHeight: 1.35, letterSpacing: '-0.03em', marginBottom: 12,
               }}>
                 만들고 싶은 거, 말만 하세요<br />
-                <span style={{ color: C.blueSoft }}>개발 견적받을 문서가 나옵니다</span>
+                <span style={{ color: C.blueSoft }}>개발 파트너와 대화할 수 있는 문서가 나옵니다</span>
               </h1>
 
               {/* [M-1] 서브카피 — 결과물 구체 설명 */}
@@ -426,7 +426,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800,
                 color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em', marginBottom: 16,
               }}>
-                만들고 싶은 거, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 견적받을 수 있는 문서가 나옵니다</span>
+                만들고 싶은 거, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 파트너와 대화할 수 있는 문서가 나옵니다</span>
               </h1>
 
               {/* [M-1] 서브카피 — 결과물 구체 설명 */}
@@ -747,7 +747,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
       {/* ━━ [R-1] Features — How It Works 다음 ━━ */}
       <section style={{ background: isMobile ? C.white : C.bg, ...sectionPad }}>
-        <h2 style={secTitle}>{isMobile ? '개발자에게 바로 전달 가능한 문서' : '개발사가 바로 견적 낼 수 있는 문서'}</h2>
+        <h2 style={secTitle}>{isMobile ? '개발 파트너에게 바로 전달 가능한 문서' : '개발 파트너가 바로 이해할 수 있는 문서'}</h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textMuted, textAlign: 'center', marginTop: 10 }}>
           {isMobile ? 'AI가 질문하면 답만 하세요. 5~10분이면 완성됩니다.' : '위시켓 13년 외주 매칭 경험이 녹아든 AI가 만들어드립니다'}
         </p>
@@ -1075,7 +1075,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         </h2>
         <p style={{ fontSize: isMobile ? 15 : 16, color: C.textLight, marginBottom: 32, maxWidth: 480, margin: '0 auto 32px' }}>
           {isMobile ? (
-            <>아이디어만 말하면, <strong style={{ color: C.blueSoft }}>개발 견적받을 문서가 5~10분이면 완성</strong></>
+            <>아이디어만 말하면, <strong style={{ color: C.blueSoft }}>개발 파트너와 대화할 문서가 5~10분이면 완성</strong></>
           ) : (
             <>아이디어만 있으면 됩니다. 나머지는 <strong style={{ color: C.blueSoft }}>AI가 정리해서 개발사에 보낼 문서로 만들어드립니다.</strong><br />이메일을 입력하면 PDF로도 보내드립니다.</>
           )}
