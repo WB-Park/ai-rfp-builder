@@ -232,9 +232,11 @@ function FormattedText({ value, onChange, style, sectionKey, sectionTitle, proje
           onChange={(e) => { setDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
           style={{
             ...style, width: '100%', border: `2px solid ${C.blue}`, borderRadius: 8,
-            padding: '12px', fontSize: 15, fontFamily: 'inherit', lineHeight: 1.8,
+            padding: '12px', fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? 16 : 15, fontFamily: 'inherit', lineHeight: 1.8,
             resize: 'none', outline: 'none', background: 'rgba(37, 99, 235, 0.02)',
             color: C.textSecondary, margin: 0,
+            WebkitTextSizeAdjust: '100%',
+            touchAction: 'manipulation',
           }}
         />
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8, flexWrap: 'wrap' }}>

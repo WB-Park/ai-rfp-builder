@@ -354,6 +354,62 @@ body {
   outline-offset: 2px;
 }
 
+/* ━━ Mobile Input & Touch Fixes ━━ */
+input, textarea, select {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* Prevent iOS auto-zoom on input focus */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+    min-height: 44px;
+    padding: 12px 14px;
+  }
+}
+
+/* Remove tap highlight color (visual tap feedback) */
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent pull-to-refresh interference on mobile */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Ensure proper focus visibility on mobile */
+input:focus, textarea:focus, button:focus, select:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Touch target minimum size (44x44px for accessibility) */
+button, a[role="button"], [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ━━ Selection ━━ */
 ::selection {
   background: rgba(var(--color-primary-rgb), 0.15);

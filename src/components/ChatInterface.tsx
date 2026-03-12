@@ -543,11 +543,13 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               onClick={() => selectMode('quick')}
               style={{
                 textAlign: 'left', cursor: 'pointer',
-                padding: 28, borderRadius: 16,
+                padding: isMobile ? 20 : 28, borderRadius: 16,
                 border: '2px solid var(--border-default)',
                 background: 'var(--surface-0)',
                 transition: 'all 0.2s ease',
                 position: 'relative', overflow: 'hidden',
+                minHeight: isMobile ? 'auto' : undefined,
+                WebkitTapHighlightColor: 'transparent',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -595,11 +597,13 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               onClick={() => selectMode('deep')}
               style={{
                 textAlign: 'left', cursor: 'pointer',
-                padding: 28, borderRadius: 16,
+                padding: isMobile ? 20 : 28, borderRadius: 16,
                 border: '2px solid transparent',
                 background: 'linear-gradient(135deg, rgba(37,99,235,0.04), rgba(37,99,235,0.08))',
                 transition: 'all 0.2s ease',
                 position: 'relative', overflow: 'hidden',
+                minHeight: isMobile ? 'auto' : undefined,
+                WebkitTapHighlightColor: 'transparent',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -954,12 +958,14 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                   onClick={onBack}
                   aria-label="홈으로 돌아가기"
                   style={{
-                    width: 28, height: 28, borderRadius: 6,
+                    width: isMobile ? 44 : 28, height: isMobile ? 44 : 28, borderRadius: 6,
                     border: '1px solid var(--border-default)',
                     background: 'var(--surface-1)', color: 'var(--text-tertiary)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', fontSize: 14, transition: 'all 0.2s',
                     flexShrink: 0,
+                    minHeight: 44, minWidth: 44,
+                    WebkitTapHighlightColor: 'transparent',
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-1)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
@@ -1043,8 +1049,10 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
           style={{
             flex: 1, overflowY: 'auto',
             padding: isMobile ? '16px' : '24px',
+            paddingBottom: isMobile ? '120px' : '24px',
             display: 'flex', flexDirection: 'column', gap: 'var(--space-md)',
             scrollBehavior: 'smooth',
+            scrollPaddingBottom: '120px',
           }}
         >
           {messages.map((msg, i) => (
@@ -1419,10 +1427,12 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                     maxHeight: 120,
                     padding: '12px 16px', borderRadius: 'var(--radius-md)',
                     border: '1.5px solid var(--border-strong)',
-                    outline: 'none', resize: 'none', fontSize: 15,
+                    outline: 'none', resize: 'none', fontSize: isMobile ? 16 : 15,
                     fontFamily: 'var(--font-kr)', color: 'var(--text-primary)',
                     background: 'var(--surface-0)',
                     transition: 'border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)',
+                    WebkitTextSizeAdjust: '100%',
+                    touchAction: 'manipulation',
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -1440,12 +1450,14 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               <button onClick={() => fileInputRef.current?.click()} disabled={loading || uploading}
                 title="기존 기획서 업로드"
                 style={{
-                  width: 48, height: 48, borderRadius: 'var(--radius-md)',
+                  width: isMobile ? 44 : 48, height: isMobile ? 44 : 48, borderRadius: 'var(--radius-md)',
                   border: '1.5px solid var(--border-strong)', background: 'var(--surface-0)',
                   color: uploading ? 'var(--color-primary)' : 'var(--text-tertiary)',
                   cursor: loading || uploading ? 'wait' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all var(--duration-fast)', flexShrink: 0,
+                  WebkitTapHighlightColor: 'transparent',
+                  minHeight: 44, minWidth: 44,
                 }}
               >
                 {uploading ? (
@@ -1461,13 +1473,15 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <button onClick={handleSend} disabled={loading || !input.trim()} style={{
-                  width: 48, height: 48, borderRadius: 'var(--radius-md)',
+                  width: isMobile ? 44 : 48, height: isMobile ? 44 : 48, borderRadius: 'var(--radius-md)',
                   border: 'none',
                   background: input.trim() ? 'var(--color-primary)' : 'var(--surface-2)',
                   color: input.trim() ? 'white' : 'var(--text-quaternary)',
                   cursor: loading || !input.trim() ? 'default' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all var(--duration-fast) var(--ease-out)',
+                  WebkitTapHighlightColor: 'transparent',
+                  minHeight: 44, minWidth: 44,
                 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />

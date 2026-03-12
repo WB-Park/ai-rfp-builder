@@ -298,6 +298,63 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       <style>{`
         @keyframes heroPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.25)} 50%{box-shadow:0 4px 30px rgba(37,99,235,0.5)} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+        /* ━━ Mobile Media Queries ━━ */
+        @media (max-width: 768px) {
+          /* Prevent layout flash on mobile */
+          input[type="email"],
+          textarea,
+          input[type="text"],
+          input[type="password"],
+          input[type="search"],
+          input[type="tel"],
+          input[type="url"],
+          input[type="number"],
+          select {
+            font-size: 16px !important;
+            min-height: 44px !important;
+          }
+
+          /* Touch targets minimum 44x44px */
+          button {
+            min-height: 44px;
+            min-width: 44px;
+          }
+
+          /* Hero section optimizations */
+          h1 {
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+
+          /* Mode selection cards full width on mobile */
+          [role="button"],
+          .mode-card {
+            width: 100%;
+            min-height: 44px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          /* Additional optimizations for smaller screens */
+          button {
+            font-size: 14px !important;
+            padding: 12px 16px !important;
+          }
+
+          input {
+            padding: 12px 14px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          /* Extra small device optimizations */
+          button {
+            font-size: 13px !important;
+            min-height: 44px !important;
+            min-width: auto !important;
+          }
+        }
       `}</style>
 
       {/* ━━ Header ━━ */}
@@ -322,8 +379,10 @@ export default function LandingPage({ onStart }: LandingPageProps) {
           <button onClick={handleGuestStart} disabled={guestLoading} style={{
             padding: isMobile ? '10px 16px' : '8px 20px', borderRadius: 10, border: 'none', cursor: guestLoading ? 'wait' : 'pointer',
             background: C.blue, color: C.white, fontSize: isMobile ? 13 : 14, fontWeight: 600,
-            transition: 'all 0.2s', minHeight: isMobile ? 44 : undefined,
+            transition: 'all 0.2s', minHeight: 44, minWidth: 44,
             opacity: guestLoading ? 0.7 : 1,
+            WebkitTapHighlightColor: 'transparent',
+            WebkitTextSizeAdjust: '100%',
           }}>바로 시작</button>
         </div>
       </header>
@@ -386,6 +445,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 boxShadow: `0 4px 24px ${C.blueGlow}`,
                 animation: 'heroPulse 2.5s ease-in-out infinite',
                 opacity: guestLoading ? 0.7 : 1,
+                minHeight: 56, minWidth: '100%',
+                WebkitTapHighlightColor: 'transparent',
+                WebkitTextSizeAdjust: '100%',
               }}>
                 {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
@@ -452,6 +514,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 transition: 'all 0.2s', letterSpacing: '0.01em',
                 display: 'block', margin: '0 auto 12px',
                 opacity: guestLoading ? 0.7 : 1,
+                minHeight: 58, minWidth: 58,
+                WebkitTapHighlightColor: 'transparent',
+                WebkitTextSizeAdjust: '100%',
               }}>
                 {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
@@ -1106,8 +1171,11 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               style={{
                 width: isMobile ? '100%' : 'auto', flex: isMobile ? undefined : 1, height: 44, padding: '0 14px', borderRadius: 10,
                 border: finalError ? '1.5px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)', color: C.white, fontSize: 14,
+                background: 'rgba(255,255,255,0.05)', color: C.white, fontSize: isMobile ? 16 : 14,
                 outline: 'none', transition: 'border-color 0.2s',
+                WebkitTextSizeAdjust: '100%',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
               }}
             />
             <button type="submit" disabled={loading} style={{
@@ -1115,6 +1183,9 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               background: 'rgba(255,255,255,0.1)', color: C.blueSoft,
               fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
               opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap',
+              minHeight: 44, minWidth: isMobile ? undefined : 44,
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTextSizeAdjust: '100%',
             }}>
               {loading ? '...' : 'PDF 받기'}
             </button>
