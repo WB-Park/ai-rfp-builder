@@ -152,21 +152,28 @@ export default function AdminPage() {
     return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
+  const [isMobileView, setIsMobileView] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const check = () => setIsMobileView(window.innerWidth < 768);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   // 로그인 화면
   if (!authenticated) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-        <form onSubmit={handleLogin} style={{ background: '#fff', padding: '40px', borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.1)', width: '360px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px', textAlign: 'center' }}>🔐 Admin Dashboard</h1>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: '16px' }}>
+        <form onSubmit={handleLogin} style={{ background: '#fff', padding: '40px', borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.1)', width: '100%', maxWidth: '360px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px', textAlign: 'center', wordBreak: 'keep-all' }}>🔐 Admin Dashboard</h1>
           <input
             type="password"
             placeholder="비밀번호 입력"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '16px', marginBottom: '12px', boxSizing: 'border-box' }}
           />
-          {error && <p style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '12px' }}>{error}</p>}
-          <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+          {error && <p style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '12px', wordBreak: 'break-word' }}>{error}</p>}
+          <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', minHeight: '44px' }}>
             {loading ? '로딩...' : '로그인'}
           </button>
         </form>
@@ -181,9 +188,9 @@ export default function AdminPage() {
     const rfpData = s.rfp_data || {};
 
     return (
-      <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '20px' }}>
+      <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: isMobileView ? '12px' : '20px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <button onClick={() => setSelectedSession(null)} style={{ background: '#e2e8f0', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', marginBottom: '16px' }}>
+          <button onClick={() => setSelectedSession(null)} style={{ background: '#e2e8f0', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', marginBottom: '16px', minHeight: '36px' }}>
             ← 목록으로
           </button>
 
@@ -268,12 +275,12 @@ export default function AdminPage() {
   const completedSessions = d.sessions.data.filter(s => s.completed).length;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '20px' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: isMobileView ? '12px' : '20px' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 800 }}>📊 AI PRD Builder — Admin</h1>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => fetchDashboard(password)} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          <h1 style={{ fontSize: isMobileView ? '18px' : '22px', fontWeight: 800, wordBreak: 'keep-all' }}>📊 AI PRD Builder — Admin</h1>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={() => fetchDashboard(password)} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', minHeight: '36px', whiteSpace: 'nowrap' }}>
               🔄 새로고침
             </button>
             <button onClick={() => {
@@ -283,14 +290,14 @@ export default function AdminPage() {
               setAuthenticated(false);
               setPassword('');
               setDashboard(null);
-            }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+            }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', minHeight: '36px', whiteSpace: 'nowrap' }}>
               🔓 로그아웃
             </button>
           </div>
         </div>
 
         {/* 요약 카드 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobileView ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
           {[
             { label: '전체 세션', value: d.sessions.total, icon: '📝', color: '#3b82f6' },
             { label: '완료된 PRD', value: completedSessions, icon: '✅', color: '#10b981' },
@@ -305,16 +312,16 @@ export default function AdminPage() {
         </div>
 
         {/* 탭 */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
           {[
-            { key: 'sessions' as const, label: `세션 (${d.sessions.total})` },
-            { key: 'leads' as const, label: `리드 (${d.leads.total})` },
-            { key: 'shared' as const, label: `공유 PRD (${d.sharedPrds.total})` },
-            { key: 'consultations' as const, label: `상담 (${d.consultations.total})` },
+            { key: 'sessions' as const, label: isMobileView ? '세션' : `세션 (${d.sessions.total})` },
+            { key: 'leads' as const, label: isMobileView ? '리드' : `리드 (${d.leads.total})` },
+            { key: 'shared' as const, label: isMobileView ? 'PRD' : `공유 PRD (${d.sharedPrds.total})` },
+            { key: 'consultations' as const, label: isMobileView ? '상담' : `상담 (${d.consultations.total})` },
           ].map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-              padding: '10px 20px', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
-              background: activeTab === t.key ? '#fff' : '#e2e8f0', color: activeTab === t.key ? '#1e293b' : '#64748b',
+              padding: isMobileView ? '8px 12px' : '10px 20px', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: isMobileView ? '12px' : '13px', fontWeight: 600,
+              background: activeTab === t.key ? '#fff' : '#e2e8f0', color: activeTab === t.key ? '#1e293b' : '#64748b', whiteSpace: 'nowrap',
             }}>
               {t.label}
             </button>

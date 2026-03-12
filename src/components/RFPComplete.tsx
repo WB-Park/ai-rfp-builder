@@ -1186,12 +1186,22 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [ctaSubmitted, setCtaSubmitted] = useState(false);
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
 
+  // ── Mobile Detection ──
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   // ── Task 1: Download Gating Modal State ──
   const [showDownloadGate, setShowDownloadGate] = useState(false);
   const [downloadGateEmail, setDownloadGateEmail] = useState(email || '');
   const [downloadGateType, setDownloadGateType] = useState<'pdf' | 'docx' | null>(null);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [downloadGateSubmitting, setDownloadGateSubmitting] = useState(false);
+  const downloadGateCompletedRef = useRef(false); // 게이트 통과 완료 여부 (취소 시 우회 방지)
 
   // ── Task 2: Exit Prevention Modal State ──
   const hasEngagedRef = useRef(false);
@@ -1468,19 +1478,17 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const handlePDF = useCallback(async () => {
     if (!prdData) return;
-    // Task 1: Check if email is already captured, if not show gating modal
-    if (downloadGateEmail && downloadGateEmail.includes('@')) {
-      // Email already captured, proceed with download
+    // 게이트 완료 여부 체크 (이메일 입력 후 취소해도 우회 불가)
+    if (downloadGateCompletedRef.current || readOnly) {
       setPdfGenerating(true);
       await generatePDF();
       setPdfGenerating(false);
     } else {
-      // Show gating modal
       setDownloadGateType('pdf');
       setShowDownloadGate(true);
       setDownloadGateErrorMsg('');
     }
-  }, [prdData, downloadGateEmail, generatePDF]);
+  }, [prdData, generatePDF, readOnly]);
 
   // ── Task 1: DOCX generation logic extracted ──
   const generateDOCX = useCallback(async () => {
@@ -1799,19 +1807,17 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [docxGenerating, setDocxGenerating] = useState(false);
   const handleDOCX = useCallback(async () => {
     if (!prdData) return;
-    // Task 1: Check if email is already captured, if not show gating modal
-    if (downloadGateEmail && downloadGateEmail.includes('@')) {
-      // Email already captured, proceed with download
+    // 게이트 완료 여부 체크 (이메일 입력 후 취소해도 우회 불가)
+    if (downloadGateCompletedRef.current || readOnly) {
       setDocxGenerating(true);
       await generateDOCX();
       setDocxGenerating(false);
     } else {
-      // Show gating modal
       setDownloadGateType('docx');
       setShowDownloadGate(true);
       setDownloadGateErrorMsg('');
     }
-  }, [prdData, downloadGateEmail, generateDOCX]);
+  }, [prdData, generateDOCX, readOnly]);
 
   // Generate markdown for copy
   const generateMarkdown = useCallback((d: PRDResult): string => {
@@ -3629,10 +3635,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, backdropFilter: 'blur(4px)',
-        }} onClick={() => setShowDownloadGate(false)}>
+          zIndex: 9999, backdropFilter: 'blur(4px)', padding: '16px',
+        }} onClick={() => { setShowDownloadGate(false); setDownloadGateEmail(''); setDownloadGateErrorMsg(''); }}>
           <div style={{
-            background: '#0B1120', borderRadius: 20, padding: 32, maxWidth: 420,
+            background: '#0B1120', borderRadius: 20, padding: isMobile ? 24 : 32, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid #1E293B',
             animation: 'slideUp 0.3s ease-out',
           }} onClick={(e) => e.stopPropagation()}>
@@ -3651,7 +3657,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
                 border: `1.5px solid ${downloadGateEmail && !downloadGateEmail.includes('@') ? '#f87171' : '#1E293B'}`,
-                background: '#1F2937', color: '#fff', fontSize: 13,
+                background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
                 outline: 'none', boxSizing: 'border-box', marginBottom: 12,
               }}
             />
@@ -3710,7 +3716,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                         marketing_consent: marketingConsent,
                       }),
                     });
-                    // Proceed with download
+                    // 게이트 통과 완료 마킹 (이후 다운로드는 바로 진행)
+                    downloadGateCompletedRef.current = true;
+                    hasEngagedRef.current = true;
                     setShowDownloadGate(false);
                     // Execute the pending download immediately
                     if (downloadGateType === 'pdf') {
@@ -3752,10 +3760,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9998, backdropFilter: 'blur(4px)',
+          zIndex: 9998, backdropFilter: 'blur(4px)', padding: '16px',
         }} onClick={() => setShowExitModal(false)}>
           <div style={{
-            background: '#0B1120', borderRadius: 20, padding: 32, maxWidth: 420,
+            background: '#0B1120', borderRadius: 20, padding: isMobile ? 24 : 32, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid #1E293B',
             animation: 'slideUp 0.3s ease-out',
           }} onClick={(e) => e.stopPropagation()}>
@@ -3773,7 +3781,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
                 border: `1.5px solid ${exitModalEmail && !exitModalEmail.includes('@') ? '#f87171' : '#1E293B'}`,
-                background: '#1F2937', color: '#fff', fontSize: 13,
+                background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
                 outline: 'none', boxSizing: 'border-box', marginBottom: 10,
               }}
             />
@@ -3785,7 +3793,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
                 border: `1.5px solid ${exitModalPhone && exitModalPhone.trim().length < 8 ? '#f87171' : '#1E293B'}`,
-                background: '#1F2937', color: '#fff', fontSize: 13,
+                background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
                 outline: 'none', boxSizing: 'border-box', marginBottom: 20,
               }}
             />

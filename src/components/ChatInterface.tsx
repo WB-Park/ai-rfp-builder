@@ -514,24 +514,24 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
           animation: 'fadeInUp 0.5s ease-out',
         }}>
           {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ textAlign: 'center', marginBottom: isMobile ? 32 : 40 }}>
             <div style={{
-              width: 56, height: 56, borderRadius: 16,
+              width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: 16,
               background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(37,99,235,0.25)',
             }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width={isMobile ? 24 : 28} height={isMobile ? 24 : 28} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
               </svg>
             </div>
             <h1 style={{
-              fontSize: 28, fontWeight: 800, color: 'var(--text-primary)',
-              letterSpacing: '-0.02em', marginBottom: 8,
+              fontSize: isMobile ? 24 : 28, fontWeight: 800, color: 'var(--text-primary)',
+              letterSpacing: '-0.02em', marginBottom: 8, wordBreak: 'keep-all',
             }}>
               AI PRD 빌더
             </h1>
-            <p style={{ fontSize: 16, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+            <p style={{ fontSize: isMobile ? 14 : 16, color: 'var(--text-tertiary)', lineHeight: 1.6, wordBreak: 'keep-all' }}>
               대화만으로 전문 기획서를 완성하세요
             </p>
           </div>
@@ -547,13 +547,16 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               onClick={() => selectMode('quick')}
               style={{
                 textAlign: 'left', cursor: 'pointer',
-                padding: isMobile ? 20 : 28, borderRadius: 16,
+                padding: isMobile ? 16 : 28, borderRadius: 16,
                 border: '2px solid var(--border-default)',
                 background: 'var(--surface-0)',
                 transition: 'all 0.2s ease',
-                position: 'relative', overflow: 'hidden',
+                position: 'relative', overflow: 'visible',
                 minHeight: isMobile ? 'auto' : undefined,
                 WebkitTapHighlightColor: 'transparent',
+                wordBreak: 'keep-all',
+                overflowWrap: 'break-word',
+                hyphens: 'none',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -579,6 +582,8 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               }}>2분 · 가이드 질문형</div>
               <p style={{
                 fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
+                wordBreak: 'keep-all',
+                overflowWrap: 'break-word',
               }}>
                 AI가 핵심 질문을 하나씩 물어봅니다.<br/>
                 선택지 클릭만으로도 PRD 완성이 가능해요.
@@ -590,7 +595,7 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                   <span key={tag} style={{
                     fontSize: 11, fontWeight: 500, color: 'var(--text-quaternary)',
                     background: 'var(--surface-2)', padding: '4px 10px',
-                    borderRadius: 20,
+                    borderRadius: 20, wordBreak: 'keep-all', whiteSpace: 'nowrap',
                   }}>{tag}</span>
                 ))}
               </div>
@@ -601,13 +606,16 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               onClick={() => selectMode('deep')}
               style={{
                 textAlign: 'left', cursor: 'pointer',
-                padding: isMobile ? 20 : 28, borderRadius: 16,
+                padding: isMobile ? 16 : 28, borderRadius: 16,
                 border: '2px solid transparent',
                 background: 'linear-gradient(135deg, rgba(37,99,235,0.04), rgba(37,99,235,0.08))',
                 transition: 'all 0.2s ease',
-                position: 'relative', overflow: 'hidden',
+                position: 'relative', overflow: 'visible',
                 minHeight: isMobile ? 'auto' : undefined,
                 WebkitTapHighlightColor: 'transparent',
+                wordBreak: 'keep-all',
+                overflowWrap: 'break-word',
+                hyphens: 'none',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -641,6 +649,8 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
               }}>5분 · AI가 더 깊이 파고듭니다</div>
               <p style={{
                 fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
+                wordBreak: 'keep-all',
+                overflowWrap: 'break-word',
               }}>
                 한 줄이면 충분합니다. AI PM이<br/>
                 각 주제를 <strong style={{ color: 'var(--text-secondary)' }}>2~3단계 깊이로 챌린지</strong>해 드립니다.
@@ -653,7 +663,7 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                     fontSize: 11, fontWeight: 500,
                     color: 'var(--color-primary)',
                     background: 'rgba(37,99,235,0.08)', padding: '4px 10px',
-                    borderRadius: 20,
+                    borderRadius: 20, wordBreak: 'keep-all', whiteSpace: 'nowrap',
                   }}>{tag}</span>
                 ))}
               </div>
@@ -1520,22 +1530,23 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
           background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           animation: 'fadeIn 0.2s ease-out',
+          padding: '16px',
         }}
         onClick={() => setShowCompleteModal(false)}
         >
           <div style={{
-            background: '#fff', borderRadius: 20, padding: '32px 28px',
-            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            background: '#fff', borderRadius: 20, padding: isMobile ? '24px 20px' : '32px 28px',
+            maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
             animation: 'slideUp 0.25s ease-out',
           }}
           onClick={(e) => e.stopPropagation()}
           >
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: '0 0 8px 0', fontFamily: 'var(--font-kr)' }}>
+              <div style={{ fontSize: isMobile ? 36 : 40, marginBottom: 12 }}>📋</div>
+              <h3 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: '#1e293b', margin: '0 0 8px 0', fontFamily: 'var(--font-kr)', wordBreak: 'keep-all' }}>
                 지금까지 내용을 바탕으로<br />제품 요구사항 정의서를 생성하시겠습니까?
               </h3>
-              <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.6, fontFamily: 'var(--font-kr)' }}>
+              <p style={{ fontSize: isMobile ? 13 : 14, color: '#64748b', margin: 0, lineHeight: 1.6, fontFamily: 'var(--font-kr)', wordBreak: 'keep-all' }}>
                 대화에서 수집된 정보를 종합하여<br />전문 수준의 정의서를 자동 생성합니다.
               </p>
             </div>
