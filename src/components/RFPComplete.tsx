@@ -777,8 +777,18 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl, onBack }: { projectNa
       padding: '0 24px',
       animation: 'slideDown 0.25s cubic-bezier(0.22,1,0.36,1)',
     }}>
-      <style>{`@keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
-      <div style={{
+      <style>{`
+        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @media (max-width: 640px) {
+          .sticky-top-bar-inner { padding: 0 12px !important; height: 48px !important; gap: 8px !important; }
+          .sticky-top-bar-inner .sticky-share-btn { display: none !important; }
+          .sticky-top-bar-inner .sticky-cta-btn { padding: 6px 14px !important; font-size: 12px !important; }
+          .sticky-top-bar-inner .sticky-project-name { font-size: 13px !important; }
+          .sticky-top-bar-inner .sticky-icon-wrap { width: 28px !important; height: 28px !important; }
+          .sticky-top-bar-inner .sticky-icon-wrap svg { width: 28px !important; height: 28px !important; }
+        }
+      `}</style>
+      <div className="sticky-top-bar-inner" style={{
         maxWidth: 1100, margin: '0 auto',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         height: 56, gap: 12,
@@ -800,7 +810,7 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl, onBack }: { projectNa
               ←
             </button>
           )}
-          <div style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+          <div className="sticky-icon-wrap" style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs><linearGradient id="stickyTopBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#2563EB"/><stop offset="100%" stopColor="#1D4ED8"/></linearGradient></defs>
               <rect width="32" height="32" rx="8" fill="url(#stickyTopBg)"/>
@@ -814,13 +824,14 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl, onBack }: { projectNa
               <path d="M24 18.5L24.8 21.2L27.5 22L24.8 22.8L24 25.5L23.2 22.8L20.5 22L23.2 21.2Z" fill="white"/>
             </svg>
           </div>
-          <span style={{
+          <span className="sticky-project-name" style={{
             fontSize: 15, fontWeight: 700, color: C.textOnDark,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{projectName}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <button
+            className="sticky-share-btn"
             onClick={handleCopyLink}
             style={{
               padding: '7px 14px', borderRadius: 8,
@@ -835,6 +846,7 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl, onBack }: { projectNa
             {linkCopied ? '✅ 복사됨' : '🔗 URL 복사'}
           </button>
           <a
+            className="sticky-cta-btn"
             href="https://www.wishket.com/project/create/?utm_source=ai-prd&utm_medium=sticky-cta&utm_campaign=prd-builder"
             target="_blank"
             rel="noopener noreferrer"
@@ -961,7 +973,7 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
 
 // (B-4: Risk Matrix 제거 — 테이블로 통합)
 
-// ━━━━━ B-8: Floating Matching CTA Bar ━━━━━
+// ━━━━━ B-8: Floating Matching CTA Bar (Mobile-first) ━━━━━
 function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, ctaSubmitting, ctaSubmitted, onSubmit }: {
   ctaEmail: string; setCtaEmail: (v: string) => void;
   ctaPhone: string; setCtaPhone: (v: string) => void;
@@ -970,68 +982,83 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
 }) {
   const [visible, setVisible] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobileFloat, setIsMobileFloat] = useState(false);
   useEffect(() => {
     const handleScroll = () => setVisible(window.scrollY > 400);
+    const checkMobile = () => setIsMobileFloat(window.innerWidth < 640);
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('resize', checkMobile);
+    checkMobile();
+    return () => { window.removeEventListener('scroll', handleScroll); window.removeEventListener('resize', checkMobile); };
   }, []);
   if (!visible || ctaSubmitted) return null;
   const canSubmit = ctaEmail.includes('@') && ctaPhone.trim().length >= 8;
   return (
-    <div className="no-print" style={{
+    <div className="no-print floating-matching-bar" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
       background: 'linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)',
       backdropFilter: 'blur(20px) saturate(1.5)',
       borderTop: '1px solid rgba(37,99,235,0.3)',
-      padding: collapsed ? '8px 24px' : '14px 24px 16px',
+      padding: collapsed
+        ? (isMobileFloat ? '10px 16px' : '8px 24px')
+        : (isMobileFloat ? '14px 16px calc(14px + env(safe-area-inset-bottom, 0px))' : '14px 24px 16px'),
       boxShadow: '0 -4px 32px rgba(0,0,0,0.3)',
       transition: 'all 0.3s cubic-bezier(0.22,1,0.36,1)',
     }}>
-      {/* 접기/펼치기 토글 */}
+      {/* 접기/펼치기 토글 — 모바일에서 터치 영역 확대 */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         style={{
-          position: 'absolute', top: -28, right: 20, width: 28, height: 28,
+          position: 'absolute', top: isMobileFloat ? -36 : -28, right: 16,
+          width: isMobileFloat ? 44 : 28, height: isMobileFloat ? 36 : 28,
           borderRadius: '8px 8px 0 0', border: 'none',
           background: 'linear-gradient(135deg, #1E3A5F, #0F172A)',
-          color: 'rgba(255,255,255,0.6)', fontSize: 12, cursor: 'pointer',
+          color: 'rgba(255,255,255,0.6)', fontSize: isMobileFloat ? 14 : 12, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
         {collapsed ? '▲' : '▼'}
       </button>
       {collapsed ? (
-        /* 접힌 상태 — 한 줄 */
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-            ⚡ 이 정의서에 딱 맞는 개발 파트너를 찾아보세요
+        /* 접힌 상태 */
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobileFloat ? 8 : 12 }}>
+          <span style={{ fontSize: isMobileFloat ? 12 : 13, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
+            ⚡ {isMobileFloat ? '개발 파트너 매칭' : '이 정의서에 딱 맞는 개발 파트너를 찾아보세요'}
           </span>
           <button onClick={() => setCollapsed(false)} style={{
-            padding: '6px 16px', borderRadius: 8, border: 'none',
-            background: '#fff', color: C.blue, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            padding: isMobileFloat ? '10px 20px' : '6px 16px', borderRadius: 8, border: 'none',
+            background: '#fff', color: C.blue, fontSize: isMobileFloat ? 13 : 12, fontWeight: 700, cursor: 'pointer',
+            minHeight: 44,
           }}>무료 매칭 신청</button>
         </div>
       ) : (
-        /* 펼쳐진 상태 — 폼 */
+        /* 펼쳐진 상태 — 모바일: 세로 스택 */
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
-              ⚡ 이 정의서에 딱 맞는 개발 파트너를 찾아보세요
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobileFloat ? 12 : 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: isMobileFloat ? 13 : 14, fontWeight: 700, color: '#fff' }}>
+              ⚡ {isMobileFloat ? '개발 파트너를 찾아보세요' : '이 정의서에 딱 맞는 개발 파트너를 찾아보세요'}
             </span>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
               무료 · 평균 3일 이내 매칭
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{
+            display: isMobileFloat ? 'grid' : 'flex',
+            gridTemplateColumns: isMobileFloat ? '1fr 1fr' : undefined,
+            gap: 8,
+            flexWrap: isMobileFloat ? undefined : 'wrap',
+          }}>
             <input
               type="email"
               placeholder="이메일 주소 *"
               value={ctaEmail}
               onChange={(e) => setCtaEmail(e.target.value)}
               style={{
-                flex: '1 1 180px', padding: '10px 14px', borderRadius: 8,
+                ...(isMobileFloat ? {} : { flex: '1 1 180px' }),
+                padding: isMobileFloat ? '12px 14px' : '10px 14px', borderRadius: 8,
                 border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                color: '#fff', fontSize: 13, outline: 'none',
+                color: '#fff', fontSize: isMobileFloat ? 14 : 13, outline: 'none',
+                minHeight: 44, boxSizing: 'border-box',
               }}
             />
             <input
@@ -1040,23 +1067,27 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
               value={ctaPhone}
               onChange={(e) => setCtaPhone(e.target.value)}
               style={{
-                flex: '1 1 150px', padding: '10px 14px', borderRadius: 8,
+                ...(isMobileFloat ? {} : { flex: '1 1 150px' }),
+                padding: isMobileFloat ? '12px 14px' : '10px 14px', borderRadius: 8,
                 border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
                 background: 'rgba(255,255,255,0.1)',
-                color: '#fff', fontSize: 13, outline: 'none',
+                color: '#fff', fontSize: isMobileFloat ? 14 : 13, outline: 'none',
+                minHeight: 44, boxSizing: 'border-box',
               }}
             />
             <button
               onClick={onSubmit}
               disabled={ctaSubmitting || !canSubmit}
               style={{
-                padding: '10px 24px', borderRadius: 8, border: 'none',
+                ...(isMobileFloat ? { gridColumn: '1 / -1' } : { flexShrink: 0 }),
+                padding: isMobileFloat ? '14px 24px' : '10px 24px', borderRadius: 8, border: 'none',
                 background: canSubmit ? '#fff' : 'rgba(255,255,255,0.2)',
                 color: canSubmit ? C.blue : 'rgba(255,255,255,0.4)',
-                fontSize: 13, fontWeight: 700,
+                fontSize: isMobileFloat ? 15 : 13, fontWeight: 700,
                 cursor: ctaSubmitting ? 'wait' : canSubmit ? 'pointer' : 'not-allowed',
-                flexShrink: 0, transition: 'all 0.2s',
+                transition: 'all 0.2s',
                 boxShadow: canSubmit ? '0 2px 12px rgba(0,0,0,0.2)' : 'none',
+                minHeight: 48,
               }}
             >
               {ctaSubmitting ? '신청 중...' : '무료 매칭 신청 →'}
@@ -1962,13 +1993,41 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         @media (max-width: 768px) {
           .prd-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .floating-toc-wrap { display: none !important; }
-          .prd-container { padding: 20px 14px 40px !important; }
+          .prd-container { padding: 16px 12px 80px !important; }
           .prd-two-col { grid-template-columns: 1fr !important; }
           .prd-persona-grid { grid-template-columns: 1fr !important; }
-          h1 { font-size: 28px !important; }
+          h1 { font-size: 24px !important; line-height: 1.3 !important; }
+          h2 { font-size: 18px !important; }
+          h3 { font-size: 16px !important; }
+          /* 테이블 가로 스크롤 */
+          .prd-container table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
+          .prd-container table th, .prd-container table td { padding: 8px 10px !important; font-size: 12px !important; }
+          /* 섹션 간격 축소 */
+          .prd-container > div { margin-bottom: 24px !important; }
+          /* PRD 히어로 헤더 모바일 */
+          .prd-hero-header { padding: 36px 16px 32px !important; }
+          .prd-hero-header h1 { font-size: 22px !important; }
+          .prd-hero-header p { font-size: 13px !important; }
+          /* KPI 카드 축소 */
+          .prd-kpi-grid > div { padding: 14px 12px !important; border-radius: 12px !important; }
+          .prd-kpi-grid > div span:first-child { font-size: 13px !important; }
+          /* 하단 CTA 모바일 */
+          .wishket-cta-section > div { padding: 28px 20px !important; border-radius: 16px !important; }
+          .wishket-cta-section h3 { font-size: 18px !important; }
+          .wishket-cta-section input { min-height: 48px !important; font-size: 15px !important; }
+          .wishket-cta-section button { min-height: 52px !important; font-size: 15px !important; }
+          /* 모듈 카드 패딩 축소 */
+          .prd-module-card { padding: 16px 14px !important; border-radius: 14px !important; }
+          /* 플로팅 바 하단 여백 확보 */
+          .floating-matching-bar ~ * { scroll-padding-bottom: 120px; }
         }
         @media (max-width: 480px) {
-          .prd-kpi-grid { grid-template-columns: 1fr !important; }
+          .prd-kpi-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+          .prd-container { padding: 12px 10px 80px !important; }
+          h1 { font-size: 20px !important; }
+          .wishket-cta-section > div > div { flex-direction: column !important; }
+          .wishket-cta-section > div > div input,
+          .wishket-cta-section > div > div button { width: 100% !important; flex: none !important; }
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
@@ -1988,7 +2047,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         onSubmit={handleCtaSubmit}
       />
       {/* ━━ Header — Dark Hero with glassmorphism ━━ */}
-      <div style={{
+      <div className="prd-hero-header" style={{
         background: C.gradientDark, color: '#fff', padding: '56px 20px 48px', position: 'relative', overflow: 'hidden',
       }}>
         {/* Decorative radial circles */}
