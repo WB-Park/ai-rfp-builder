@@ -216,7 +216,11 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
       }]);
     }
 
-    setTimeout(() => inputRef.current?.focus(), 100);
+    // Scroll to top and focus input after phase change
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      inputRef.current?.focus();
+    }, 100);
   };
 
   // ── 메시지 전송 ──
