@@ -1972,11 +1972,25 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <style>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes shimmer { from { background-position: -200% center; } to { background-position: 200% center; } }
+        @keyframes heroSlideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .prd-card { transition: all 0.25s cubic-bezier(0.22,1,0.36,1); }
         .prd-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(37,99,235,0.08); }
         .prd-section-fade { animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) both; }
         .prd-section-fade:nth-child(2) { animation-delay: 0.08s; }
         .prd-section-fade:nth-child(3) { animation-delay: 0.16s; }
+        /* 히어로 진입 애니메이션 — FORGE 차별화 */
+        .prd-hero-header > div > * { animation: heroSlideIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+        .prd-hero-header > div > *:nth-child(1) { animation-delay: 0.05s; }
+        .prd-hero-header > div > *:nth-child(2) { animation-delay: 0.1s; }
+        .prd-hero-header > div > *:nth-child(3) { animation-delay: 0.15s; }
+        .prd-hero-header > div > *:nth-child(4) { animation-delay: 0.2s; }
+        .prd-hero-header > div > *:nth-child(5) { animation-delay: 0.25s; }
+        /* CTA 버튼 active 상태 — 모바일 터치 피드백 */
+        .prd-hero-export-btns button:active { transform: scale(0.96); opacity: 0.85; }
+        .prd-hero-back-btn:active { transform: scale(0.96); opacity: 0.85; }
+        @media (prefers-reduced-motion: reduce) {
+          .prd-hero-header > div > * { animation: none !important; }
+        }
         .prd-section-fade:nth-child(4) { animation-delay: 0.24s; }
         @media print {
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -2011,10 +2025,21 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           .prd-container table th, .prd-container table td { padding: 8px 10px !important; font-size: 12px !important; word-break: normal; }
           /* 섹션 간격 축소 */
           .prd-container > div { margin-bottom: 24px !important; }
-          /* PRD 히어로 헤더 모바일 */
-          .prd-hero-header { padding: 36px 16px 32px !important; }
-          .prd-hero-header h1 { font-size: 22px !important; }
+          /* PRD 히어로 헤더 모바일 — FORGE 심화 */
+          .prd-hero-header { padding: 32px 16px 28px !important; }
+          .prd-hero-header h1 { font-size: 22px !important; line-height: 1.3 !important; word-break: keep-all !important; overflow-wrap: break-word !important; }
           .prd-hero-header p { font-size: 13px !important; }
+          /* 히어로 내보내기 버튼 모바일 최적화 */
+          .prd-hero-export-btns { gap: 6px !important; }
+          .prd-hero-export-btns button { padding: 7px 10px !important; font-size: 11px !important; min-height: 36px !important; min-width: auto !important; }
+          /* 히어로 메타 정보 모바일 */
+          .prd-hero-meta { gap: 10px !important; font-size: 12px !important; flex-wrap: wrap !important; }
+          /* 배지/라벨 모바일 축소 */
+          .prd-hero-badge { font-size: 10px !important; padding: 5px 12px !important; margin-bottom: 16px !important; }
+          .prd-hero-deep-badge { font-size: 9px !important; padding: 4px 10px !important; margin-left: 6px !important; margin-bottom: 12px !important; }
+          /* 데코레이티브 요소 모바일 축소 — FORGE 탁월화 */
+          .prd-hero-deco-1 { width: 300px !important; height: 300px !important; top: -80px !important; right: -60px !important; }
+          .prd-hero-deco-2 { width: 250px !important; height: 250px !important; bottom: -60px !important; left: -40px !important; }
           /* KPI 카드 축소 */
           .prd-kpi-grid > div { padding: 14px 12px !important; border-radius: 12px !important; }
           .prd-kpi-grid > div span:first-child { font-size: 13px !important; }
@@ -2046,6 +2071,12 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           body { font-size: 13px !important; }
           button { font-size: 13px !important; }
           .prd-card { padding: 14px !important; }
+          /* PRD 히어로 480px — FORGE 심화 */
+          .prd-hero-header { padding: 28px 14px 24px !important; }
+          .prd-hero-header h1 { font-size: 19px !important; }
+          .prd-hero-export-btns { flex-wrap: wrap !important; }
+          .prd-hero-export-btns button { flex: 1 1 auto !important; text-align: center !important; justify-content: center !important; }
+          .prd-hero-meta { gap: 8px !important; font-size: 11px !important; }
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
@@ -2068,13 +2099,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="prd-hero-header" style={{
         background: C.gradientDark, color: '#fff', padding: '56px 20px 48px', position: 'relative', overflow: 'hidden',
       }}>
-        {/* Decorative radial circles */}
-        <div style={{
+        {/* Decorative radial circles — FORGE: 모바일 축소 */}
+        <div className="prd-hero-deco-1" style={{
           position: 'absolute', top: -120, right: -80, width: 500, height: 500,
           borderRadius: '50%', background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
-        <div style={{
+        <div className="prd-hero-deco-2" style={{
           position: 'absolute', bottom: -100, left: -60, width: 400, height: 400,
           borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%)',
           pointerEvents: 'none',
@@ -2084,12 +2115,12 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           {!readOnly && onBack && (
             <button
               onClick={onBack}
-              className="no-print"
+              className="no-print prd-hero-back-btn"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-                color: 'rgba(255,255,255,0.7)', padding: typeof window !== 'undefined' && window.innerWidth < 768 ? '10px 14px' : '6px 14px', borderRadius: 8,
-                fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 20,
+                color: 'rgba(255,255,255,0.7)', padding: '8px 14px', borderRadius: 8,
+                fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 16,
                 backdropFilter: 'blur(12px)', transition: 'all 0.2s',
                 minHeight: 44, minWidth: 44,
                 WebkitTapHighlightColor: 'transparent',
@@ -2100,10 +2131,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               ← 새 문서 만들기
             </button>
           )}
-          <div style={{
+          <div className="prd-hero-badge" style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'rgba(255,255,255,0.08)', padding: '6px 16px', borderRadius: 24,
-            fontSize: 11, fontWeight: 600, letterSpacing: 0.5, marginBottom: 24,
+            fontSize: 11, fontWeight: 600, letterSpacing: 0.5, marginBottom: 20,
             backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)',
             color: C.textOnDarkSub,
           }}>
@@ -2116,23 +2147,23 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             {isDeepMode ? 'DEEP ANALYSIS PRD · 심층 분석 기획서' : 'PRD · 제품 요구사항 정의서'}
           </div>
           {isDeepMode && (
-            <div style={{
+            <div className="prd-hero-deep-badge" style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(37,99,235,0.2))',
               padding: '5px 14px', borderRadius: 20, fontSize: 10, fontWeight: 700,
-              letterSpacing: 0.8, marginBottom: 16, marginLeft: 10,
+              letterSpacing: 0.8, marginBottom: 14, marginLeft: 10,
               border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd',
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', display: 'inline-block' }} />
               1:1 심층 인터뷰 기반
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 40, fontWeight: 900, margin: '0 0 14px 0', lineHeight: 1.15, letterSpacing: '-1px', flex: '1 1 auto', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: 'clamp(22px, 5vw, 40px)', fontWeight: 900, margin: '0 0 12px 0', lineHeight: 1.2, letterSpacing: '-0.5px', flex: '1 1 auto', minWidth: 0, wordBreak: 'keep-all' as const, overflowWrap: 'break-word' as const }}>
               {prdData.projectName}
             </h1>
             {!readOnly && (
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: 6 }}>
+              <div className="prd-hero-export-btns" style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: 4 }}>
                 {/* 마크다운 복사 */}
                 <button
                   onClick={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
@@ -2189,7 +2220,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 13, color: C.textOnDarkSub, marginTop: 18, fontWeight: 500 }}>
+          <div className="prd-hero-meta" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, color: C.textOnDarkSub, marginTop: 14, fontWeight: 500 }}>
             <span>📅 {prdData.documentMeta?.createdAt || '-'}</span>
             <span>📋 v{prdData.documentMeta?.version || '1.0'}</span>
             <span>⚙️ 기능 {totalFeatures}개</span>

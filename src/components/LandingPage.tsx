@@ -298,6 +298,20 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       <style>{`
         @keyframes heroPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.25)} 50%{box-shadow:0 4px 30px rgba(37,99,235,0.5)} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes heroFadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        .hero-fade-in { animation: heroFadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+        .hero-fade-in:nth-child(1) { animation-delay: 0.05s; }
+        .hero-fade-in:nth-child(2) { animation-delay: 0.12s; }
+        .hero-fade-in:nth-child(3) { animation-delay: 0.19s; }
+        .hero-fade-in:nth-child(4) { animation-delay: 0.26s; }
+        .hero-fade-in:nth-child(5) { animation-delay: 0.33s; }
+        .hero-fade-in:nth-child(6) { animation-delay: 0.40s; }
+        /* 모바일 CTA 터치 피드백 — FORGE 차별화 */
+        .hero-cta-btn:active { transform: scale(0.97) !important; box-shadow: 0 2px 12px rgba(37,99,235,0.3) !important; }
+        @media (prefers-reduced-motion: reduce) {
+          .hero-fade-in { animation: none !important; }
+          .hero-cta-btn { animation: none !important; }
+        }
 
         /* ━━ Mobile Media Queries ━━ */
         @media (max-width: 768px) {
@@ -390,12 +404,12 @@ export default function LandingPage({ onStart }: LandingPageProps) {
       {/* ━━ Hero ━━ */}
       <section style={{
         background: `linear-gradient(180deg, ${C.navy} 0%, ${C.navyLight} 80%, ${C.navyMid} 100%)`,
-        padding: isMobile ? '72px 20px 44px' : '130px 24px 80px', textAlign: 'center',
+        padding: isMobile ? '64px 20px 36px' : '130px 24px 80px', textAlign: 'center',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
           position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: isMobile ? 350 : 600, height: isMobile ? 350 : 600, borderRadius: '50%',
+          width: isMobile ? 280 : 600, height: isMobile ? 280 : 600, borderRadius: '50%',
           background: `radial-gradient(circle, ${C.blueGlow} 0%, transparent 70%)`,
           pointerEvents: 'none',
         }} />
@@ -403,63 +417,66 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           {isMobile ? (
             <>
-              {/* Badge — [R-4] */}
-              <div style={{
+              {/* Badge — [R-4] + FORGE: 더 큰 뱃지, 진입 애니메이션 */}
+              <div className="hero-fade-in" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '6px 14px', borderRadius: 100,
+                padding: '7px 16px', borderRadius: 100,
                 background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
-                marginBottom: 16,
+                marginBottom: 14,
               }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.blueText }}>{badgeText}</span>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.blueText }}>{badgeText}</span>
               </div>
 
-              {/* Headline */}
-              <h1 style={{
-                fontSize: 28, fontWeight: 800, color: C.white,
-                lineHeight: 1.35, letterSpacing: '-0.03em', marginBottom: 12,
+              {/* Headline — FORGE: 더 임팩트 있는 크기 + 자연스러운 줄바꿈 */}
+              <h1 className="hero-fade-in" style={{
+                fontSize: 26, fontWeight: 800, color: C.white,
+                lineHeight: 1.4, letterSpacing: '-0.03em', marginBottom: 10,
+                wordBreak: 'keep-all',
               }}>
-                만들고 싶은 거, 말만 하세요<br />
-                <span style={{ color: C.blueSoft }}>개발 파트너와 대화할 수 있는 문서가 나옵니다</span>
+                만들고 싶은 거,{' '}
+                <span style={{ color: C.blueSoft }}>말만 하세요</span>
               </h1>
 
-              {/* [M-1] 서브카피 — 결과물 구체 설명 */}
-              <p style={{
-                fontSize: 15, color: C.textLight, lineHeight: 1.6,
-                marginBottom: 28, padding: '0 8px',
+              {/* [M-1] 서브카피 — FORGE: <br> 제거, 자연줄바꿈 + 더 컴팩트 */}
+              <p className="hero-fade-in" style={{
+                fontSize: 15, color: C.textLight, lineHeight: 1.65,
+                marginBottom: 8, padding: '0 4px', wordBreak: 'keep-all',
               }}>
-                뭘 만들고 싶은지 대화하면, 핵심 기능·우선순위·기술 요구사항이<br />체계적으로 정리된 문서가 완성됩니다
+                대화하면 핵심 기능·우선순위·기술 요구사항이 체계적으로 정리된 문서가 완성됩니다
               </p>
 
-              {/* [R-6] 안심 문구 */}
-              <p style={{ fontSize: 13, color: C.gray400, marginBottom: 16 }}>
-                개발 지식이 없어도 괜찮습니다. AI가 질문하면 답만 하세요.
+              {/* [R-6] 안심 문구 — FORGE: CTA와 간격 축소 */}
+              <p className="hero-fade-in" style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>
+                개발 지식 없어도 OK. AI가 질문하면 답만 하세요.
               </p>
 
-              {/* 메인 CTA — [M-5] ref 연결 */}
-              <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} style={{
-                width: '100%', height: 56, borderRadius: 14, border: 'none',
+              {/* 메인 CTA — [M-5] ref + FORGE: 높이 최적화, 그림자 강화 */}
+              <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} className="hero-fade-in hero-cta-btn" style={{
+                width: '100%', height: 54, borderRadius: 14, border: 'none',
                 background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
                 color: C.white, fontSize: 17, fontWeight: 700,
                 cursor: guestLoading ? 'wait' : 'pointer',
-                boxShadow: `0 4px 24px ${C.blueGlow}`,
+                boxShadow: `0 6px 28px ${C.blueGlow}`,
                 animation: 'heroPulse 2.5s ease-in-out infinite',
                 opacity: guestLoading ? 0.7 : 1,
-                minHeight: 56, minWidth: '100%',
+                minHeight: 54, minWidth: '100%',
                 WebkitTapHighlightColor: 'transparent',
                 WebkitTextSizeAdjust: '100%',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               }}>
                 {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
               </button>
 
-              {/* Trust chips — [O-3] 5~10분 */}
+              {/* Trust chips — FORGE: gap 축소, 320px 안전, 세로 간격 축소 */}
               <div style={{
-                display: 'flex', justifyContent: 'center',
-                gap: 16, marginTop: 20,
+                display: 'flex', justifyContent: 'center', flexWrap: 'wrap',
+                gap: '6px 14px', marginTop: 16,
               }}>
                 {['회원가입 불필요', '완전 무료', '5~10분 완성'].map(t => (
                   <span key={t} style={{
                     fontSize: 12, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
+                    whiteSpace: 'nowrap',
                   }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blueSoft} strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12" />
