@@ -961,44 +961,109 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
 
 // (B-4: Risk Matrix 제거 — 테이블로 통합)
 
-// ━━━━━ B-8: Sticky Action Bar ━━━━━
-function StickyActionBar({ onShare, onCopy, onPDF, onDOCX, sharing, pdfGen, docxGen, copied }: {
-  onShare: () => void; onCopy: () => void; onPDF: () => void; onDOCX: () => void;
-  sharing: boolean; pdfGen: boolean; docxGen: boolean; copied: boolean;
+// ━━━━━ B-8: Floating Matching CTA Bar ━━━━━
+function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, ctaSubmitting, ctaSubmitted, onSubmit }: {
+  ctaEmail: string; setCtaEmail: (v: string) => void;
+  ctaPhone: string; setCtaPhone: (v: string) => void;
+  ctaSubmitting: boolean; ctaSubmitted: boolean;
+  onSubmit: () => void;
 }) {
   const [visible, setVisible] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
-    const handleScroll = () => setVisible(window.scrollY > 600);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setVisible(window.scrollY > 400);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  if (!visible) return null;
+  if (!visible || ctaSubmitted) return null;
+  const canSubmit = ctaEmail.includes('@') && ctaPhone.trim().length >= 8;
   return (
     <div className="no-print" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
-      background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(20px) saturate(1.5)',
-      borderTop: '1px solid rgba(255,255,255,0.06)',
-      padding: '10px 24px',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-      boxShadow: '0 -4px 24px rgba(0,0,0,0.2)',
+      background: 'linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)',
+      backdropFilter: 'blur(20px) saturate(1.5)',
+      borderTop: '1px solid rgba(37,99,235,0.3)',
+      padding: collapsed ? '8px 24px' : '14px 24px 16px',
+      boxShadow: '0 -4px 32px rgba(0,0,0,0.3)',
+      transition: 'all 0.3s cubic-bezier(0.22,1,0.36,1)',
     }}>
-      <button onClick={onShare} disabled={sharing} style={{
-        padding: '8px 18px', borderRadius: 8, border: 'none', background: '#fff',
-        color: C.blue, fontSize: 12, fontWeight: 700, cursor: sharing ? 'wait' : 'pointer',
-        display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-      }}>🔗 {sharing ? '생성 중...' : '공유 링크'}</button>
-      <button onClick={onCopy} style={{
-        padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-        background: 'rgba(255,255,255,0.08)', color: C.textOnDarkSub, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-      }}>{copied ? '✅ 복사됨' : '📋 복사'}</button>
-      <button onClick={onPDF} disabled={pdfGen} style={{
-        padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-        background: 'rgba(255,255,255,0.08)', color: C.textOnDarkSub, fontSize: 12, fontWeight: 600, cursor: pdfGen ? 'wait' : 'pointer',
-      }}>{pdfGen ? '⏳...' : '📄 PDF'}</button>
-      <button onClick={onDOCX} disabled={docxGen} style={{
-        padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-        background: 'rgba(255,255,255,0.08)', color: C.textOnDarkSub, fontSize: 12, fontWeight: 600, cursor: docxGen ? 'wait' : 'pointer',
-      }}>{docxGen ? '⏳...' : '📝 DOCX'}</button>
+      {/* 접기/펼치기 토글 */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        style={{
+          position: 'absolute', top: -28, right: 20, width: 28, height: 28,
+          borderRadius: '8px 8px 0 0', border: 'none',
+          background: 'linear-gradient(135deg, #1E3A5F, #0F172A)',
+          color: 'rgba(255,255,255,0.6)', fontSize: 12, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {collapsed ? '▲' : '▼'}
+      </button>
+      {collapsed ? (
+        /* 접힌 상태 — 한 줄 */
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
+            ⚡ 이 정의서에 딱 맞는 개발 파트너를 찾아보세요
+          </span>
+          <button onClick={() => setCollapsed(false)} style={{
+            padding: '6px 16px', borderRadius: 8, border: 'none',
+            background: '#fff', color: C.blue, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          }}>무료 매칭 신청</button>
+        </div>
+      ) : (
+        /* 펼쳐진 상태 — 폼 */
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
+              ⚡ 이 정의서에 딱 맞는 개발 파트너를 찾아보세요
+            </span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
+              무료 · 평균 3일 이내 매칭
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="email"
+              placeholder="이메일 주소 *"
+              value={ctaEmail}
+              onChange={(e) => setCtaEmail(e.target.value)}
+              style={{
+                flex: '1 1 180px', padding: '10px 14px', borderRadius: 8,
+                border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                color: '#fff', fontSize: 13, outline: 'none',
+              }}
+            />
+            <input
+              type="tel"
+              placeholder="연락처 (필수) *"
+              value={ctaPhone}
+              onChange={(e) => setCtaPhone(e.target.value)}
+              style={{
+                flex: '1 1 150px', padding: '10px 14px', borderRadius: 8,
+                border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                background: 'rgba(255,255,255,0.1)',
+                color: '#fff', fontSize: 13, outline: 'none',
+              }}
+            />
+            <button
+              onClick={onSubmit}
+              disabled={ctaSubmitting || !canSubmit}
+              style={{
+                padding: '10px 24px', borderRadius: 8, border: 'none',
+                background: canSubmit ? '#fff' : 'rgba(255,255,255,0.2)',
+                color: canSubmit ? C.blue : 'rgba(255,255,255,0.4)',
+                fontSize: 13, fontWeight: 700,
+                cursor: ctaSubmitting ? 'wait' : canSubmit ? 'pointer' : 'not-allowed',
+                flexShrink: 0, transition: 'all 0.2s',
+                boxShadow: canSubmit ? '0 2px 12px rgba(0,0,0,0.2)' : 'none',
+              }}
+            >
+              {ctaSubmitting ? '신청 중...' : '무료 매칭 신청 →'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1075,6 +1140,29 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [ctaPhone, setCtaPhone] = useState('');
   const [ctaSubmitted, setCtaSubmitted] = useState(false);
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
+
+  // ── 공통 CTA 제출 핸들러 (플로팅 바 + 하단 폼 공유) ──
+  const handleCtaSubmit = useCallback(async () => {
+    if (!ctaEmail.includes('@') || ctaPhone.trim().length < 8) return;
+    setCtaSubmitting(true);
+    try {
+      await fetch('/api/cta-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: ctaEmail,
+          phone: ctaPhone,
+          projectName: prdData?.projectName || '',
+          projectType: rfpData?.overview ? 'detected' : 'unknown',
+          featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
+          sessionId,
+        }),
+      });
+    } catch { /* fire and forget */ }
+    setCtaSubmitted(true);
+    setCtaSubmitting(false);
+  }, [ctaEmail, ctaPhone, prdData, rfpData, sessionId]);
+
   const contentRef = useRef<HTMLDivElement>(null);
   // A-1: Floating TOC active section tracking
   const [activeSection, setActiveSection] = useState('');
@@ -1892,12 +1980,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="floating-toc-wrap">
         <FloatingTOC sections={tocSections} activeSection={activeSection} />
       </div>
-      {/* B-8: Sticky Action Bar — readOnly에서는 숨김 */}
+      {/* B-8: Floating Matching CTA Bar — readOnly에서는 숨김 */}
       {!readOnly && (
-        <StickyActionBar
-          onShare={handleShare} onCopy={() => { copyToClipboard(generateMarkdown(prdData)); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
-          onPDF={handlePDF} onDOCX={handleDOCX}
-          sharing={sharing} pdfGen={pdfGenerating} docxGen={docxGenerating} copied={copied}
+        <FloatingMatchingBar
+          ctaEmail={ctaEmail} setCtaEmail={setCtaEmail}
+          ctaPhone={ctaPhone} setCtaPhone={setCtaPhone}
+          ctaSubmitting={ctaSubmitting} ctaSubmitted={ctaSubmitted}
+          onSubmit={handleCtaSubmit}
         />
       )}
       {/* ━━ Header — Dark Hero with glassmorphism ━━ */}
@@ -3285,37 +3374,19 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 />
                 <input
                   type="tel"
-                  placeholder="연락처 (선택)"
+                  placeholder="연락처 (필수) *"
                   value={ctaPhone}
                   onChange={(e) => setCtaPhone(e.target.value)}
                   style={{
                     flex: '1 1 160px', padding: '12px 16px', borderRadius: 10,
-                    border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                    border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                    background: 'rgba(255,255,255,0.1)',
                     color: '#fff', fontSize: 14, outline: 'none',
                   }}
                 />
                 <button
-                  onClick={async () => {
-                    if (!ctaEmail.includes('@')) return;
-                    setCtaSubmitting(true);
-                    try {
-                      await fetch('/api/cta-lead', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          email: ctaEmail,
-                          phone: ctaPhone,
-                          projectName: prdData.projectName,
-                          projectType: rfpData?.overview ? 'detected' : 'unknown',
-                          featureCount: totalFeatures,
-                          sessionId,
-                        }),
-                      });
-                    } catch { /* fire and forget */ }
-                    setCtaSubmitted(true);
-                    setCtaSubmitting(false);
-                  }}
-                  disabled={ctaSubmitting || !ctaEmail.includes('@')}
+                  onClick={handleCtaSubmit}
+                  disabled={ctaSubmitting || !ctaEmail.includes('@') || ctaPhone.trim().length < 8}
                   style={{
                     padding: '13px 28px', borderRadius: 12, border: 'none',
                     background: ctaSubmitting ? 'rgba(255,255,255,0.3)' : '#fff',
