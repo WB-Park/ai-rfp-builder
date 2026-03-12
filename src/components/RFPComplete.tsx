@@ -1059,8 +1059,10 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
                 ...(isMobileFloat ? {} : { flex: '1 1 180px' }),
                 padding: isMobileFloat ? '12px 14px' : '10px 14px', borderRadius: 8,
                 border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                color: '#fff', fontSize: isMobileFloat ? 14 : 13, outline: 'none',
+                color: '#fff', fontSize: isMobileFloat ? 16 : 13, outline: 'none',
                 minHeight: 44, boxSizing: 'border-box',
+                WebkitTextSizeAdjust: '100%',
+                touchAction: 'manipulation',
               }}
             />
             <input
@@ -1073,8 +1075,10 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
                 padding: isMobileFloat ? '12px 14px' : '10px 14px', borderRadius: 8,
                 border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
                 background: 'rgba(255,255,255,0.1)',
-                color: '#fff', fontSize: isMobileFloat ? 14 : 13, outline: 'none',
+                color: '#fff', fontSize: isMobileFloat ? 16 : 13, outline: 'none',
                 minHeight: 44, boxSizing: 'border-box',
+                WebkitTextSizeAdjust: '100%',
+                touchAction: 'manipulation',
               }}
             />
             <button
@@ -1998,12 +2002,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           .prd-container { padding: 16px 12px 80px !important; }
           .prd-two-col { grid-template-columns: 1fr !important; }
           .prd-persona-grid { grid-template-columns: 1fr !important; }
-          h1 { font-size: 24px !important; line-height: 1.3 !important; }
-          h2 { font-size: 18px !important; }
-          h3 { font-size: 16px !important; }
+          h1 { font-size: 24px !important; line-height: 1.3 !important; word-break: break-word; }
+          h2 { font-size: 18px !important; word-break: break-word; }
+          h3 { font-size: 16px !important; word-break: break-word; }
+          p, span, li, td { word-break: break-word; overflow-wrap: break-word; }
           /* 테이블 가로 스크롤 */
           .prd-container table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
-          .prd-container table th, .prd-container table td { padding: 8px 10px !important; font-size: 12px !important; }
+          .prd-container table th, .prd-container table td { padding: 8px 10px !important; font-size: 12px !important; word-break: normal; }
           /* 섹션 간격 축소 */
           .prd-container > div { margin-bottom: 24px !important; }
           /* PRD 히어로 헤더 모바일 */
@@ -2016,20 +2021,31 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           /* 하단 CTA 모바일 */
           .wishket-cta-section > div { padding: 28px 20px !important; border-radius: 16px !important; }
           .wishket-cta-section h3 { font-size: 18px !important; }
-          .wishket-cta-section input { min-height: 48px !important; font-size: 15px !important; }
-          .wishket-cta-section button { min-height: 52px !important; font-size: 15px !important; }
+          .wishket-cta-section input { min-height: 48px !important; font-size: 16px !important; }
+          .wishket-cta-section button { min-height: 44px !important; font-size: 15px !important; }
           /* 모듈 카드 패딩 축소 */
           .prd-module-card { padding: 16px 14px !important; border-radius: 14px !important; }
+          /* Feature card text truncation */
+          .prd-card p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
           /* 플로팅 바 하단 여백 확보 */
           .floating-matching-bar ~ * { scroll-padding-bottom: 120px; }
+          /* All buttons minimum 44px touch target */
+          button { min-height: 44px !important; min-width: 44px !important; }
+          /* Input fields minimum 44px and 16px font */
+          input, textarea, select { min-height: 44px !important; font-size: 16px !important; }
         }
         @media (max-width: 480px) {
           .prd-kpi-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
           .prd-container { padding: 12px 10px 80px !important; }
-          h1 { font-size: 20px !important; }
+          h1 { font-size: 20px !important; word-break: break-word; }
+          h2 { font-size: 16px !important; }
           .wishket-cta-section > div > div { flex-direction: column !important; }
           .wishket-cta-section > div > div input,
           .wishket-cta-section > div > div button { width: 100% !important; flex: none !important; }
+          /* Extra small device optimizations */
+          body { font-size: 13px !important; }
+          button { font-size: 13px !important; }
+          .prd-card { padding: 14px !important; }
         }
       `}</style>
       {/* Sticky Top Bar — Project Title + CTA */}
@@ -2072,9 +2088,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-                color: 'rgba(255,255,255,0.7)', padding: '6px 14px', borderRadius: 8,
+                color: 'rgba(255,255,255,0.7)', padding: typeof window !== 'undefined' && window.innerWidth < 768 ? '10px 14px' : '6px 14px', borderRadius: 8,
                 fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 20,
                 backdropFilter: 'blur(12px)', transition: 'all 0.2s',
+                minHeight: 44, minWidth: 44,
+                WebkitTapHighlightColor: 'transparent',
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
