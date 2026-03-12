@@ -1980,15 +1980,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="floating-toc-wrap">
         <FloatingTOC sections={tocSections} activeSection={activeSection} />
       </div>
-      {/* B-8: Floating Matching CTA Bar — readOnly에서는 숨김 */}
-      {!readOnly && (
-        <FloatingMatchingBar
-          ctaEmail={ctaEmail} setCtaEmail={setCtaEmail}
-          ctaPhone={ctaPhone} setCtaPhone={setCtaPhone}
-          ctaSubmitting={ctaSubmitting} ctaSubmitted={ctaSubmitted}
-          onSubmit={handleCtaSubmit}
-        />
-      )}
+      {/* B-8: Floating Matching CTA Bar — 공유 링크에서도 노출 */}
+      <FloatingMatchingBar
+        ctaEmail={ctaEmail} setCtaEmail={setCtaEmail}
+        ctaPhone={ctaPhone} setCtaPhone={setCtaPhone}
+        ctaSubmitting={ctaSubmitting} ctaSubmitted={ctaSubmitted}
+        onSubmit={handleCtaSubmit}
+      />
       {/* ━━ Header — Dark Hero with glassmorphism ━━ */}
       <div style={{
         background: C.gradientDark, color: '#fff', padding: '56px 20px 48px', position: 'relative', overflow: 'hidden',
