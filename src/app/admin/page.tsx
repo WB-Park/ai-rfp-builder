@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface Session {
   id: string;
@@ -87,12 +87,37 @@ export default function AdminPage() {
       const data = await res.json();
       setDashboard(data);
       setAuthenticated(true);
+      // Task 4: Store password in sessionStorage after successful login
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('admin_password', pw);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Task 4: Check sessionStorage on mount and auto-login
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !authenticated) {
+      const storedPassword = sessionStorage.getItem('admin_password');
+      if (storedPassword) {
+        fetchDashboard(storedPassword);
+      }
+    }
+  }, []);
+
+  // Task 5: Handle URL-based session detail routing
+  useEffect(() => {
+    if (typeof window !== 'undefined' && authenticated) {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session');
+      if (sessionId && !selectedSession) {
+        viewSessionDetail(sessionId);
+      }
+    }
+  }, [authenticated]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +135,10 @@ export default function AdminPage() {
       if (!res.ok) throw new Error('세션 상세 조회 실패');
       const data = await res.json();
       setSelectedSession(data.session);
+      // Task 5: Update URL with session parameter
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', `/admin?session=${sessionId}`);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -243,9 +272,21 @@ export default function AdminPage() {
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 800 }}>📊 AI PRD Builder — Admin</h1>
-          <button onClick={() => fetchDashboard(password)} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
-            🔄 새로고침
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => fetchDashboard(password)} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+              🔄 새로고침
+            </button>
+            <button onClick={() => {
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('admin_password');
+              }
+              setAuthenticated(false);
+              setPassword('');
+              setDashboard(null);
+            }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+              🔓 로그아웃
+            </button>
+          </div>
         </div>
 
         {/* 요약 카드 */}

@@ -1025,67 +1025,75 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
         /* 접힌 상태 */
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobileFloat ? 8 : 12 }}>
           <span style={{ fontSize: isMobileFloat ? 12 : 13, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-            ⚡ {isMobileFloat ? '개발 파트너 매칭' : '이 정의서에 딱 맞는 개발 파트너를 찾아보세요'}
+            ⚡ {isMobileFloat ? '무료 견적 상담' : '이 정의서로 무료 견적 상담을 받고, 딱 맞는 개발 파트너를 찾아보세요'}
           </span>
           <button onClick={() => setCollapsed(false)} style={{
             padding: isMobileFloat ? '10px 20px' : '6px 16px', borderRadius: 8, border: 'none',
             background: '#fff', color: C.blue, fontSize: isMobileFloat ? 13 : 12, fontWeight: 700, cursor: 'pointer',
             minHeight: 44,
-          }}>무료 매칭 신청</button>
+          }}>무료 견적 상담 →</button>
         </div>
       ) : (
-        /* 펼쳐진 상태 — 모바일: 세로 스택 */
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobileFloat ? 12 : 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: isMobileFloat ? 13 : 14, fontWeight: 700, color: '#fff' }}>
-              ⚡ {isMobileFloat ? '개발 파트너를 찾아보세요' : '이 정의서에 딱 맞는 개발 파트너를 찾아보세요'}
+        /* 펼쳐진 상태 — 모바일: 세로 스택 (잘림 버그 수정) */
+        <div style={{ maxWidth: 800, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ marginBottom: isMobileFloat ? 10 : 10 }}>
+            <span style={{ fontSize: isMobileFloat ? 14 : 14, fontWeight: 700, color: '#fff', display: 'block', lineHeight: 1.5 }}>
+              ⚡ 이 정의서로 무료 견적 상담 및 딱 맞는 개발 파트너 찾기!
             </span>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
               무료 · 평균 3일 이내 매칭
             </span>
           </div>
           <div style={{
-            display: isMobileFloat ? 'grid' : 'flex',
-            gridTemplateColumns: isMobileFloat ? '1fr 1fr' : undefined,
+            display: isMobileFloat ? 'flex' : 'flex',
+            flexDirection: isMobileFloat ? 'column' : 'row',
             gap: 8,
             flexWrap: isMobileFloat ? undefined : 'wrap',
+            width: '100%',
           }}>
-            <input
-              type="email"
-              placeholder="이메일 주소 *"
-              value={ctaEmail}
-              onChange={(e) => setCtaEmail(e.target.value)}
-              style={{
-                ...(isMobileFloat ? {} : { flex: '1 1 180px' }),
-                padding: isMobileFloat ? '12px 14px' : '10px 14px', borderRadius: 8,
-                border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                color: '#fff', fontSize: isMobileFloat ? 16 : 13, outline: 'none',
-                minHeight: 44, boxSizing: 'border-box',
-                WebkitTextSizeAdjust: '100%',
-                touchAction: 'manipulation',
-              }}
-            />
-            <input
-              type="tel"
-              placeholder="연락처 (필수) *"
-              value={ctaPhone}
-              onChange={(e) => setCtaPhone(e.target.value)}
-              style={{
-                ...(isMobileFloat ? {} : { flex: '1 1 150px' }),
-                padding: isMobileFloat ? '12px 14px' : '10px 14px', borderRadius: 8,
-                border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                background: 'rgba(255,255,255,0.1)',
-                color: '#fff', fontSize: isMobileFloat ? 16 : 13, outline: 'none',
-                minHeight: 44, boxSizing: 'border-box',
-                WebkitTextSizeAdjust: '100%',
-                touchAction: 'manipulation',
-              }}
-            />
+            {/* 모바일: 이메일+연락처 가로 배치 */}
+            <div style={{
+              display: 'flex', gap: 8, width: '100%',
+              ...(isMobileFloat ? {} : { flex: '1 1 auto' }),
+            }}>
+              <input
+                type="email"
+                placeholder="이메일 *"
+                value={ctaEmail}
+                onChange={(e) => setCtaEmail(e.target.value)}
+                style={{
+                  flex: 1, minWidth: 0,
+                  padding: isMobileFloat ? '12px 12px' : '10px 14px', borderRadius: 8,
+                  border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
+                  color: '#fff', fontSize: 16, outline: 'none',
+                  minHeight: 44, boxSizing: 'border-box',
+                  WebkitTextSizeAdjust: '100%',
+                  touchAction: 'manipulation',
+                }}
+              />
+              <input
+                type="tel"
+                placeholder="연락처 *"
+                value={ctaPhone}
+                onChange={(e) => setCtaPhone(e.target.value)}
+                style={{
+                  flex: 1, minWidth: 0,
+                  padding: isMobileFloat ? '12px 12px' : '10px 14px', borderRadius: 8,
+                  border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff', fontSize: 16, outline: 'none',
+                  minHeight: 44, boxSizing: 'border-box',
+                  WebkitTextSizeAdjust: '100%',
+                  touchAction: 'manipulation',
+                }}
+              />
+            </div>
             <button
               onClick={onSubmit}
               disabled={ctaSubmitting || !canSubmit}
               style={{
-                ...(isMobileFloat ? { gridColumn: '1 / -1' } : { flexShrink: 0 }),
+                width: isMobileFloat ? '100%' : 'auto',
+                flexShrink: isMobileFloat ? undefined : 0,
                 padding: isMobileFloat ? '14px 24px' : '10px 24px', borderRadius: 8, border: 'none',
                 background: canSubmit ? '#fff' : 'rgba(255,255,255,0.2)',
                 color: canSubmit ? C.blue : 'rgba(255,255,255,0.4)',
@@ -1096,7 +1104,7 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
                 minHeight: 48,
               }}
             >
-              {ctaSubmitting ? '신청 중...' : '무료 매칭 신청 →'}
+              {ctaSubmitting ? '신청 중...' : '무료 견적 상담 신청 →'}
             </button>
           </div>
         </div>
@@ -1178,6 +1186,22 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [ctaSubmitted, setCtaSubmitted] = useState(false);
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
 
+  // ── Task 1: Download Gating Modal State ──
+  const [showDownloadGate, setShowDownloadGate] = useState(false);
+  const [downloadGateEmail, setDownloadGateEmail] = useState(email || '');
+  const [downloadGateType, setDownloadGateType] = useState<'pdf' | 'docx' | null>(null);
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [downloadGateSubmitting, setDownloadGateSubmitting] = useState(false);
+
+  // ── Task 2: Exit Prevention Modal State ──
+  const hasEngagedRef = useRef(false);
+  const exitModalShownRef = useRef(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [exitModalEmail, setExitModalEmail] = useState('');
+  const [exitModalPhone, setExitModalPhone] = useState('');
+  const [exitModalSubmitting, setExitModalSubmitting] = useState(false);
+  const [downloadGateErrorMsg, setDownloadGateErrorMsg] = useState('');
+
   // ── 공통 CTA 제출 핸들러 (플로팅 바 + 하단 폼 공유) ──
   const handleCtaSubmit = useCallback(async () => {
     if (!ctaEmail.includes('@') || ctaPhone.trim().length < 8) return;
@@ -1201,6 +1225,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   }, [ctaEmail, ctaPhone, prdData, rfpData, sessionId]);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const shareDebounceRef = useRef<NodeJS.Timeout | null>(null); // Task 3: Debounce for share
   // A-1: Floating TOC active section tracking
   const [activeSection, setActiveSection] = useState('');
   // B-2: Feature priority filter
@@ -1221,6 +1246,30 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     sectionEls.forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, [loading, prdData]);
+
+  // ── Task 2: Exit Prevention Modal (30s delay, shows once) ──
+  useEffect(() => {
+    if (loading || !prdData || readOnly || exitModalShownRef.current) return;
+    const timer = setTimeout(() => {
+      if (!hasEngagedRef.current && !exitModalShownRef.current) {
+        setShowExitModal(true);
+        exitModalShownRef.current = true;
+      }
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [loading, prdData, readOnly]);
+
+  // ── Track beforeunload for exit prevention ──
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (prdData && !hasEngagedRef.current && !readOnly) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [prdData, readOnly]);
 
   // (검색 기능 관련 effect 제거됨)
 
@@ -1310,31 +1359,39 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   // Share PRD via URL
   const handleShare = useCallback(async () => {
-    if (!prdData) return;
-    setSharing(true);
-    try {
-      const res = await fetch('/api/share-prd', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rfpDocument: JSON.stringify(prdData),
-          rfpData,
-          projectName: prdData.projectName,
-        }),
-      });
-      const data = await res.json();
-      if (data.shareId) {
-        const url = `${window.location.origin}/share/${data.shareId}`;
-        setShareUrl(url);
-        try { await navigator.clipboard.writeText(url); } catch { /* fallback below */ }
-        setUrlCopied(true);
-        setTimeout(() => setUrlCopied(false), 3000);
-      }
-    } catch (err) {
-      console.error('Share error:', err);
+    if (!prdData || sharing) return; // Task 3: Prevent duplicate shares
+    hasEngagedRef.current = true; // Track engagement
+
+    // Task 3: Debounce - prevent rapid duplicate calls
+    if (shareDebounceRef.current) {
+      clearTimeout(shareDebounceRef.current);
     }
-    setSharing(false);
-  }, [prdData, rfpData]);
+    shareDebounceRef.current = setTimeout(async () => {
+      setSharing(true);
+      try {
+        const res = await fetch('/api/share-prd', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rfpDocument: JSON.stringify(prdData),
+            rfpData,
+            projectName: prdData.projectName,
+          }),
+        });
+        const data = await res.json();
+        if (data.shareId) {
+          const url = `${window.location.origin}/share/${data.shareId}`;
+          setShareUrl(url);
+          try { await navigator.clipboard.writeText(url); } catch { /* fallback below */ }
+          setUrlCopied(true);
+          setTimeout(() => setUrlCopied(false), 3000);
+        }
+      } catch (err) {
+        console.error('Share error:', err);
+      }
+      setSharing(false);
+    }, 300); // 300ms debounce
+  }, [prdData, rfpData, sharing]);
 
   const handleCopyShareUrl = useCallback(async () => {
     try { await navigator.clipboard.writeText(shareUrl); } catch {
@@ -1348,11 +1405,10 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   const handlePrint = useCallback(() => { window.print(); }, []);
 
-  // #13: PDF 내보내기 — 고품질 멀티페이지 (개선)
-  const [pdfGenerating, setPdfGenerating] = useState(false);
-  const handlePDF = useCallback(async () => {
+  // ── Task 1: Download Gating Handler for PDF ──
+  const generatePDF = useCallback(async () => {
     if (!contentRef.current || !prdData) return;
-    setPdfGenerating(true);
+    hasEngagedRef.current = true; // Track engagement
     try {
       // no-print 및 편집 UI 요소 숨기기
       const hideEls = contentRef.current.querySelectorAll('.no-print, .edit-hint, .prd-skip-nav');
@@ -1362,8 +1418,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       editables.forEach(el => { (el as HTMLElement).style.cursor = 'default'; });
 
       const canvas = await html2canvas(contentRef.current, {
-        scale: 2.5,
+        scale: 3, // Task 6: Improved quality
         useCORS: true,
+        allowTaint: true, // Task 6: Allow external resources
         logging: false,
         backgroundColor: '#FFFFFF',
         windowWidth: 1100,
@@ -1374,7 +1431,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       hideEls.forEach(el => (el as HTMLElement).style.display = '');
       editables.forEach(el => { (el as HTMLElement).style.cursor = 'pointer'; });
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 0.95); // High quality
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -1389,7 +1446,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       let pageNum = 0;
       while (yOffset < imgHeight) {
         if (pageNum > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', margin, margin - yOffset, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', margin, margin - yOffset, imgWidth, imgHeight, '', 'MEDIUM'); // Task 6: Better quality
         // 페이지 푸터
         pdf.setFontSize(8);
         pdf.setTextColor(148, 163, 184);
@@ -1405,14 +1462,30 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       console.error('PDF generation error:', err);
       alert('PDF 생성 중 오류가 발생했습니다. 브라우저 인쇄(Ctrl+P) 기능을 이용해주세요.');
     }
-    setPdfGenerating(false);
   }, [prdData]);
 
-  // F12: DOCX 내보내기 (Pro-grade)
-  const [docxGenerating, setDocxGenerating] = useState(false);
-  const handleDOCX = useCallback(async () => {
+  // #13: PDF 내보내기 — 다운로드 게이트 포함
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const handlePDF = useCallback(async () => {
     if (!prdData) return;
-    setDocxGenerating(true);
+    // Task 1: Check if email is already captured, if not show gating modal
+    if (downloadGateEmail && downloadGateEmail.includes('@')) {
+      // Email already captured, proceed with download
+      setPdfGenerating(true);
+      await generatePDF();
+      setPdfGenerating(false);
+    } else {
+      // Show gating modal
+      setDownloadGateType('pdf');
+      setShowDownloadGate(true);
+      setDownloadGateErrorMsg('');
+    }
+  }, [prdData, downloadGateEmail, generatePDF]);
+
+  // ── Task 1: DOCX generation logic extracted ──
+  const generateDOCX = useCallback(async () => {
+    if (!prdData) return;
+    hasEngagedRef.current = true; // Track engagement
     try {
       const d = prdData;
       const totalFeats = d.featureModules?.reduce((s, m) => s + (m.features?.length || 0), 0) || 0;
@@ -1720,8 +1793,25 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       console.error('DOCX generation error:', err);
       alert('DOCX 생성 중 오류가 발생했습니다.');
     }
-    setDocxGenerating(false);
   }, [prdData]);
+
+  // F12: DOCX 내보내기 — 다운로드 게이트 포함
+  const [docxGenerating, setDocxGenerating] = useState(false);
+  const handleDOCX = useCallback(async () => {
+    if (!prdData) return;
+    // Task 1: Check if email is already captured, if not show gating modal
+    if (downloadGateEmail && downloadGateEmail.includes('@')) {
+      // Email already captured, proceed with download
+      setDocxGenerating(true);
+      await generateDOCX();
+      setDocxGenerating(false);
+    } else {
+      // Show gating modal
+      setDownloadGateType('docx');
+      setShowDownloadGate(true);
+      setDownloadGateErrorMsg('');
+    }
+  }, [prdData, downloadGateEmail, generateDOCX]);
 
   // Generate markdown for copy
   const generateMarkdown = useCallback((d: PRDResult): string => {
@@ -3533,6 +3623,228 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           </p>
         </div>
       </div>
+
+      {/* ━━ Task 1: Download Gating Modal ━━ */}
+      {showDownloadGate && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, backdropFilter: 'blur(4px)',
+        }} onClick={() => setShowDownloadGate(false)}>
+          <div style={{
+            background: '#0B1120', borderRadius: 20, padding: 32, maxWidth: 420,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid #1E293B',
+            animation: 'slideUp 0.3s ease-out',
+          }} onClick={(e) => e.stopPropagation()}>
+            <style>{`@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8, margin: 0 }}>
+              📥 문서 다운로드
+            </h2>
+            <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 20, margin: '8px 0 20px 0' }}>
+              다운로드 전 이메일을 입력해 주세요.
+            </p>
+            <input
+              type="email"
+              placeholder="이메일 주소"
+              value={downloadGateEmail}
+              onChange={(e) => setDownloadGateEmail(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 10,
+                border: `1.5px solid ${downloadGateEmail && !downloadGateEmail.includes('@') ? '#f87171' : '#1E293B'}`,
+                background: '#1F2937', color: '#fff', fontSize: 13,
+                outline: 'none', boxSizing: 'border-box', marginBottom: 12,
+              }}
+            />
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20,
+              fontSize: 13, color: '#CBD5E1', cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              마케팅 정보 수신 동의 (선택)
+            </label>
+            {downloadGateErrorMsg && (
+              <div style={{
+                fontSize: 12, color: '#f87171', marginBottom: 12, padding: '8px 12px',
+                background: 'rgba(248,113,113,0.1)', borderRadius: 8,
+              }}>
+                {downloadGateErrorMsg}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowDownloadGate(false)}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10,
+                  border: '1px solid #1E293B', background: 'transparent',
+                  color: '#94A3B8', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#1F2937'; }}
+                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  if (!downloadGateEmail.includes('@')) {
+                    setDownloadGateErrorMsg('올바른 이메일 주소를 입력해 주세요.');
+                    return;
+                  }
+                  setDownloadGateSubmitting(true);
+                  try {
+                    // Save email + consent to CTA leads
+                    await fetch('/api/cta-lead', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        email: downloadGateEmail,
+                        projectName: prdData?.projectName || '',
+                        projectType: rfpData?.overview ? 'detected' : 'unknown',
+                        featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
+                        sessionId,
+                        marketing_consent: marketingConsent,
+                      }),
+                    });
+                    // Proceed with download
+                    setShowDownloadGate(false);
+                    // Execute the pending download immediately
+                    if (downloadGateType === 'pdf') {
+                      setPdfGenerating(true);
+                      await generatePDF();
+                      setPdfGenerating(false);
+                    } else if (downloadGateType === 'docx') {
+                      setDocxGenerating(true);
+                      await generateDOCX();
+                      setDocxGenerating(false);
+                    }
+                  } catch (err) {
+                    console.error('Download gate error:', err);
+                    setDownloadGateErrorMsg('오류가 발생했습니다. 다시 시도해 주세요.');
+                  }
+                  setDownloadGateSubmitting(false);
+                }}
+                disabled={downloadGateSubmitting || !downloadGateEmail.includes('@')}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10,
+                  border: 'none', background: '#2563EB',
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                  cursor: downloadGateSubmitting ? 'wait' : 'pointer',
+                  opacity: downloadGateSubmitting || !downloadGateEmail.includes('@') ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { if (!downloadGateSubmitting) (e.target as HTMLElement).style.background = '#1D4ED8'; }}
+                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = '#2563EB'; }}
+              >
+                {downloadGateSubmitting ? '처리 중...' : '다운로드'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ━━ Task 2: Exit Prevention Modal ━━ */}
+      {showExitModal && !readOnly && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9998, backdropFilter: 'blur(4px)',
+        }} onClick={() => setShowExitModal(false)}>
+          <div style={{
+            background: '#0B1120', borderRadius: 20, padding: 32, maxWidth: 420,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid #1E293B',
+            animation: 'slideUp 0.3s ease-out',
+          }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8, margin: 0 }}>
+              🎯 무료 견적 상담
+            </h2>
+            <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 20, margin: '8px 0 20px 0' }}>
+              이 정의서로 무료 견적 상담을 받아보시겠어요?
+            </p>
+            <input
+              type="email"
+              placeholder="이메일 주소"
+              value={exitModalEmail}
+              onChange={(e) => setExitModalEmail(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 10,
+                border: `1.5px solid ${exitModalEmail && !exitModalEmail.includes('@') ? '#f87171' : '#1E293B'}`,
+                background: '#1F2937', color: '#fff', fontSize: 13,
+                outline: 'none', boxSizing: 'border-box', marginBottom: 10,
+              }}
+            />
+            <input
+              type="tel"
+              placeholder="연락처 (10자 이상)"
+              value={exitModalPhone}
+              onChange={(e) => setExitModalPhone(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 10,
+                border: `1.5px solid ${exitModalPhone && exitModalPhone.trim().length < 8 ? '#f87171' : '#1E293B'}`,
+                background: '#1F2937', color: '#fff', fontSize: 13,
+                outline: 'none', boxSizing: 'border-box', marginBottom: 20,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowExitModal(false)}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10,
+                  border: '1px solid #1E293B', background: 'transparent',
+                  color: '#94A3B8', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#1F2937'; }}
+                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
+              >
+                나중에 할게요
+              </button>
+              <button
+                onClick={async () => {
+                  if (!exitModalEmail.includes('@') || exitModalPhone.trim().length < 8) return;
+                  setExitModalSubmitting(true);
+                  try {
+                    await fetch('/api/cta-lead', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        email: exitModalEmail,
+                        phone: exitModalPhone,
+                        projectName: prdData?.projectName || '',
+                        projectType: rfpData?.overview ? 'detected' : 'unknown',
+                        featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
+                        sessionId,
+                      }),
+                    });
+                    hasEngagedRef.current = true;
+                    setShowExitModal(false);
+                  } catch (err) {
+                    console.error('Exit modal CTA error:', err);
+                  }
+                  setExitModalSubmitting(false);
+                }}
+                disabled={exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.trim().length < 8}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10,
+                  border: 'none', background: '#2563EB',
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                  cursor: exitModalSubmitting ? 'wait' : 'pointer',
+                  opacity: exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.trim().length < 8 ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { if (!exitModalSubmitting) (e.target as HTMLElement).style.background = '#1D4ED8'; }}
+                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = '#2563EB'; }}
+              >
+                {exitModalSubmitting ? '신청 중...' : '신청하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </ReadOnlyContext.Provider>
   );

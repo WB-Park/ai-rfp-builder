@@ -434,8 +434,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 lineHeight: 1.4, letterSpacing: '-0.03em', marginBottom: 10,
                 wordBreak: 'keep-all',
               }}>
-                만들고 싶은 거,{' '}
-                <span style={{ color: C.blueSoft }}>말만 하세요</span>
+                당신의 개발 아이디어,<br />
+                <span style={{ color: C.blueSoft }}>5분 만에</span> 기획서로 만드세요
               </h1>
 
               {/* [M-1] 서브카피 — FORGE: <br> 제거, 자연줄바꿈 + 더 컴팩트 */}
@@ -443,7 +443,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 fontSize: 15, color: C.textLight, lineHeight: 1.65,
                 marginBottom: 8, padding: '0 4px', wordBreak: 'keep-all',
               }}>
-                대화하면 핵심 기능·우선순위·기술 요구사항이 체계적으로 정리된 문서가 완성됩니다
+                핵심 기능, 우선 순위, 개발스택 추천까지 AI 컨설턴트와 쉽게 대화하며 정리하세요
               </p>
 
               {/* [R-6] 안심 문구 — FORGE: CTA와 간격 축소 */}
@@ -473,7 +473,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
                 display: 'flex', justifyContent: 'center', flexWrap: 'wrap',
                 gap: '6px 14px', marginTop: 16,
               }}>
-                {['회원가입 불필요', '완전 무료', '5~10분 완성'].map(t => (
+                {['사내 공유', '개발 업체 공유', '사업 구체화'].map(t => (
                   <span key={t} style={{
                     fontSize: 12, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
                     whiteSpace: 'nowrap',
