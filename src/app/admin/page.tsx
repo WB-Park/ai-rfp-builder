@@ -54,11 +54,38 @@ interface Consultation {
   created_at: string;
 }
 
+interface CtaLead {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  project_name: string | null;
+  project_type: string | null;
+  feature_count: number | null;
+  session_id: string | null;
+  marketing_consent: boolean;
+  source: string | null;
+  created_at: string;
+}
+
+interface WishketLead {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  project: string | null;
+  grade: string | null;
+  status: string | null;
+  score_total: number | null;
+  created_at: string;
+  [key: string]: any;
+}
+
 interface DashboardData {
   sessions: { data: Session[]; total: number };
-  leads: { data: Lead[]; total: number };
+  rfpLeads: { data: Lead[]; total: number };
   sharedPrds: { data: SharedPrd[]; total: number };
   consultations: { data: Consultation[]; total: number };
+  leads: { data: WishketLead[]; total: number };
+  ctaLeads: { data: CtaLead[]; total: number };
 }
 
 export default function AdminPage() {
@@ -67,7 +94,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [activeTab, setActiveTab] = useState<'sessions' | 'leads' | 'shared' | 'consultations'>('sessions');
+  const [activeTab, setActiveTab] = useState<'sessions' | 'rfpLeads' | 'shared' | 'consultations' | 'leads' | 'ctaLeads'>('sessions');
   const [selectedSession, setSelectedSession] = useState<SessionDetail | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
 
@@ -297,30 +324,34 @@ export default function AdminPage() {
         </div>
 
         {/* 요약 카드 */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobileView ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobileView ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
           {[
             { label: '전체 세션', value: d.sessions.total, icon: '📝', color: '#3b82f6' },
-            { label: '완료된 PRD', value: completedSessions, icon: '✅', color: '#10b981' },
-            { label: '수집된 리드', value: d.leads.total, icon: '👤', color: '#8b5cf6' },
-            { label: '공유된 PRD', value: d.sharedPrds.total, icon: '🔗', color: '#f59e0b' },
+            { label: '완료 PRD', value: completedSessions, icon: '✅', color: '#10b981' },
+            { label: '공유 PRD', value: d.sharedPrds.total, icon: '🔗', color: '#f59e0b' },
+            { label: 'CTA 리드', value: d.ctaLeads?.total || 0, icon: '🎯', color: '#ef4444' },
+            { label: 'Email 리드', value: d.rfpLeads?.total || 0, icon: '📧', color: '#8b5cf6' },
+            { label: 'Leads (별도)', value: d.leads?.total || 0, icon: '👤', color: '#06b6d4' },
           ].map((c, i) => (
-            <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', borderTop: `3px solid ${c.color}` }}>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: c.color }}>{c.value}</div>
-              <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{c.icon} {c.label}</div>
+            <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: isMobileView ? '14px' : '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', borderTop: `3px solid ${c.color}` }}>
+              <div style={{ fontSize: isMobileView ? '22px' : '28px', fontWeight: 800, color: c.color }}>{c.value}</div>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>{c.icon} {c.label}</div>
             </div>
           ))}
         </div>
 
         {/* 탭 */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '3px', marginBottom: '16px', flexWrap: 'wrap' }}>
           {[
-            { key: 'sessions' as const, label: isMobileView ? '세션' : `세션 (${d.sessions.total})` },
-            { key: 'leads' as const, label: isMobileView ? '리드' : `리드 (${d.leads.total})` },
-            { key: 'shared' as const, label: isMobileView ? 'PRD' : `공유 PRD (${d.sharedPrds.total})` },
-            { key: 'consultations' as const, label: isMobileView ? '상담' : `상담 (${d.consultations.total})` },
+            { key: 'sessions' as const, label: `세션 (${d.sessions.total})` },
+            { key: 'ctaLeads' as const, label: `CTA리드 (${d.ctaLeads?.total || 0})` },
+            { key: 'rfpLeads' as const, label: `Email (${d.rfpLeads?.total || 0})` },
+            { key: 'leads' as const, label: `Leads (${d.leads?.total || 0})` },
+            { key: 'shared' as const, label: `공유PRD (${d.sharedPrds.total})` },
+            { key: 'consultations' as const, label: `상담 (${d.consultations.total})` },
           ].map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-              padding: isMobileView ? '8px 12px' : '10px 20px', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: isMobileView ? '12px' : '13px', fontWeight: 600,
+              padding: isMobileView ? '7px 10px' : '10px 16px', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: isMobileView ? '11px' : '13px', fontWeight: 600,
               background: activeTab === t.key ? '#fff' : '#e2e8f0', color: activeTab === t.key ? '#1e293b' : '#64748b', whiteSpace: 'nowrap',
             }}>
               {t.label}
@@ -362,7 +393,37 @@ export default function AdminPage() {
             </table>
           )}
 
-          {activeTab === 'leads' && (
+          {activeTab === 'ctaLeads' && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={th}>이메일</th>
+                  <th style={th}>연락처</th>
+                  <th style={th}>프로젝트</th>
+                  <th style={th}>기능 수</th>
+                  <th style={th}>마케팅동의</th>
+                  <th style={th}>소스</th>
+                  <th style={th}>날짜</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(d.ctaLeads?.data || []).map((l: CtaLead) => (
+                  <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={td}>{l.email || '-'}</td>
+                    <td style={td}>{l.phone || '-'}</td>
+                    <td style={td}>{l.project_name || '-'}</td>
+                    <td style={td}>{l.feature_count ?? '-'}</td>
+                    <td style={td}>{l.marketing_consent ? '✅' : '-'}</td>
+                    <td style={td}>{l.source || '-'}</td>
+                    <td style={td}>{formatDate(l.created_at)}</td>
+                  </tr>
+                ))}
+                {(!d.ctaLeads?.data || d.ctaLeads.data.length === 0) && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#999' }}>데이터 없음</td></tr>}
+              </tbody>
+            </table>
+          )}
+
+          {activeTab === 'rfpLeads' && (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
@@ -375,7 +436,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {d.leads.data.map(l => (
+                {(d.rfpLeads?.data || []).map((l: Lead) => (
                   <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={td}>{l.name || '-'}</td>
                     <td style={td}>{l.email || '-'}</td>
@@ -385,7 +446,43 @@ export default function AdminPage() {
                     <td style={td}>{formatDate(l.created_at)}</td>
                   </tr>
                 ))}
-                {d.leads.data.length === 0 && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#999' }}>데이터 없음</td></tr>}
+                {(!d.rfpLeads?.data || d.rfpLeads.data.length === 0) && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#999' }}>데이터 없음</td></tr>}
+              </tbody>
+            </table>
+          )}
+
+          {activeTab === 'leads' && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={th}>이름</th>
+                  <th style={th}>연락처</th>
+                  <th style={th}>프로젝트</th>
+                  <th style={th}>등급</th>
+                  <th style={th}>점수</th>
+                  <th style={th}>상태</th>
+                  <th style={th}>날짜</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(d.leads?.data || []).map((l: WishketLead) => (
+                  <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={td}>{l.name || '-'}</td>
+                    <td style={td}>{l.phone || '-'}</td>
+                    <td style={td} title={l.project || ''}>{(l.project || '-').slice(0, 30)}</td>
+                    <td style={td}>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600,
+                        background: l.grade === 'HOT' ? '#fef2f2' : l.grade === 'WARM' ? '#fffbeb' : '#f0fdf4',
+                        color: l.grade === 'HOT' ? '#dc2626' : l.grade === 'WARM' ? '#d97706' : '#16a34a',
+                      }}>{l.grade || '-'}</span>
+                    </td>
+                    <td style={td}>{l.score_total ?? '-'}</td>
+                    <td style={td}>{l.status || '-'}</td>
+                    <td style={td}>{formatDate(l.created_at)}</td>
+                  </tr>
+                ))}
+                {(!d.leads?.data || d.leads.data.length === 0) && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#999' }}>데이터 없음</td></tr>}
               </tbody>
             </table>
           )}

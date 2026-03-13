@@ -18,12 +18,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'dashboard') {
-      // 대시보드 요약 통계
-      const [sessionsRes, leadsRes, sharedRes, consultRes] = await Promise.all([
+      // 대시보드 요약 통계 — leads, cta_leads 포함
+      const [sessionsRes, rfpLeadsRes, sharedRes, consultRes, leadsRes, ctaLeadsRes] = await Promise.all([
         supabase.from('rfp_sessions').select('id, lead_id, current_step, completed, created_at, updated_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
         supabase.from('rfp_leads').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
         supabase.from('shared_prds').select('id, share_id, project_name, created_at, view_count', { count: 'exact' }).order('created_at', { ascending: false }).limit(50),
         supabase.from('rfp_consultations').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(50),
+        supabase.from('leads').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
+        supabase.from('cta_leads').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
       ]);
 
       return NextResponse.json({
@@ -31,9 +33,9 @@ export async function POST(req: NextRequest) {
           data: sessionsRes.data || [],
           total: sessionsRes.count || 0,
         },
-        leads: {
-          data: leadsRes.data || [],
-          total: leadsRes.count || 0,
+        rfpLeads: {
+          data: rfpLeadsRes.data || [],
+          total: rfpLeadsRes.count || 0,
         },
         sharedPrds: {
           data: sharedRes.data || [],
@@ -42,6 +44,14 @@ export async function POST(req: NextRequest) {
         consultations: {
           data: consultRes.data || [],
           total: consultRes.count || 0,
+        },
+        leads: {
+          data: leadsRes.data || [],
+          total: leadsRes.count || 0,
+        },
+        ctaLeads: {
+          data: ctaLeadsRes.data || [],
+          total: ctaLeadsRes.count || 0,
         },
       });
     }
