@@ -415,174 +415,94 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         }} />
 
         <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {isMobile ? (
-            <>
-              {/* Badge — [R-4] + FORGE: 더 큰 뱃지, 진입 애니메이션 */}
-              <div className="hero-fade-in" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '7px 16px', borderRadius: 100,
-                background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
-                marginBottom: 14,
-              }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.blueText }}>{badgeText}</span>
-              </div>
+          {/* ━━ 통합 Hero (PC/Mobile 공통 — 심플) ━━ */}
+          <>
+            {/* Headline */}
+            <h1 style={{
+              fontSize: isMobile ? 26 : 'clamp(32px, 5vw, 48px)', fontWeight: 800,
+              color: C.white, lineHeight: 1.35, letterSpacing: '-0.03em',
+              marginBottom: isMobile ? 12 : 20, wordBreak: 'keep-all' as const,
+            }}>
+              만들고 싶은 거, 말만 하세요.
+              <br />
+              <span style={{ color: C.blueSoft }}>AI가 기획서를 완성합니다</span>
+            </h1>
 
-              {/* Headline — FORGE: 더 임팩트 있는 크기 + 자연스러운 줄바꿈 */}
-              <h1 className="hero-fade-in" style={{
-                fontSize: 26, fontWeight: 800, color: C.white,
-                lineHeight: 1.4, letterSpacing: '-0.03em', marginBottom: 10,
-                wordBreak: 'keep-all',
-              }}>
-                당신의 개발 아이디어,<br />
-                <span style={{ color: C.blueSoft }}>5분 만에</span> 기획서로 만드세요
-              </h1>
+            {/* 서브카피 — 한 줄로 */}
+            <p style={{
+              fontSize: isMobile ? 15 : 17, color: C.textLight,
+              lineHeight: 1.6, marginBottom: isMobile ? 24 : 32,
+              wordBreak: 'keep-all' as const,
+            }}>
+              대화만 하면 핵심 기능·우선순위·기술 요구사항이 정리된 문서가 완성됩니다.
+            </p>
 
-              {/* [M-1] 서브카피 — FORGE: <br> 제거, 자연줄바꿈 + 더 컴팩트 */}
-              <p className="hero-fade-in" style={{
-                fontSize: 15, color: C.textLight, lineHeight: 1.65,
-                marginBottom: 8, padding: '0 4px', wordBreak: 'keep-all',
-              }}>
-                핵심 기능, 우선 순위, 개발스택 추천까지 AI 컨설턴트와 쉽게 대화하며 정리하세요
-              </p>
+            {/* CTA 버튼 */}
+            <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} className="hero-cta-btn" style={{
+              width: isMobile ? '100%' : 'auto',
+              padding: isMobile ? '0' : '0 48px',
+              height: isMobile ? 54 : 58, borderRadius: 14, border: 'none',
+              background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+              color: C.white, fontSize: isMobile ? 17 : 18, fontWeight: 700,
+              cursor: guestLoading ? 'wait' : 'pointer',
+              boxShadow: `0 6px 28px ${C.blueGlow}`,
+              animation: 'heroPulse 2.5s ease-in-out infinite',
+              display: isMobile ? 'block' : 'inline-block',
+              margin: '0 auto',
+              opacity: guestLoading ? 0.7 : 1,
+              minHeight: isMobile ? 54 : 58,
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTextSizeAdjust: '100%',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}>
+              {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
+            </button>
 
-              {/* [R-6] 안심 문구 — FORGE: CTA와 간격 축소 */}
-              <p className="hero-fade-in" style={{ fontSize: 13, color: C.gray400, marginBottom: 20 }}>
-                개발 지식 없어도 OK. AI가 질문하면 답만 하세요.
-              </p>
+            {/* Trust chips */}
+            <div style={{
+              display: 'flex', flexWrap: 'wrap' as const, justifyContent: 'center',
+              gap: isMobile ? '6px 12px' : 16, marginTop: isMobile ? 16 : 24,
+            }}>
+              {(isMobile
+                ? ['완전 무료', '5분이면 완료', 'PDF 다운로드']
+                : ['회원가입 불필요', '완전 무료', '5~10분이면 완료', 'PDF 다운로드']
+              ).map(t => (
+                <span key={t} style={{
+                  fontSize: isMobile ? 12 : 13, color: C.textLight,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  whiteSpace: 'nowrap' as const,
+                }}>
+                  <svg width={isMobile ? 13 : 14} height={isMobile ? 13 : 14} viewBox="0 0 24 24" fill="none" stroke={C.blueSoft} strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {t}
+                </span>
+              ))}
+            </div>
 
-              {/* 메인 CTA — [M-5] ref + FORGE: 높이 최적화, 그림자 강화 */}
-              <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} className="hero-fade-in hero-cta-btn" style={{
-                width: '100%', height: 54, borderRadius: 14, border: 'none',
-                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-                color: C.white, fontSize: 17, fontWeight: 700,
-                cursor: guestLoading ? 'wait' : 'pointer',
-                boxShadow: `0 6px 28px ${C.blueGlow}`,
-                animation: 'heroPulse 2.5s ease-in-out infinite',
-                opacity: guestLoading ? 0.7 : 1,
-                minHeight: 54, minWidth: '100%',
-                WebkitTapHighlightColor: 'transparent',
-                WebkitTextSizeAdjust: '100%',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              }}>
-                {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
-              </button>
-
-              {/* Trust chips — FORGE: gap 축소, 320px 안전, 세로 간격 축소 */}
-              <div style={{
-                display: 'flex', justifyContent: 'center', flexWrap: 'wrap',
-                gap: '6px 14px', marginTop: 16,
-              }}>
-                {['사내 공유', '개발 업체 공유', '사업 구체화'].map(t => (
-                  <span key={t} style={{
-                    fontSize: 12, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4,
-                    whiteSpace: 'nowrap',
-                  }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blueSoft} strokeWidth="2.5">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            /* ━━ PC Hero ━━ */
-            <>
-              {/* Badge — [R-4] */}
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '8px 18px', borderRadius: 100,
-                background: C.blueBg, border: '1px solid rgba(37, 99, 235, 0.2)',
-                marginBottom: 28,
-              }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.5)' }} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.blueText }}>{badgeText}</span>
-              </div>
-
-              {/* Headline */}
-              <h1 style={{
-                fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800,
-                color: C.white, lineHeight: 1.3, letterSpacing: '-0.03em', marginBottom: 16,
-              }}>
-                만들고 싶은 거, 말만 하세요.<br /><span style={{ color: C.blueSoft }}>개발 파트너와 대화할 수 있는 문서가 나옵니다</span>
-              </h1>
-
-              {/* [M-1] 서브카피 — 결과물 구체 설명 */}
-              <p style={{
-                fontSize: 'clamp(15px, 2vw, 18px)', color: C.textLight,
-                lineHeight: 1.65, maxWidth: 600, margin: '0 auto 20px',
-              }}>
-                뭘 만들고 싶은지 대화하면, <strong style={{ color: C.white }}>핵심 기능·우선순위·기술 요구사항</strong>이 체계적으로 정리된 문서가 완성됩니다. 무료로 PDF까지 받아보세요.
-              </p>
-
-              {/* [R-6] 안심 문구 */}
-              <p style={{ fontSize: 14, color: C.gray400, marginBottom: 32 }}>
-                개발 지식이 없어도 괜찮습니다. AI가 질문하면 답만 하세요.
-              </p>
-
-              {/* [I-1] 메인 CTA만 — 이메일 폼 제거 + [M-5] ref */}
-              <button ref={heroCTARef} onClick={handleGuestStart} disabled={guestLoading} style={{
-                padding: '0 40px', height: 58, borderRadius: 14, border: 'none',
-                background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-                color: C.white, fontSize: 18, fontWeight: 700,
-                cursor: guestLoading ? 'wait' : 'pointer',
-                boxShadow: `0 4px 24px ${C.blueGlow}`,
-                transition: 'all 0.2s', letterSpacing: '0.01em',
-                display: 'block', margin: '0 auto 12px',
-                opacity: guestLoading ? 0.7 : 1,
-                minHeight: 58, minWidth: 58,
-                WebkitTapHighlightColor: 'transparent',
-                WebkitTextSizeAdjust: '100%',
-              }}>
-                {guestLoading ? '준비 중...' : '무료로 시작하기 →'}
-              </button>
-
-              {/* Trust chips — [O-3] 5~10분 */}
-              <div style={{
-                display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
-                gap: 16, marginTop: 24,
-              }}>
-                {['회원가입 불필요', '완전 무료', '5~10분이면 완료', 'PDF 다운로드', '데이터 보호'].map(t => (
-                  <span key={t} style={{
-                    fontSize: 13, color: C.textLight, display: 'flex', alignItems: 'center', gap: 5,
-                  }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t === '데이터 보호' ? '#34D399' : C.blueSoft} strokeWidth="2.5">
-                      {t === '데이터 보호' ? (
-                        <path d="M12 2L3 7v5c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z" fill="rgba(52,211,153,0.15)" />
-                      ) : (
-                        <polyline points="20 6 9 17 4 12" />
-                      )}
-                    </svg>
-                    {t}
-                  </span>
-                ))}
-              </div>
-
-              {/* Step indicator — [M-3] 요구사항 문서 완성 + PDF */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 6, marginTop: 36, flexWrap: 'wrap',
-              }}>
-                {[
-                  { n: '1', t: '아이디어 말하기' },
-                  { n: '2', t: 'AI가 질문 & 정리' },
-                  { n: '3', t: '요구사항 문서 완성 + PDF' },
-                ].map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      width: 24, height: 24, borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 700, color: C.white,
-                    }}>{s.n}</div>
-                    <span style={{ fontSize: 13, color: C.textLight }}>{s.t}</span>
-                    {i < 2 && <span style={{ color: C.gray600, margin: '0 2px', fontSize: 12 }}>→</span>}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+            {/* Step indicator */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 6, marginTop: isMobile ? 24 : 36, flexWrap: 'wrap' as const,
+            }}>
+              {[
+                { n: '1', t: '아이디어 말하기' },
+                { n: '2', t: 'AI가 질문 & 정리' },
+                { n: '3', t: '요구사항 문서 완성 + PDF' },
+              ].map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${C.blue}, ${C.blueLight})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700, color: C.white,
+                  }}>{s.n}</div>
+                  <span style={{ fontSize: 13, color: C.textLight }}>{s.t}</span>
+                  {i < 2 && <span style={{ color: C.gray600, margin: '0 2px', fontSize: 12 }}>→</span>}
+                </div>
+              ))}
+            </div>
+          </>
         </div>
       </section>
 

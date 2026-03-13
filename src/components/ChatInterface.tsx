@@ -546,17 +546,14 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
             <button
               onClick={() => selectMode('quick')}
               style={{
+                display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start',
                 textAlign: 'left', cursor: 'pointer',
-                padding: isMobile ? 16 : 28, borderRadius: 16,
+                padding: isMobile ? 20 : 28, borderRadius: 16,
                 border: '2px solid var(--border-default)',
                 background: 'var(--surface-0)',
                 transition: 'all 0.2s ease',
-                position: 'relative', overflow: 'visible',
-                minHeight: isMobile ? 'auto' : undefined,
+                position: 'relative',
                 WebkitTapHighlightColor: 'transparent',
-                wordBreak: 'keep-all',
-                overflowWrap: 'break-word',
-                hyphens: 'none',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -569,33 +566,18 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              <div style={{
-                fontSize: 32, marginBottom: 12,
-              }}>⚡</div>
-              <div style={{
-                fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
-                marginBottom: 6,
-              }}>빠른 시작</div>
-              <div style={{
-                fontSize: 14, fontWeight: 500, color: 'var(--color-primary)',
-                marginBottom: 12,
-              }}>2분 · 가이드 질문형</div>
-              <p style={{
-                fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
-                wordBreak: 'keep-all',
-                overflowWrap: 'break-word',
-              }}>
-                AI가 핵심 질문을 하나씩 물어봅니다.<br/>
-                선택지 클릭만으로도 PRD 완성이 가능해요.
+              <div style={{ fontSize: 28, marginBottom: 12 }}>⚡</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>빠른 시작</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', marginBottom: 14 }}>약 2분 · 선택지 클릭형</div>
+              <p style={{ fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0, wordBreak: 'keep-all' as const }}>
+                AI가 핵심 질문을 하나씩 물어봅니다. 선택지 클릭만으로 PRD 완성이 가능합니다.
               </p>
-              <div style={{
-                marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6,
-              }}>
+              <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                 {['아이디어만 있어도 OK', '선택지 제공', '2분 완성'].map(tag => (
                   <span key={tag} style={{
                     fontSize: 11, fontWeight: 500, color: 'var(--text-quaternary)',
                     background: 'var(--surface-2)', padding: '4px 10px',
-                    borderRadius: 20, wordBreak: 'keep-all', whiteSpace: 'nowrap',
+                    borderRadius: 20, whiteSpace: 'nowrap' as const,
                   }}>{tag}</span>
                 ))}
               </div>
@@ -605,17 +587,14 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
             <button
               onClick={() => selectMode('deep')}
               style={{
+                display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start',
                 textAlign: 'left', cursor: 'pointer',
-                padding: isMobile ? 16 : 28, borderRadius: 16,
-                border: '2px solid transparent',
-                background: 'linear-gradient(135deg, rgba(37,99,235,0.04), rgba(37,99,235,0.08))',
+                padding: isMobile ? 20 : 28, borderRadius: 16,
+                border: '2px solid rgba(37,99,235,0.2)',
+                background: 'linear-gradient(135deg, rgba(37,99,235,0.03), rgba(37,99,235,0.07))',
                 transition: 'all 0.2s ease',
-                position: 'relative', overflow: 'visible',
-                minHeight: isMobile ? 'auto' : undefined,
+                position: 'relative',
                 WebkitTapHighlightColor: 'transparent',
-                wordBreak: 'keep-all',
-                overflowWrap: 'break-word',
-                hyphens: 'none',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
@@ -623,7 +602,7 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                 e.currentTarget.style.boxShadow = '0 8px 24px rgba(37,99,235,0.18)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)';
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = 'none';
               }}
@@ -636,34 +615,19 @@ export default function ChatInterface({ onComplete, email, sessionId, onBack }: 
                 padding: '3px 10px', borderRadius: 20,
               }}>추천</div>
 
-              <div style={{
-                fontSize: 32, marginBottom: 12,
-              }}>🎯</div>
-              <div style={{
-                fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
-                marginBottom: 6,
-              }}>Deep Mode</div>
-              <div style={{
-                fontSize: 14, fontWeight: 500, color: 'var(--color-primary)',
-                marginBottom: 12,
-              }}>5분 · AI가 더 깊이 파고듭니다</div>
-              <p style={{
-                fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0,
-                wordBreak: 'keep-all',
-                overflowWrap: 'break-word',
-              }}>
-                한 줄이면 충분합니다. AI PM이<br/>
-                각 주제를 <strong style={{ color: 'var(--text-secondary)' }}>2~3단계 깊이로 챌린지</strong>해 드립니다.
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🎯</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Deep Mode</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', marginBottom: 14 }}>약 5분 · AI가 깊이 파고듭니다</div>
+              <p style={{ fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6, margin: 0, wordBreak: 'keep-all' as const }}>
+                한 줄이면 충분합니다. AI PM이 각 주제를 깊이 있게 챌린지해 드립니다.
               </p>
-              <div style={{
-                marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6,
-              }}>
-                {['한 줄이면 충분', 'AI 챌린지', '깊이 있는 후속질문', '최고 퀄리티'].map(tag => (
+              <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                {['한 줄이면 충분', 'AI 챌린지', '최고 퀄리티'].map(tag => (
                   <span key={tag} style={{
                     fontSize: 11, fontWeight: 500,
                     color: 'var(--color-primary)',
                     background: 'rgba(37,99,235,0.08)', padding: '4px 10px',
-                    borderRadius: 20, wordBreak: 'keep-all', whiteSpace: 'nowrap',
+                    borderRadius: 20, whiteSpace: 'nowrap' as const,
                   }}>{tag}</span>
                 ))}
               </div>
