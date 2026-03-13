@@ -67,24 +67,11 @@ interface CtaLead {
   created_at: string;
 }
 
-interface WishketLead {
-  id: string;
-  name: string | null;
-  phone: string | null;
-  project: string | null;
-  grade: string | null;
-  status: string | null;
-  score_total: number | null;
-  created_at: string;
-  [key: string]: any;
-}
-
 interface DashboardData {
   sessions: { data: Session[]; total: number };
   rfpLeads: { data: Lead[]; total: number };
   sharedPrds: { data: SharedPrd[]; total: number };
   consultations: { data: Consultation[]; total: number };
-  leads: { data: WishketLead[]; total: number };
   ctaLeads: { data: CtaLead[]; total: number };
 }
 
@@ -94,7 +81,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [activeTab, setActiveTab] = useState<'sessions' | 'rfpLeads' | 'shared' | 'consultations' | 'leads' | 'ctaLeads'>('sessions');
+  const [activeTab, setActiveTab] = useState<'sessions' | 'rfpLeads' | 'shared' | 'consultations' | 'ctaLeads'>('sessions');
   const [selectedSession, setSelectedSession] = useState<SessionDetail | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
 
@@ -331,7 +318,7 @@ export default function AdminPage() {
             { label: '공유 PRD', value: d.sharedPrds.total, icon: '🔗', color: '#f59e0b' },
             { label: 'CTA 리드', value: d.ctaLeads?.total || 0, icon: '🎯', color: '#ef4444' },
             { label: 'Email 리드', value: d.rfpLeads?.total || 0, icon: '📧', color: '#8b5cf6' },
-            { label: 'Leads (별도)', value: d.leads?.total || 0, icon: '👤', color: '#06b6d4' },
+            { label: '상담 신청', value: d.consultations?.total || 0, icon: '📞', color: '#06b6d4' },
           ].map((c, i) => (
             <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: isMobileView ? '14px' : '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', borderTop: `3px solid ${c.color}` }}>
               <div style={{ fontSize: isMobileView ? '22px' : '28px', fontWeight: 800, color: c.color }}>{c.value}</div>
@@ -346,7 +333,6 @@ export default function AdminPage() {
             { key: 'sessions' as const, label: `세션 (${d.sessions.total})` },
             { key: 'ctaLeads' as const, label: `CTA리드 (${d.ctaLeads?.total || 0})` },
             { key: 'rfpLeads' as const, label: `Email (${d.rfpLeads?.total || 0})` },
-            { key: 'leads' as const, label: `Leads (${d.leads?.total || 0})` },
             { key: 'shared' as const, label: `공유PRD (${d.sharedPrds.total})` },
             { key: 'consultations' as const, label: `상담 (${d.consultations.total})` },
           ].map(t => (
@@ -447,42 +433,6 @@ export default function AdminPage() {
                   </tr>
                 ))}
                 {(!d.rfpLeads?.data || d.rfpLeads.data.length === 0) && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#999' }}>데이터 없음</td></tr>}
-              </tbody>
-            </table>
-          )}
-
-          {activeTab === 'leads' && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={th}>이름</th>
-                  <th style={th}>연락처</th>
-                  <th style={th}>프로젝트</th>
-                  <th style={th}>등급</th>
-                  <th style={th}>점수</th>
-                  <th style={th}>상태</th>
-                  <th style={th}>날짜</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(d.leads?.data || []).map((l: WishketLead) => (
-                  <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={td}>{l.name || '-'}</td>
-                    <td style={td}>{l.phone || '-'}</td>
-                    <td style={td} title={l.project || ''}>{(l.project || '-').slice(0, 30)}</td>
-                    <td style={td}>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600,
-                        background: l.grade === 'HOT' ? '#fef2f2' : l.grade === 'WARM' ? '#fffbeb' : '#f0fdf4',
-                        color: l.grade === 'HOT' ? '#dc2626' : l.grade === 'WARM' ? '#d97706' : '#16a34a',
-                      }}>{l.grade || '-'}</span>
-                    </td>
-                    <td style={td}>{l.score_total ?? '-'}</td>
-                    <td style={td}>{l.status || '-'}</td>
-                    <td style={td}>{formatDate(l.created_at)}</td>
-                  </tr>
-                ))}
-                {(!d.leads?.data || d.leads.data.length === 0) && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#999' }}>데이터 없음</td></tr>}
               </tbody>
             </table>
           )}
