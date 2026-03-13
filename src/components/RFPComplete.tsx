@@ -975,7 +975,7 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
 
 // (B-4: Risk Matrix 제거 — 테이블로 통합)
 
-// ━━━━━ B-8: Floating Matching CTA Bar (Mobile-first) ━━━━━
+// ━━━━━ B-8: Floating Matching CTA Bar — 전면 개편 (전환율 최적화) ━━━━━
 function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, ctaSubmitting, ctaSubmitted, onSubmit }: {
   ctaEmail: string; setCtaEmail: (v: string) => void;
   ctaPhone: string; setCtaPhone: (v: string) => void;
@@ -983,129 +983,238 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
   onSubmit: () => void;
 }) {
   const [visible, setVisible] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [isMobileFloat, setIsMobileFloat] = useState(false);
+  const [shakeBtn, setShakeBtn] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    const handleScroll = () => setVisible(window.scrollY > 400);
-    const checkMobile = () => setIsMobileFloat(window.innerWidth < 640);
+    const handleScroll = () => {
+      const show = window.scrollY > 300;
+      setVisible(show);
+    };
+    const checkMobile = () => setIsMobileFloat(window.innerWidth < 768);
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', checkMobile);
     checkMobile();
     return () => { window.removeEventListener('scroll', handleScroll); window.removeEventListener('resize', checkMobile); };
   }, []);
+
+  // 10초 후 버튼 흔들기 (어텐션)
+  useEffect(() => {
+    if (!visible || minimized || ctaSubmitted) return;
+    const t = setTimeout(() => setShakeBtn(true), 10000);
+    return () => clearTimeout(t);
+  }, [visible, minimized, ctaSubmitted]);
+
   if (!visible || ctaSubmitted) return null;
+
   const canSubmit = ctaEmail.includes('@') && ctaPhone.trim().length >= 8;
+  const phoneError = ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8;
+
   return (
     <div className="no-print floating-matching-bar" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
-      background: 'linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)',
-      backdropFilter: 'blur(20px) saturate(1.5)',
-      borderTop: '1px solid rgba(37,99,235,0.3)',
-      padding: collapsed
-        ? (isMobileFloat ? '10px 16px' : '8px 24px')
-        : (isMobileFloat ? '14px 16px calc(14px + env(safe-area-inset-bottom, 0px))' : '14px 24px 16px'),
-      boxShadow: '0 -4px 32px rgba(0,0,0,0.3)',
-      transition: 'all 0.3s cubic-bezier(0.22,1,0.36,1)',
+      transition: 'all 0.35s cubic-bezier(0.22,1,0.36,1)',
     }}>
-      {/* 접기/펼치기 토글 — 모바일에서 터치 영역 확대 */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          position: 'absolute', top: isMobileFloat ? -36 : -28, right: 16,
-          width: isMobileFloat ? 44 : 28, height: isMobileFloat ? 36 : 28,
-          borderRadius: '8px 8px 0 0', border: 'none',
-          background: 'linear-gradient(135deg, #1E3A5F, #0F172A)',
-          color: 'rgba(255,255,255,0.6)', fontSize: isMobileFloat ? 14 : 12, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {collapsed ? '▲' : '▼'}
-      </button>
-      {collapsed ? (
-        /* 접힌 상태 */
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobileFloat ? 8 : 12 }}>
-          <span style={{ fontSize: isMobileFloat ? 12 : 13, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-            ⚡ {isMobileFloat ? '무료 견적 상담' : '이 정의서로 무료 견적 상담을 받고, 딱 맞는 개발 파트너를 찾아보세요'}
-          </span>
-          <button onClick={() => setCollapsed(false)} style={{
-            padding: isMobileFloat ? '10px 20px' : '6px 16px', borderRadius: 8, border: 'none',
-            background: '#fff', color: C.blue, fontSize: isMobileFloat ? 13 : 12, fontWeight: 700, cursor: 'pointer',
-            minHeight: 44,
-          }}>무료 견적 상담 →</button>
-        </div>
+      <style>{`
+        @keyframes floatBarSlideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes ctaPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.4)} 50%{box-shadow:0 4px 36px rgba(37,99,235,0.7)} }
+        @keyframes ctaShake { 0%,100%{transform:translateX(0)} 15%{transform:translateX(-4px)} 30%{transform:translateX(4px)} 45%{transform:translateX(-3px)} 60%{transform:translateX(3px)} 75%{transform:translateX(-2px)} 90%{transform:translateX(2px)} }
+        .float-cta-main:active { transform: scale(0.97) !important; }
+        .float-input:focus { border-color: #3B82F6 !important; background: rgba(255,255,255,0.18) !important; }
+        @media (prefers-reduced-motion: reduce) {
+          .floating-matching-bar, .float-cta-main { animation: none !important; }
+        }
+      `}</style>
+
+      {/* 최소화 상태: 눈에 띄는 파란색 탭 */}
+      {minimized ? (
+        <button
+          onClick={() => { setMinimized(false); }}
+          style={{
+            position: 'fixed', bottom: 16, right: 16, zIndex: 99,
+            padding: '14px 24px', borderRadius: 50,
+            background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+            color: '#fff', fontSize: 15, fontWeight: 700,
+            border: 'none', cursor: 'pointer',
+            boxShadow: '0 6px 28px rgba(37,99,235,0.5)',
+            animation: shakeBtn ? 'ctaShake 0.6s ease-in-out, ctaPulse 2s ease-in-out infinite' : 'ctaPulse 2s ease-in-out infinite',
+            display: 'flex', alignItems: 'center', gap: 8,
+            minHeight: 52, minWidth: 52,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>💬</span>
+          무료 견적 상담
+        </button>
       ) : (
-        /* 펼쳐진 상태 — 모바일: 세로 스택 (잘림 버그 수정) */
-        <div style={{ maxWidth: 800, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ marginBottom: isMobileFloat ? 10 : 10 }}>
-            <span style={{ fontSize: isMobileFloat ? 14 : 14, fontWeight: 700, color: '#fff', display: 'block', lineHeight: 1.5 }}>
-              ⚡ 이 정의서로 무료 견적 상담 및 딱 맞는 개발 파트너 찾기!
-            </span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
-              무료 · 평균 3일 이내 매칭
-            </span>
-          </div>
-          <div style={{
-            display: isMobileFloat ? 'flex' : 'flex',
-            flexDirection: isMobileFloat ? 'column' : 'row',
-            gap: 8,
-            flexWrap: isMobileFloat ? undefined : 'wrap',
-            width: '100%',
-          }}>
-            {/* 모바일: 이메일+연락처 가로 배치 */}
+        /* 확장 상태: 밝은 배경 + 강한 대비 */
+        <div style={{
+          background: '#fff',
+          borderTop: '3px solid #2563EB',
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.15), 0 -2px 8px rgba(37,99,235,0.1)',
+          padding: isMobileFloat
+            ? '20px 16px calc(16px + env(safe-area-inset-bottom, 0px))'
+            : '16px 24px 18px',
+          animation: 'floatBarSlideUp 0.4s cubic-bezier(0.22,1,0.36,1)',
+        }}>
+          {/* 닫기 버튼 */}
+          <button
+            onClick={() => setMinimized(true)}
+            aria-label="최소화"
+            style={{
+              position: 'absolute', top: -14, right: 16,
+              width: 28, height: 28, borderRadius: '50%',
+              border: '2px solid #E2E8F0', background: '#fff',
+              color: '#94A3B8', fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}
+          >
+            ✕
+          </button>
+
+          <div style={{ maxWidth: 880, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+            {/* 헤드라인 — 강한 가치 제안 */}
             <div style={{
-              display: 'flex', gap: 8, width: '100%',
-              ...(isMobileFloat ? {} : { flex: '1 1 auto' }),
+              display: 'flex', alignItems: 'center', gap: isMobileFloat ? 8 : 12,
+              marginBottom: isMobileFloat ? 14 : 12, flexWrap: 'wrap',
             }}>
-              <input
-                type="email"
-                placeholder="이메일 *"
-                value={ctaEmail}
-                onChange={(e) => setCtaEmail(e.target.value)}
-                style={{
-                  flex: 1, minWidth: 0,
-                  padding: isMobileFloat ? '12px 12px' : '10px 14px', borderRadius: 8,
-                  border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                  color: '#fff', fontSize: 16, outline: 'none',
-                  minHeight: 44, boxSizing: 'border-box',
-                  WebkitTextSizeAdjust: '100%',
-                  touchAction: 'manipulation',
-                }}
-              />
-              <input
-                type="tel"
-                placeholder="연락처 *"
-                value={ctaPhone}
-                onChange={(e) => setCtaPhone(e.target.value)}
-                style={{
-                  flex: 1, minWidth: 0,
-                  padding: isMobileFloat ? '12px 12px' : '10px 14px', borderRadius: 8,
-                  border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                  background: 'rgba(255,255,255,0.1)',
-                  color: '#fff', fontSize: 16, outline: 'none',
-                  minHeight: 44, boxSizing: 'border-box',
-                  WebkitTextSizeAdjust: '100%',
-                  touchAction: 'manipulation',
-                }}
-              />
+              <div style={{
+                background: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+                color: '#fff', fontSize: 11, fontWeight: 700,
+                padding: '4px 10px', borderRadius: 100,
+                letterSpacing: '0.02em',
+              }}>
+                무료
+              </div>
+              <h3 style={{
+                margin: 0, fontSize: isMobileFloat ? 16 : 17, fontWeight: 800,
+                color: '#0F172A', lineHeight: 1.4, wordBreak: 'keep-all',
+                flex: 1,
+              }}>
+                {isMobileFloat
+                  ? '이 정의서로 견적 상담 받아보세요'
+                  : '이 정의서로 무료 견적 상담을 받고, 딱 맞는 개발 파트너를 찾아보세요'}
+              </h3>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 12, color: '#64748B', whiteSpace: 'nowrap',
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
+                평균 3일 내 매칭
+              </div>
             </div>
-            <button
-              onClick={onSubmit}
-              disabled={ctaSubmitting || !canSubmit}
-              style={{
-                width: isMobileFloat ? '100%' : 'auto',
-                flexShrink: isMobileFloat ? undefined : 0,
-                padding: isMobileFloat ? '14px 24px' : '10px 24px', borderRadius: 8, border: 'none',
-                background: canSubmit ? '#fff' : 'rgba(255,255,255,0.2)',
-                color: canSubmit ? C.blue : 'rgba(255,255,255,0.4)',
-                fontSize: isMobileFloat ? 15 : 13, fontWeight: 700,
-                cursor: ctaSubmitting ? 'wait' : canSubmit ? 'pointer' : 'not-allowed',
-                transition: 'all 0.2s',
-                boxShadow: canSubmit ? '0 2px 12px rgba(0,0,0,0.2)' : 'none',
-                minHeight: 48,
-              }}
-            >
-              {ctaSubmitting ? '신청 중...' : '무료 견적 상담 신청 →'}
-            </button>
+
+            {/* 인풋 + CTA 영역 */}
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobileFloat ? 'column' : 'row',
+              gap: isMobileFloat ? 10 : 8,
+              alignItems: isMobileFloat ? 'stretch' : 'center',
+            }}>
+              {/* 인풋 그룹 */}
+              <div style={{
+                display: 'flex', gap: 8,
+                flex: isMobileFloat ? undefined : '1 1 auto',
+                width: '100%',
+              }}>
+                <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                  <div style={{
+                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                    fontSize: 15, color: '#94A3B8', pointerEvents: 'none',
+                  }}>📧</div>
+                  <input
+                    ref={emailRef}
+                    className="float-input"
+                    type="email"
+                    placeholder="이메일 주소"
+                    value={ctaEmail}
+                    onChange={(e) => setCtaEmail(e.target.value)}
+                    style={{
+                      width: '100%', minWidth: 0,
+                      padding: '12px 12px 12px 36px', borderRadius: 10,
+                      border: '2px solid #E2E8F0',
+                      background: '#F8FAFC',
+                      color: '#0F172A', fontSize: 16, outline: 'none',
+                      minHeight: 48, boxSizing: 'border-box',
+                      transition: 'border-color 0.2s, background 0.2s',
+                      WebkitTextSizeAdjust: '100%',
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                  <div style={{
+                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                    fontSize: 15, color: '#94A3B8', pointerEvents: 'none',
+                  }}>📱</div>
+                  <input
+                    className="float-input"
+                    type="tel"
+                    placeholder="연락처"
+                    value={ctaPhone}
+                    onChange={(e) => setCtaPhone(e.target.value)}
+                    style={{
+                      width: '100%', minWidth: 0,
+                      padding: '12px 12px 12px 36px', borderRadius: 10,
+                      border: `2px solid ${phoneError ? '#FCA5A5' : '#E2E8F0'}`,
+                      background: phoneError ? '#FFF5F5' : '#F8FAFC',
+                      color: '#0F172A', fontSize: 16, outline: 'none',
+                      minHeight: 48, boxSizing: 'border-box',
+                      transition: 'border-color 0.2s, background 0.2s',
+                      WebkitTextSizeAdjust: '100%',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* CTA 버튼 — 눈에 확 띄는 파란색 */}
+              <button
+                className="float-cta-main"
+                onClick={onSubmit}
+                disabled={ctaSubmitting || !canSubmit}
+                style={{
+                  width: isMobileFloat ? '100%' : 'auto',
+                  flexShrink: 0,
+                  padding: isMobileFloat ? '16px 24px' : '12px 28px',
+                  borderRadius: 12, border: 'none',
+                  background: canSubmit
+                    ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'
+                    : '#E2E8F0',
+                  color: canSubmit ? '#fff' : '#94A3B8',
+                  fontSize: isMobileFloat ? 16 : 15, fontWeight: 700,
+                  cursor: ctaSubmitting ? 'wait' : canSubmit ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s',
+                  boxShadow: canSubmit ? '0 4px 16px rgba(37,99,235,0.35)' : 'none',
+                  minHeight: 52,
+                  letterSpacing: '-0.01em',
+                  animation: canSubmit ? 'ctaPulse 2.5s ease-in-out infinite' : 'none',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {ctaSubmitting ? '신청 중...' : '무료 견적 상담 →'}
+              </button>
+            </div>
+
+            {/* 신뢰 보조 문구 */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: isMobileFloat ? 12 : 20, marginTop: 10,
+              flexWrap: 'wrap',
+            }}>
+              {['상담 비용 0원', '위시켓 검증 파트너', '정의서 기반 정확한 견적'].map(t => (
+                <span key={t} style={{
+                  fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4,
+                  whiteSpace: 'nowrap',
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}
