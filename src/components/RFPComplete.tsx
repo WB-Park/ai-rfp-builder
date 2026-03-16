@@ -976,11 +976,12 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
 // (B-4: Risk Matrix 제거 — 테이블로 통합)
 
 // ━━━━━ B-8: Floating Matching CTA Bar — 전면 개편 (전환율 최적화) ━━━━━
-function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, ctaSubmitting, ctaSubmitted, onSubmit }: {
+function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, ctaSubmitting, ctaSubmitted, onSubmit, isSharedView }: {
   ctaEmail: string; setCtaEmail: (v: string) => void;
   ctaPhone: string; setCtaPhone: (v: string) => void;
   ctaSubmitting: boolean; ctaSubmitted: boolean;
   onSubmit: () => void;
+  isSharedView?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -1094,9 +1095,9 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
                 color: '#0F172A', lineHeight: 1.4, wordBreak: 'keep-all',
                 flex: 1,
               }}>
-                {isMobileFloat
-                  ? '이 정의서로 견적 상담 받아보세요'
-                  : '이 정의서로 무료 견적 상담을 받고, 딱 맞는 개발 파트너를 찾아보세요'}
+                {isSharedView
+                  ? (isMobileFloat ? '이 프로젝트, 실제 견적 받아보세요' : '이 프로젝트를 실현할 개발 파트너를 찾아보세요')
+                  : (isMobileFloat ? '이 정의서로 견적 상담 받아보세요' : '이 정의서로 무료 견적 상담을 받고, 딱 맞는 개발 파트너를 찾아보세요')}
               </h3>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 6,
@@ -1336,12 +1337,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           projectType: rfpData?.overview ? 'detected' : 'unknown',
           featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
           sessionId,
+          source: readOnly ? 'shared_prd' : 'prd_complete',
         }),
       });
     } catch { /* fire and forget */ }
     setCtaSubmitted(true);
     setCtaSubmitting(false);
-  }, [ctaEmail, ctaPhone, prdData, rfpData, sessionId]);
+  }, [ctaEmail, ctaPhone, prdData, rfpData, sessionId, readOnly]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const shareDebounceRef = useRef<NodeJS.Timeout | null>(null); // Task 3: Debounce for share
@@ -2299,6 +2301,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         ctaPhone={ctaPhone} setCtaPhone={setCtaPhone}
         ctaSubmitting={ctaSubmitting} ctaSubmitted={ctaSubmitted}
         onSubmit={handleCtaSubmit}
+        isSharedView={!!readOnly}
       />
       {/* ━━ Header — Dark Hero with glassmorphism ━━ */}
       <div className="prd-hero-header" style={{
@@ -2436,6 +2439,135 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
       {/* ━━ Body ━━ */}
       <div className="prd-container" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px' }}>
+
+        {/* ━━ 공유 페이지 전용: 맥락형 견적 요청 카드 (히어로 바로 아래) ━━ */}
+        {readOnly && !ctaSubmitted && (
+          <div className="no-print share-quote-card" style={{
+            background: 'linear-gradient(135deg, #F0F7FF 0%, #E8F4FD 50%, #F5F0FF 100%)',
+            border: '1.5px solid rgba(37, 99, 235, 0.15)',
+            borderRadius: 16,
+            padding: isMobile ? '24px 20px' : '28px 32px',
+            marginBottom: 32,
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {/* 데코 */}
+            <div style={{ position: 'absolute', top: -40, right: -30, width: 140, height: 140, borderRadius: '50%', background: 'rgba(37,99,235,0.06)', pointerEvents: 'none' }} />
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              alignItems: isMobile ? 'stretch' : 'center',
+              gap: isMobile ? 16 : 24,
+            }}>
+              {/* 왼쪽: 카피 */}
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: '#2563EB', color: '#fff',
+                  fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6,
+                  marginBottom: 10,
+                }}>
+                  다음 단계
+                </div>
+                <h3 style={{
+                  fontSize: isMobile ? 17 : 19, fontWeight: 800, color: '#0F172A',
+                  margin: '0 0 6px 0', lineHeight: 1.4, wordBreak: 'keep-all',
+                }}>
+                  이 프로젝트, 실제로 만들어 볼까요?
+                </h3>
+                <p style={{
+                  fontSize: 13, color: '#64748B', margin: 0, lineHeight: 1.6,
+                }}>
+                  위시켓에 등록된 검증된 개발 파트너에게{isMobile ? ' ' : '\n'}이 정의서 기반 실제 견적을 받아보세요.
+                </p>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12, marginTop: 10,
+                  fontSize: 12, color: '#94A3B8',
+                }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
+                    평균 3일 내 매칭
+                  </span>
+                  <span>·</span>
+                  <span>비용 0원</span>
+                  <span>·</span>
+                  <span>기능 {totalFeatures}개 기반</span>
+                </div>
+              </div>
+              {/* 오른쪽: 인풋 + 버튼 */}
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: 8,
+                minWidth: isMobile ? undefined : 280,
+              }}>
+                <input
+                  type="email"
+                  placeholder="이메일 주소"
+                  value={ctaEmail}
+                  onChange={(e) => setCtaEmail(e.target.value)}
+                  className="share-quote-input"
+                  style={{
+                    width: '100%', padding: '11px 14px', borderRadius: 10,
+                    border: '1.5px solid #E2E8F0', background: '#fff',
+                    color: '#0F172A', fontSize: 14, outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+                <input
+                  type="tel"
+                  placeholder="연락처 (필수)"
+                  value={ctaPhone}
+                  onChange={(e) => setCtaPhone(e.target.value)}
+                  className="share-quote-input"
+                  style={{
+                    width: '100%', padding: '11px 14px', borderRadius: 10,
+                    border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? '#FCA5A5' : '#E2E8F0'}`,
+                    background: '#fff',
+                    color: '#0F172A', fontSize: 14, outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+                <button
+                  onClick={handleCtaSubmit}
+                  disabled={ctaSubmitting || !ctaEmail.includes('@') || ctaPhone.trim().length < 8}
+                  style={{
+                    width: '100%', padding: '12px 20px', borderRadius: 10,
+                    border: 'none',
+                    background: ctaEmail.includes('@') && ctaPhone.trim().length >= 8
+                      ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'
+                      : '#E2E8F0',
+                    color: ctaEmail.includes('@') && ctaPhone.trim().length >= 8 ? '#fff' : '#94A3B8',
+                    fontSize: 14, fontWeight: 700,
+                    cursor: ctaSubmitting ? 'wait' : ctaEmail.includes('@') && ctaPhone.trim().length >= 8 ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.2s',
+                    boxShadow: ctaEmail.includes('@') && ctaPhone.trim().length >= 8
+                      ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
+                  }}
+                >
+                  {ctaSubmitting ? '신청 중...' : '무료 견적 상담 신청'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {readOnly && ctaSubmitted && (
+          <div className="no-print" style={{
+            background: 'linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%)',
+            border: '1.5px solid rgba(34, 197, 94, 0.2)',
+            borderRadius: 16, padding: '24px 28px',
+            marginBottom: 32, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🎉</div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#166534', margin: '0 0 6px 0' }}>
+              신청이 완료되었습니다!
+            </h3>
+            <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
+              위시켓 전문 매니저가 이 정의서를 검토한 뒤, 최적의 개발 파트너를 추천해 드리겠습니다.
+            </p>
+          </div>
+        )}
+
         {/* B-1: KPI Summary Cards */}
         <KPISummary prdData={prdData} />
 
@@ -3667,11 +3799,14 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 ⚡ 무료 · 평균 3일 이내 매칭
               </div>
               <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
-                이 정의서에 딱 맞는 개발 파트너를 찾아보세요
+                {readOnly
+                  ? '이 프로젝트, 다음 단계로 넘어가 볼까요?'
+                  : '이 정의서에 딱 맞는 개발 파트너를 찾아보세요'}
               </h3>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
-                위시켓에 등록된 10,000+ 검증된 개발사/프리랜서 중<br />
-                프로젝트 요구사항에 최적화된 파트너를 매칭해 드립니다.
+                {readOnly
+                  ? <>정의서는 완성되었습니다. 이제 위시켓에서<br />검증된 개발 파트너의 실제 견적을 받아보세요.</>
+                  : <>위시켓에 등록된 10,000+ 검증된 개발사/프리랜서 중<br />프로젝트 요구사항에 최적화된 파트너를 매칭해 드립니다.</>}
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
                 <input

@@ -15,10 +15,16 @@ async function sendSlackNotification(data: {
   projectType?: string;
   featureCount?: number;
   sessionId?: string;
+  source?: string;
 }) {
   if (!SLACK_WEBHOOK_URL) return;
   try {
     const adminUrl = `https://wishket-prd.com/admin`;
+    const sourceLabel = data.source === 'shared_prd' ? '📤 공유 PRD 페이지'
+      : data.source === 'download_gate' ? '📥 다운로드 게이팅'
+      : data.source === 'exit_modal' ? '🚪 이탈 방지 모달'
+      : data.source === 'prd_complete' ? '✅ PRD 완성 페이지'
+      : `🔗 ${data.source || '알 수 없음'}`;
     const text = [
       '🔔 *새 매칭 신청이 들어왔습니다!*',
       '',
@@ -26,6 +32,7 @@ async function sendSlackNotification(data: {
       `📱 연락처: ${data.phone || '미입력'}`,
       `📋 프로젝트: ${data.projectName || '미입력'}`,
       `🔢 기능 수: ${data.featureCount || 0}개`,
+      `🏷️ 유입 경로: ${sourceLabel}`,
       `🆔 세션: ${data.sessionId ? `\`${data.sessionId}\`` : '없음'}`,
       '',
       `👉 <${adminUrl}|어드민에서 확인하기>`,
@@ -44,7 +51,7 @@ async function sendSlackNotification(data: {
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, phone, projectName, projectType, featureCount, sessionId } = await req.json();
+    const { email, phone, projectName, projectType, featureCount, sessionId, source, marketing_consent } = await req.json();
 
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: '이메일이 필요합니다.' }, { status: 400 });
@@ -57,6 +64,8 @@ export async function POST(req: NextRequest) {
       project_type: projectType || 'unknown',
       feature_count: featureCount || 0,
       session_id: sessionId || null,
+      marketing_consent: marketing_consent || false,
+      source: source || 'unknown',
       created_at: new Date().toISOString(),
     });
 
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Slack #알림_PRD 채널로 노티
-    await sendSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId });
+    await sendSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId, source });
 
     return NextResponse.json({ success: true });
   } catch (err) {
