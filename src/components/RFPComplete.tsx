@@ -1010,8 +1010,8 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
 
   if (!visible || ctaSubmitted) return null;
 
-  const canSubmit = ctaEmail.includes('@') && ctaPhone.trim().length >= 8;
-  const phoneError = ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8;
+  const canSubmit = ctaEmail.includes('@') && ctaPhone.replace(/[^0-9]/g, '').length >= 7;
+  const phoneError = ctaPhone.trim().length > 0 && ctaPhone.replace(/[^0-9]/g, '').length < 7;
 
   return (
     <div className="no-print floating-matching-bar" style={{
@@ -1324,7 +1324,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   // ── 공통 CTA 제출 핸들러 (플로팅 바 + 하단 폼 공유) ──
   const handleCtaSubmit = useCallback(async () => {
-    if (!ctaEmail.includes('@') || ctaPhone.trim().length < 8) return;
+    if (!ctaEmail.includes('@') || ctaPhone.replace(/[^0-9]/g, '').length < 7) return;
     setCtaSubmitting(true);
     try {
       await fetch('/api/cta-lead', {
@@ -2495,59 +2495,75 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 </div>
               </div>
               {/* 오른쪽: 인풋 + 버튼 */}
-              <div style={{
-                display: 'flex', flexDirection: 'column', gap: 8,
-                minWidth: isMobile ? undefined : 280,
-              }}>
-                <input
-                  type="email"
-                  placeholder="이메일 주소"
-                  value={ctaEmail}
-                  onChange={(e) => setCtaEmail(e.target.value)}
-                  className="share-quote-input"
-                  style={{
-                    width: '100%', padding: '11px 14px', borderRadius: 10,
-                    border: '1.5px solid #E2E8F0', background: '#fff',
-                    color: '#0F172A', fontSize: 14, outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.2s',
-                  }}
-                />
-                <input
-                  type="tel"
-                  placeholder="연락처 (필수)"
-                  value={ctaPhone}
-                  onChange={(e) => setCtaPhone(e.target.value)}
-                  className="share-quote-input"
-                  style={{
-                    width: '100%', padding: '11px 14px', borderRadius: 10,
-                    border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? '#FCA5A5' : '#E2E8F0'}`,
-                    background: '#fff',
-                    color: '#0F172A', fontSize: 14, outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.2s',
-                  }}
-                />
-                <button
-                  onClick={handleCtaSubmit}
-                  disabled={ctaSubmitting || !ctaEmail.includes('@') || ctaPhone.trim().length < 8}
-                  style={{
-                    width: '100%', padding: '12px 20px', borderRadius: 10,
-                    border: 'none',
-                    background: ctaEmail.includes('@') && ctaPhone.trim().length >= 8
-                      ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'
-                      : '#E2E8F0',
-                    color: ctaEmail.includes('@') && ctaPhone.trim().length >= 8 ? '#fff' : '#94A3B8',
-                    fontSize: 14, fontWeight: 700,
-                    cursor: ctaSubmitting ? 'wait' : ctaEmail.includes('@') && ctaPhone.trim().length >= 8 ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.2s',
-                    boxShadow: ctaEmail.includes('@') && ctaPhone.trim().length >= 8
-                      ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
-                  }}
-                >
-                  {ctaSubmitting ? '신청 중...' : '무료 견적 상담 신청'}
-                </button>
-              </div>
+              {(() => {
+                const emailValid = ctaEmail.includes('@');
+                const phoneValid = ctaPhone.replace(/[^0-9]/g, '').length >= 7;
+                const canSubmitShare = emailValid && phoneValid;
+                return (
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: 8,
+                    minWidth: isMobile ? undefined : 280,
+                  }}>
+                    <input
+                      type="email"
+                      placeholder="이메일 주소 (예: name@company.com)"
+                      value={ctaEmail}
+                      onChange={(e) => setCtaEmail(e.target.value)}
+                      style={{
+                        width: '100%', padding: '12px 14px', borderRadius: 10,
+                        border: `1.5px solid ${ctaEmail.length > 0 && !emailValid ? '#FCA5A5' : emailValid ? '#86EFAC' : '#E2E8F0'}`,
+                        background: '#fff',
+                        color: '#0F172A', fontSize: 16, outline: 'none',
+                        boxSizing: 'border-box',
+                        transition: 'border-color 0.2s',
+                      }}
+                    />
+                    <input
+                      type="tel"
+                      placeholder="연락처 (예: 010-1234-5678)"
+                      value={ctaPhone}
+                      onChange={(e) => setCtaPhone(e.target.value)}
+                      style={{
+                        width: '100%', padding: '12px 14px', borderRadius: 10,
+                        border: `1.5px solid ${ctaPhone.length > 0 && !phoneValid ? '#FCA5A5' : phoneValid ? '#86EFAC' : '#E2E8F0'}`,
+                        background: '#fff',
+                        color: '#0F172A', fontSize: 16, outline: 'none',
+                        boxSizing: 'border-box',
+                        transition: 'border-color 0.2s',
+                      }}
+                    />
+                    {(ctaEmail.length > 0 || ctaPhone.length > 0) && !canSubmitShare && (
+                      <div style={{ fontSize: 12, color: '#EF4444', lineHeight: 1.4 }}>
+                        {!emailValid && ctaEmail.length > 0 && '올바른 이메일 주소를 입력해 주세요. '}
+                        {!phoneValid && ctaPhone.length > 0 && '연락처를 정확히 입력해 주세요.'}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (!canSubmitShare || ctaSubmitting) return;
+                        handleCtaSubmit();
+                      }}
+                      style={{
+                        width: '100%', padding: '14px 20px', borderRadius: 10,
+                        border: 'none',
+                        background: canSubmitShare
+                          ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'
+                          : '#CBD5E1',
+                        color: canSubmitShare ? '#fff' : '#64748B',
+                        fontSize: 15, fontWeight: 700,
+                        cursor: ctaSubmitting ? 'wait' : canSubmitShare ? 'pointer' : 'default',
+                        transition: 'all 0.2s',
+                        boxShadow: canSubmitShare
+                          ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
+                        opacity: canSubmitShare ? 1 : 0.7,
+                        minHeight: 48,
+                      }}
+                    >
+                      {ctaSubmitting ? '신청 중...' : canSubmitShare ? '무료 견적 상담 신청 →' : '이메일과 연락처를 입력해 주세요'}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -3827,14 +3843,14 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   onChange={(e) => setCtaPhone(e.target.value)}
                   style={{
                     flex: '1 1 160px', padding: '12px 16px', borderRadius: 10,
-                    border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.trim().length < 8 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                    border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.replace(/[^0-9]/g, '').length < 7 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
                     background: 'rgba(255,255,255,0.1)',
                     color: '#fff', fontSize: 14, outline: 'none',
                   }}
                 />
                 <button
                   onClick={handleCtaSubmit}
-                  disabled={ctaSubmitting || !ctaEmail.includes('@') || ctaPhone.trim().length < 8}
+                  disabled={ctaSubmitting || !ctaEmail.includes('@') || ctaPhone.replace(/[^0-9]/g, '').length < 7}
                   style={{
                     padding: '13px 28px', borderRadius: 12, border: 'none',
                     background: ctaSubmitting ? 'rgba(255,255,255,0.3)' : '#fff',
@@ -4036,7 +4052,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               onChange={(e) => setExitModalPhone(e.target.value)}
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: `1.5px solid ${exitModalPhone && exitModalPhone.trim().length < 8 ? '#f87171' : '#1E293B'}`,
+                border: `1.5px solid ${exitModalPhone && exitModalPhone.replace(/[^0-9]/g, '').length < 7 ? '#f87171' : '#1E293B'}`,
                 background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
                 outline: 'none', boxSizing: 'border-box', marginBottom: 20,
               }}
@@ -4057,7 +4073,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               </button>
               <button
                 onClick={async () => {
-                  if (!exitModalEmail.includes('@') || exitModalPhone.trim().length < 8) return;
+                  if (!exitModalEmail.includes('@') || exitModalPhone.replace(/[^0-9]/g, '').length < 7) return;
                   setExitModalSubmitting(true);
                   try {
                     await fetch('/api/cta-lead', {
@@ -4079,13 +4095,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   }
                   setExitModalSubmitting(false);
                 }}
-                disabled={exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.trim().length < 8}
+                disabled={exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.replace(/[^0-9]/g, '').length < 7}
                 style={{
                   flex: 1, padding: '12px 16px', borderRadius: 10,
                   border: 'none', background: '#2563EB',
                   color: '#fff', fontSize: 13, fontWeight: 600,
                   cursor: exitModalSubmitting ? 'wait' : 'pointer',
-                  opacity: exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.trim().length < 8 ? 0.6 : 1,
+                  opacity: exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.replace(/[^0-9]/g, '').length < 7 ? 0.6 : 1,
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => { if (!exitModalSubmitting) (e.target as HTMLElement).style.background = '#1D4ED8'; }}
