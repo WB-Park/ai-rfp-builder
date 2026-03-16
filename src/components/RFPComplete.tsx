@@ -864,7 +864,7 @@ function StickyTopBar({ projectName, onCTAClick, shareUrl, onBack }: { projectNa
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)'; }}
           >
             <span>⚡</span>
-            개발 파트너 찾기
+            무료 견적 받기
           </a>
         </div>
       </div>
@@ -1096,15 +1096,15 @@ function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, cta
                 flex: 1,
               }}>
                 {isSharedView
-                  ? (isMobileFloat ? '이 프로젝트, 실제 견적 받아보세요' : '이 프로젝트를 실현할 개발 파트너를 찾아보세요')
-                  : (isMobileFloat ? '이 정의서로 견적 상담 받아보세요' : '이 정의서로 무료 견적 상담을 받고, 딱 맞는 개발 파트너를 찾아보세요')}
+                  ? (isMobileFloat ? '이 프로젝트, 실제 견적 받아보세요' : '이 정의서 기반으로 실제 개발 견적을 받아보세요')
+                  : (isMobileFloat ? '이 정의서로 견적 받아보세요' : '이 정의서로 무료 견적 상담을 받아보세요')}
               </h3>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 fontSize: 12, color: '#64748B', whiteSpace: 'nowrap',
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
-                평균 3일 내 매칭
+                평균 3일 내 견적
               </div>
             </div>
 
@@ -2486,7 +2486,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
-                    평균 3일 내 매칭
+                    평균 3일 내 견적
                   </span>
                   <span>·</span>
                   <span>비용 0원</span>
@@ -2579,7 +2579,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
               신청이 완료되었습니다!
             </h3>
             <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
-              위시켓 전문 매니저가 이 정의서를 검토한 뒤, 최적의 개발 파트너를 추천해 드리겠습니다.
+              위시켓 전문 매니저가 이 정의서를 검토한 뒤, 검증된 개발사의 실제 견적을 보내드리겠습니다.
             </p>
           </div>
         )}
@@ -3801,8 +3801,8 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 신청이 완료되었습니다!
               </h3>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.6 }}>
-                위시켓 전문 매니저가 제품 요구사항 정의서를 검토한 뒤,<br />
-                프로젝트에 가장 적합한 개발 파트너를 추천해 드리겠습니다.
+                위시켓 전문 매니저가 정의서를 검토한 뒤,<br />
+                검증된 개발사의 실제 견적을 보내드리겠습니다.
               </p>
             </div>
           ) : (
@@ -3812,17 +3812,17 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                 background: 'rgba(255,255,255,0.15)', padding: '5px 12px', borderRadius: 20,
                 fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5, marginBottom: 16,
               }}>
-                ⚡ 무료 · 평균 3일 이내 매칭
+                ⚡ 무료 · 평균 3일 이내 견적
               </div>
               <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
                 {readOnly
                   ? '이 프로젝트, 다음 단계로 넘어가 볼까요?'
-                  : '이 정의서에 딱 맞는 개발 파트너를 찾아보세요'}
+                  : '이 정의서 기반, 실제 견적을 받아보세요'}
               </h3>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
                 {readOnly
                   ? <>정의서는 완성되었습니다. 이제 위시켓에서<br />검증된 개발 파트너의 실제 견적을 받아보세요.</>
-                  : <>위시켓에 등록된 10,000+ 검증된 개발사/프리랜서 중<br />프로젝트 요구사항에 최적화된 파트너를 매칭해 드립니다.</>}
+                  : <>이 정의서를 위시켓에 등록하면, 검증된 개발사로부터<br />실제 견적을 무료로 받아보실 수 있습니다.</>}
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
                 <input
@@ -3863,12 +3863,12 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                   onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-2px)'; }}
                   onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
                 >
-                  {ctaSubmitting ? '신청 중...' : '무료 매칭 신청'}
+                  {ctaSubmitting ? '신청 중...' : '무료 견적 신청'}
                 </button>
               </div>
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
                 <span>✓ 정의서 자동 첨부</span>
-                <span>✓ 평균 3건 추천</span>
+                <span>✓ 평균 3건 견적</span>
                 <span>✓ 수수료 0원</span>
               </div>
             </div>
