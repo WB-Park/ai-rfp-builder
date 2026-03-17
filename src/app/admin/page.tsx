@@ -173,6 +173,7 @@ export default function AdminPage() {
   const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; body: string } | null>(null);
   const [emailGenerating, setEmailGenerating] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
+  const [infoCopied, setInfoCopied] = useState<string | null>(null); // 'email' | 'phone'
 
   const isNavigatingRef = useRef(false);
 
@@ -398,6 +399,12 @@ export default function AdminPage() {
     setTimeout(() => setEmailCopied(false), 2000);
   };
 
+  const copyInfo = async (text: string, type: 'email' | 'phone') => {
+    await navigator.clipboard.writeText(text);
+    setInfoCopied(type);
+    setTimeout(() => setInfoCopied(null), 1500);
+  };
+
   const goToSessionDetail = (sessionId: string) => {
     setView('session-detail');
     navigateTo({ view: 'session', id: sessionId, tab: null });
@@ -588,8 +595,22 @@ export default function AdminPage() {
                   <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 16 }}>
                     <h4 style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 }}>연락처 정보</h4>
                     <div style={{ fontSize: 14, lineHeight: 2 }}>
-                      <div><strong>📧 이메일:</strong> <a href={`mailto:${lead.email}`} style={{ color: '#2563EB' }}>{lead.email}</a></div>
-                      <div><strong>📱 연락처:</strong> {lead.phone ? <a href={`tel:${lead.phone}`} style={{ color: '#2563EB', fontWeight: 600 }}>{lead.phone}</a> : <span style={{ color: '#CBD5E1' }}>미입력</span>}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <strong>📧 이메일:</strong> <a href={`mailto:${lead.email}`} style={{ color: '#2563EB' }}>{lead.email}</a>
+                        <button onClick={() => copyInfo(lead.email, 'email')} style={{ background: infoCopied === 'email' ? '#059669' : '#E2E8F0', border: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 11, cursor: 'pointer', color: infoCopied === 'email' ? '#fff' : '#64748B', fontWeight: 600, transition: 'all 0.2s' }}>
+                          {infoCopied === 'email' ? '✓' : '복사'}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <strong>📱 연락처:</strong> {lead.phone ? (
+                          <>
+                            <a href={`tel:${lead.phone}`} style={{ color: '#2563EB', fontWeight: 600 }}>{lead.phone}</a>
+                            <button onClick={() => copyInfo(lead.phone!, 'phone')} style={{ background: infoCopied === 'phone' ? '#059669' : '#E2E8F0', border: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 11, cursor: 'pointer', color: infoCopied === 'phone' ? '#fff' : '#64748B', fontWeight: 600, transition: 'all 0.2s' }}>
+                              {infoCopied === 'phone' ? '✓' : '복사'}
+                            </button>
+                          </>
+                        ) : <span style={{ color: '#CBD5E1' }}>미입력</span>}
+                      </div>
                       {lead.marketingConsent && <div><strong>✅ 마케팅 동의</strong></div>}
                     </div>
                   </div>
