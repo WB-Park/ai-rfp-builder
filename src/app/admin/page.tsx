@@ -87,6 +87,9 @@ interface UnifiedLead {
   featureCount: number | null;
   source: string | null;
   sourceLabel: string;
+  sourceIcon: string;
+  sourceColor: string;
+  sourceBg: string;
   createdAt: string;
   rawType: 'cta' | 'rfp';
   rawId: string;
@@ -170,12 +173,15 @@ export default function AdminPage() {
     // CTA 리드 → hot(연락처 있음) / warm(이메일만)
     for (const c of (dashboard.ctaLeads?.data || [])) {
       const hasPhone = !!(c.phone && c.phone.replace(/[^0-9]/g, '').length >= 7);
-      const sourceLabel = c.source === 'shared_prd' ? '공유 PRD'
-        : c.source === 'prd_complete' ? 'PRD 완성'
-        : c.source === 'floating_cta' ? '플로팅 바'
-        : c.source === 'download_gate' ? '다운로드'
-        : c.source === 'exit_modal' ? '이탈 방지'
-        : c.source || '기타';
+      const sourceMap: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+        'shared_prd': { label: '공유 PRD 페이지', icon: '📤', color: '#7C3AED', bg: '#F5F3FF' },
+        'prd_complete': { label: 'PRD 완성 페이지', icon: '✅', color: '#059669', bg: '#ECFDF5' },
+        'floating_cta': { label: '플로팅 견적 바', icon: '💬', color: '#2563EB', bg: '#EFF6FF' },
+        'download_gate': { label: 'PDF 다운로드', icon: '📥', color: '#D97706', bg: '#FFFBEB' },
+        'exit_modal': { label: '이탈 방지 모달', icon: '🚪', color: '#DC2626', bg: '#FEF2F2' },
+      };
+      const srcInfo = sourceMap[c.source || ''] || { label: c.source || '기타', icon: '🔗', color: '#64748B', bg: '#F8FAFC' };
+      const sourceLabel = srcInfo.label;
 
       leads.push({
         id: `cta_${c.id}`,
@@ -187,6 +193,9 @@ export default function AdminPage() {
         featureCount: c.feature_count,
         source: c.source,
         sourceLabel,
+        sourceIcon: srcInfo.icon,
+        sourceColor: srcInfo.color,
+        sourceBg: srcInfo.bg,
         createdAt: c.created_at,
         rawType: 'cta',
         rawId: c.id,
@@ -211,7 +220,10 @@ export default function AdminPage() {
         projectName: null,
         featureCount: null,
         source: r.source,
-        sourceLabel: 'PRD 빌더',
+        sourceLabel: 'PRD 빌더 이메일 입력',
+        sourceIcon: '📝',
+        sourceColor: '#64748B',
+        sourceBg: '#F8FAFC',
         createdAt: r.created_at,
         rawType: 'rfp',
         rawId: r.id,
@@ -361,7 +373,14 @@ export default function AdminPage() {
                     {lead.typeLabel}
                   </span>
                   <span style={{ fontSize: 12, color: '#94A3B8' }}>{timeSince(lead.createdAt)}</span>
-                  <span style={{ fontSize: 12, color: '#94A3B8', background: '#F1F5F9', padding: '2px 8px', borderRadius: 4 }}>{lead.sourceLabel}</span>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 16,
+                    color: lead.sourceColor, background: lead.sourceBg,
+                    border: `1px solid ${lead.sourceColor}33`,
+                  }}>
+                    {lead.sourceIcon} {lead.sourceLabel}
+                  </span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: isMobileView ? '1fr' : '1fr 1fr', gap: 16 }}>
@@ -682,14 +701,22 @@ export default function AdminPage() {
 
                     {/* 메인 정보 */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>{lead.email}</span>
                         {lead.phone && <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>📱 {lead.phone}</span>}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#94A3B8' }}>
-                        {lead.projectName && <span style={{ color: '#64748B', fontWeight: 500 }}>{lead.projectName}</span>}
-                        {lead.featureCount && <span>•  {lead.featureCount}개 기능</span>}
-                        <span style={{ background: '#F1F5F9', padding: '1px 6px', borderRadius: 4 }}>{lead.sourceLabel}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#94A3B8', flexWrap: 'wrap' }}>
+                        {/* 유입 경로 — 컬러 뱃지 */}
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+                          color: lead.sourceColor, background: lead.sourceBg,
+                          border: `1px solid ${lead.sourceColor}22`,
+                        }}>
+                          {lead.sourceIcon} {lead.sourceLabel}
+                        </span>
+                        {lead.projectName && <span style={{ color: '#64748B', fontWeight: 500 }}>| {lead.projectName}</span>}
+                        {lead.featureCount && <span>• {lead.featureCount}개 기능</span>}
                       </div>
                     </div>
 
