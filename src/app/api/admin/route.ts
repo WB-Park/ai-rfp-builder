@@ -10,7 +10,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'wishket2024!';
 
 export async function POST(req: NextRequest) {
   try {
-    const { action, password, sessionId, leadId, leadType } = await req.json();
+    const body = await req.json();
+    const { action, password, sessionId, leadId, leadType } = body;
 
     // 인증 확인
     if (password !== ADMIN_PASSWORD) {
@@ -201,6 +202,81 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({ error: '알 수 없는 leadType' }, { status: 400 });
+    }
+
+    // ━━ 개인화 메일 생성 (Claude API) ━━
+    if (action === 'generate-email') {
+      const { projectName, overview, coreFeatures, chatSummary, email, phone, featureCount } = body;
+
+      if (!projectName && !overview) {
+        return NextResponse.json({ error: '프로젝트 정보가 필요합니다' }, { status: 400 });
+      }
+
+      const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'sk-ant-api03-ugNUhNwn6n6n8rpCc_DurylDovUxGsnghUtftskdUApseqmCNT2VUAuIvIEhbjWmgfdMwVz1jB3dgeujX5oflgSQ-U8uZIAAA';
+
+      const featureList = Array.isArray(coreFeatures)
+        ? coreFeatures.map((f: any) => typeof f === 'string' ? f : `${f.name}${f.priority ? ` (${f.priority})` : ''}`).join(', ')
+        : '';
+
+      const systemPrompt = `당신은 위시켓(Wishket)의 세일즈 매니저입니다.
+위시켓은 IT 아웃소싱 매칭 플랫폼으로, 검증된 개발 파트너를 연결해 드립니다.
+
+고객이 AI PRD 빌더를 통해 프로젝트 정의서를 작성한 상태입니다.
+이 고객에게 위시켓에 프로젝트를 등록하도록 유도하는 개인화된 이메일을 작성해 주세요.
+
+작성 가이드라인:
+1. 프로젝트 내용을 구체적으로 언급해서 "내 프로젝트를 진짜 봤구나"라는 인상을 줄 것
+2. 위시켓 프로젝트 등록 시 받을 수 있는 혜택을 자연스럽게 안내:
+   - 48시간 내 검증된 파트너사 매칭
+   - 프로젝트 규모에 맞는 견적 비교 가능
+   - 계약/정산 안전결제 시스템
+   - 전담 PM이 프로젝트 진행 서포트
+3. 과도한 영업 톤은 피하되, 다음 액션이 명확하게 드러나도록 작성
+4. CTA는 "위시켓에 프로젝트 등록하기" 또는 "무료 상담 신청"
+5. 형식은 이메일 본문만 (제목 별도 출력). 제목은 [제목] 태그로 맨 처음에.
+6. 존댓말 사용, 비즈니스 메일 톤 (너무 딱딱하지 않게)
+7. 길이는 300-500자 이내로 간결하게`;
+
+      const userPrompt = `다음 고객의 프로젝트 정보를 기반으로 개인화된 이메일을 작성해 주세요.
+
+프로젝트명: ${projectName || '(미확인)'}
+프로젝트 개요: ${overview || '(미확인)'}
+핵심 기능: ${featureList || '(미확인)'}
+기능 수: ${featureCount ?? '미확인'}개
+${chatSummary ? `고객 대화 요약:\n${chatSummary}` : ''}
+
+위 내용을 바탕으로 [제목] 과 본문을 작성해 주세요.`;
+
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+
+      if (!anthropicRes.ok) {
+        const errText = await anthropicRes.text();
+        console.error('Anthropic API error:', errText);
+        return NextResponse.json({ error: '메일 생성 실패' }, { status: 500 });
+      }
+
+      const anthropicData = await anthropicRes.json();
+      const emailContent = anthropicData.content?.[0]?.text || '';
+
+      // [제목] 파싱
+      const subjectMatch = emailContent.match(/\[제목\]\s*(.+)/);
+      const subject = subjectMatch ? subjectMatch[1].trim() : `[위시켓] ${projectName || '프로젝트'} 관련 안내`;
+      const emailBody = emailContent.replace(/\[제목\]\s*.+\n?/, '').trim();
+
+      return NextResponse.json({ subject, body: emailBody });
     }
 
     return NextResponse.json({ error: '알 수 없는 action' }, { status: 400 });

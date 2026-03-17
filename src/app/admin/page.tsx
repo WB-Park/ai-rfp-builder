@@ -169,6 +169,11 @@ export default function AdminPage() {
   // Chat expand state for lead detail
   const [chatExpanded, setChatExpanded] = useState(false);
 
+  // Email generation state
+  const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [emailGenerating, setEmailGenerating] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+
   const isNavigatingRef = useRef(false);
 
   const [isMobileView, setIsMobileView] = useState(false);
@@ -341,8 +346,56 @@ export default function AdminPage() {
     setSelectedLead(lead);
     setView('lead-detail');
     setChatExpanded(false);
+    setGeneratedEmail(null);
+    setEmailCopied(false);
     navigateTo({ view: 'lead', id: lead.rawId, type: lead.rawType, tab: null });
     fetchLeadDetail(lead.rawId, lead.rawType);
+  };
+
+  const generateEmail = async () => {
+    if (!selectedLead || !leadDetail) return;
+    setEmailGenerating(true);
+    setGeneratedEmail(null);
+    setEmailCopied(false);
+    try {
+      const rfpData = leadDetail.session?.rfp_data || leadDetail.sessions?.[0]?.rfp_data || {};
+      const allMessages = leadDetail.session?.messages || leadDetail.sessions?.[0]?.messages || [];
+      // 고객 메시지만 추출하여 요약용
+      const customerMsgs = allMessages
+        .filter((m: any) => m.role === 'user')
+        .map((m: any) => typeof m.content === 'string' ? m.content.slice(0, 200) : '')
+        .slice(0, 5)
+        .join('\n');
+
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate-email',
+          password: getPassword(),
+          projectName: selectedLead.projectName || rfpData?.projectName || rfpData?.overview?.slice(0, 50),
+          overview: rfpData?.overview || '',
+          coreFeatures: rfpData?.coreFeatures || leadDetail.sharedPrd?.rfp_data?.coreFeatures || [],
+          featureCount: selectedLead.featureCount ?? rfpData?.coreFeatures?.length,
+          chatSummary: customerMsgs || '',
+        }),
+      });
+      if (!res.ok) throw new Error('메일 생성 실패');
+      const data = await res.json();
+      setGeneratedEmail({ subject: data.subject, body: data.body });
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setEmailGenerating(false);
+    }
+  };
+
+  const copyEmailToClipboard = async () => {
+    if (!generatedEmail) return;
+    const fullText = `제목: ${generatedEmail.subject}\n\n${generatedEmail.body}`;
+    await navigator.clipboard.writeText(fullText);
+    setEmailCopied(true);
+    setTimeout(() => setEmailCopied(false), 2000);
   };
 
   const goToSessionDetail = (sessionId: string) => {
@@ -563,6 +616,80 @@ export default function AdminPage() {
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 10, background: '#F0FDF4', color: '#166534', fontSize: 13, fontWeight: 700, textDecoration: 'none', border: '1px solid #BBF7D0' }}>📄 PRD 보기 (조회 {sharedPrd.view_count}회)</a>
                   )}
                 </div>
+              </div>
+
+              {/* ━━ AI 메일 생성 ━━ */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E0E7FF' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: generatedEmail ? 16 : 0, flexWrap: 'wrap', gap: 8 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1E293B', margin: 0 }}>✉️ AI 개인화 메일 생성</h3>
+                  <button
+                    onClick={generateEmail}
+                    disabled={emailGenerating}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '10px 20px', borderRadius: 10,
+                      background: emailGenerating ? '#CBD5E1' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                      color: '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: emailGenerating ? 'not-allowed' : 'pointer',
+                      boxShadow: emailGenerating ? 'none' : '0 2px 8px rgba(99,102,241,0.3)',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {emailGenerating ? '⏳ 생성 중...' : generatedEmail ? '🔄 다시 생성' : '🤖 메일 생성하기'}
+                  </button>
+                </div>
+                <p style={{ fontSize: 12, color: '#94A3B8', margin: generatedEmail ? 0 : '8px 0 0 0' }}>
+                  {generatedEmail ? '' : 'PRD 내용을 기반으로 위시켓 프로젝트 등록을 유도하는 개인화 메일을 AI가 작성합니다.'}
+                </p>
+
+                {generatedEmail && (
+                  <div style={{ marginTop: 12 }}>
+                    {/* 제목 */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 6 }}>제목</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#1E293B', padding: '10px 14px', background: '#F5F3FF', borderRadius: 8, border: '1px solid #E0E7FF' }}>
+                        {generatedEmail.subject}
+                      </div>
+                    </div>
+
+                    {/* 본문 */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 6 }}>본문</div>
+                      <div style={{
+                        fontSize: 13, lineHeight: 1.8, color: '#334155', padding: 16,
+                        background: '#FAFAFA', borderRadius: 8, border: '1px solid #E2E8F0',
+                        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                        maxHeight: 400, overflowY: 'auto',
+                      }}>
+                        {generatedEmail.body}
+                      </div>
+                    </div>
+
+                    {/* 액션 버튼 */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button onClick={copyEmailToClipboard} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '10px 20px', borderRadius: 10,
+                        background: emailCopied ? '#059669' : '#1E293B', color: '#fff',
+                        fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}>
+                        {emailCopied ? '✅ 복사 완료!' : '📋 전체 복사'}
+                      </button>
+                      <a
+                        href={`mailto:${lead.email}?subject=${encodeURIComponent(generatedEmail.subject)}&body=${encodeURIComponent(generatedEmail.body)}`}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '10px 20px', borderRadius: 10,
+                          background: '#2563EB', color: '#fff',
+                          fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                          boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
+                        }}
+                      >
+                        ✉️ 이 내용으로 메일 보내기
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 핵심 기능 */}
