@@ -138,31 +138,45 @@ const C = {
 const ReadOnlyContext = React.createContext(false);
 
 // ━━━━━ Text Formatting Utility ━━━━━
+function fmtBold(t: string): React.ReactNode {
+  if (!t || !t.includes('**')) return t;
+  return t.split(/(\*\*[^*]+\*\*)/g).map((p, i) => p.startsWith('**') && p.endsWith('**') ? <strong key={i}>{p.slice(2,-2)}</strong> : p);
+}
 function formatTextContent(text: string): React.ReactNode[] {
   if (!text) return [];
-  // Split by existing newlines first, then split long blocks by sentences
-  const blocks = text.split(/\n{2,}|\r?\n/).filter(b => b.trim());
-  if (blocks.length <= 1 && text.length > 200) {
-    // AI-generated text with no line breaks — split by sentences
-    const sentences = text.match(/[^.!?。]+[.!?。]+\s*/g) || [text];
-    const paragraphs: string[] = [];
-    let current = '';
-    for (const sentence of sentences) {
-      current += sentence;
-      // Group ~2-3 sentences per paragraph
-      if (current.length > 120) {
-        paragraphs.push(current.trim());
-        current = '';
+  const lines = text.split(/\r?\n/);
+  const els: React.ReactNode[] = [];
+  let i = 0, k = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    // 마크다운 테이블 감지
+    if (ln.trim().startsWith('|') && ln.trim().endsWith('|')) {
+      const tl: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) { tl.push(lines[i].trim()); i++; }
+      if (tl.length >= 2) {
+        const pr = (r: string) => r.split('|').slice(1,-1).map(c => c.trim());
+        const hd = pr(tl[0]);
+        const ds = tl[1].includes('---') ? 2 : 1;
+        const dr = tl.slice(ds).map(pr);
+        els.push(<div key={`t${k++}`} style={{overflowX:'auto',marginBottom:16}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:13,tableLayout:'fixed'}}><thead><tr style={{background:'#F1F5F9'}}>{hd.map((h,j)=>(<th key={j} style={{padding:'10px 14px',textAlign:'left',fontWeight:700,color:'#1E293B',borderBottom:'2px solid #CBD5E1',whiteSpace:'normal',wordBreak:'break-word'}}>{fmtBold(h)}</th>))}</tr></thead><tbody>{dr.map((row,ri)=>(<tr key={ri} style={{background:ri%2===0?'#fff':'#F8FAFC'}}>{row.map((c,ci)=>(<td key={ci} style={{padding:'10px 14px',borderBottom:'1px solid #E2E8F0',color:'#475569',lineHeight:1.6,whiteSpace:'normal',wordBreak:'break-word',verticalAlign:'top'}}>{fmtBold(c)}</td>))}</tr>))}</tbody></table></div>);
+        continue;
       }
+      i -= tl.length;
     }
-    if (current.trim()) paragraphs.push(current.trim());
-    return paragraphs.map((p, i) => (
-      <p key={i} style={{ margin: i === 0 ? '0 0 12px 0' : '0 0 12px 0', lineHeight: 1.85 }}>{p}</p>
-    ));
+    if (!ln.trim()) { i++; continue; }
+    const tl2: string[] = [];
+    while (i < lines.length && lines[i].trim() && !(lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|'))) { tl2.push(lines[i].trim()); i++; }
+    const blk = tl2.join(' ');
+    if (tl2.length <= 1 && blk.length > 200) {
+      const sn = blk.match(/[^.!?。]+[.!?。]+\s*/g) || [blk];
+      let cur = '';
+      for (const s of sn) { cur += s; if (cur.length > 120) { els.push(<p key={`p${k++}`} style={{margin:'0 0 12px 0',lineHeight:1.85}}>{fmtBold(cur.trim())}</p>); cur = ''; } }
+      if (cur.trim()) els.push(<p key={`p${k++}`} style={{margin:'0 0 12px 0',lineHeight:1.85}}>{fmtBold(cur.trim())}</p>);
+    } else {
+      els.push(<p key={`p${k++}`} style={{margin:'0 0 12px 0',lineHeight:1.85}}>{fmtBold(blk)}</p>);
+    }
   }
-  return blocks.map((b, i) => (
-    <p key={i} style={{ margin: i === 0 ? '0 0 12px 0' : '0 0 12px 0', lineHeight: 1.85 }}>{b.trim()}</p>
-  ));
+  return els;
 }
 
 // ━━━━━ Unified Editable Text (FormattedText + EditableText merged) ━━━━━
@@ -2228,8 +2242,8 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           h3 { font-size: 16px !important; word-break: break-word; }
           p, span, li, td { word-break: break-word; overflow-wrap: break-word; }
           /* 테이블 가로 스크롤 */
-          .prd-container table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
-          .prd-container table th, .prd-container table td { padding: 8px 10px !important; font-size: 12px !important; word-break: normal; }
+          .prd-container table { display: table; width: 100%; table-layout: fixed; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: normal; max-width: 100%; }
+          .prd-container table th, .prd-container table td { padding: 8px 10px !important; font-size: 12px !important; word-break: break-word; white-space: normal; overflow-wrap: break-word; }
           /* 섹션 간격 축소 */
           .prd-container > div { margin-bottom: 24px !important; }
           /* PRD 히어로 헤더 모바일 — FORGE 심화 */
