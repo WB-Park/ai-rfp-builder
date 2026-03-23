@@ -45,7 +45,93 @@ async function sendSlackNotification(data: {
     });
   } catch (slackErr) {
     console.error('Slack notification error:', slackErr);
-    // Slack 알림 실패해도 리드 저장에는 영향 없음
+  }
+}
+
+// ━━ 강화 Slack 알림 (Block Kit) ━━
+async function sendStrongSlackNotification(data: {
+  email: string;
+  phone?: string;
+  projectName?: string;
+  projectType?: string;
+  featureCount?: number;
+  sessionId?: string;
+  source?: string;
+}) {
+  if (!SLACK_WEBHOOK_URL) return;
+  try {
+    const adminUrl = `https://wishket-prd.com/admin`;
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+    const sourceLabel = data.source === 'shared_prd' ? '공유 PRD 페이지'
+      : data.source === 'download_gate' ? '다운로드 게이팅'
+      : data.source === 'exit_modal' ? '이탈 방지 모달'
+      : data.source === 'prd_complete' ? 'PRD 완성 페이지'
+      : data.source || '직접 유입';
+
+    const featureText = data.featureCount && data.featureCount > 0
+      ? `${data.featureCount}개 기능`
+      : '미확인';
+
+    // 프로젝트 규모 판별
+    const scaleEmoji = (data.featureCount || 0) >= 10 ? '🔥🔥🔥 대형'
+      : (data.featureCount || 0) >= 5 ? '🔥🔥 중형'
+      : (data.featureCount || 0) >= 1 ? '🔥 소형'
+      : '📌 미확인';
+
+    const blocks = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '🚨 새 리드 수집! 즉시 확인 필요',
+          emoji: true,
+        },
+      },
+      { type: 'divider' },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*📧 이메일*\n${data.email}` },
+          { type: 'mrkdwn', text: `*📱 연락처*\n${data.phone || '미입력'}` },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*📋 프로젝트명*\n${data.projectName || '미입력'}` },
+          { type: 'mrkdwn', text: `*📊 프로젝트 규모*\n${scaleEmoji} (${featureText})` },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*🏷️ 유입 경로*\n${sourceLabel}` },
+          { type: 'mrkdwn', text: `*🕐 수집 시각*\n${now}` },
+        ],
+      },
+      { type: 'divider' },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `⚡ *빠른 후속 조치가 전환율을 높입니다!* — <${adminUrl}|👉 어드민에서 리드 상세 확인>`,
+          },
+        ],
+      },
+    ];
+
+    await fetch(SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: `🚨 새 리드 수집: ${data.email} — ${data.projectName || '프로젝트 미입력'} (${featureText})`,
+        blocks,
+      }),
+    });
+  } catch (slackErr) {
+    console.error('Strong Slack notification error:', slackErr);
   }
 }
 
@@ -73,8 +159,11 @@ export async function POST(req: NextRequest) {
       console.error('CTA lead save error:', error);
     }
 
-    // Slack #알림_PRD 채널로 노티
-    await sendSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId, source });
+    // Slack #알림_PRD 채널로 노티 (기존 알림 + 강화 알림 동시 발송)
+    await Promise.all([
+      sendSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId, source }),
+      sendStrongSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId, source }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (err) {
