@@ -990,252 +990,7 @@ function GanttChart({ timeline }: { timeline: PRDResult['timeline'] }) {
 // (B-4: Risk Matrix 제거 — 테이블로 통합)
 
 // ━━━━━ B-8: Floating Matching CTA Bar — 전면 개편 (전환율 최적화) ━━━━━
-function FloatingMatchingBar({ ctaEmail, setCtaEmail, ctaPhone, setCtaPhone, ctaSubmitting, ctaSubmitted, onSubmit, isSharedView }: {
-  ctaEmail: string; setCtaEmail: (v: string) => void;
-  ctaPhone: string; setCtaPhone: (v: string) => void;
-  ctaSubmitting: boolean; ctaSubmitted: boolean;
-  onSubmit: () => void;
-  isSharedView?: boolean;
-}) {
-  const [visible, setVisible] = useState(false);
-  const [minimized, setMinimized] = useState(false);
-  const [isMobileFloat, setIsMobileFloat] = useState(false);
-  const [shakeBtn, setShakeBtn] = useState(false);
-  const emailRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const show = window.scrollY > 300;
-      setVisible(show);
-    };
-    const checkMobile = () => setIsMobileFloat(window.innerWidth < 768);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', checkMobile);
-    checkMobile();
-    return () => { window.removeEventListener('scroll', handleScroll); window.removeEventListener('resize', checkMobile); };
-  }, []);
-
-  // 10초 후 버튼 흔들기 (어텐션)
-  useEffect(() => {
-    if (!visible || minimized || ctaSubmitted) return;
-    const t = setTimeout(() => setShakeBtn(true), 10000);
-    return () => clearTimeout(t);
-  }, [visible, minimized, ctaSubmitted]);
-
-  if (!visible || ctaSubmitted) return null;
-
-  const canSubmit = ctaEmail.includes('@') && ctaPhone.replace(/[^0-9]/g, '').length >= 7;
-  const phoneError = ctaPhone.trim().length > 0 && ctaPhone.replace(/[^0-9]/g, '').length < 7;
-
-  return (
-    <div className="no-print floating-matching-bar" style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
-      transition: 'all 0.35s cubic-bezier(0.22,1,0.36,1)',
-    }}>
-      <style>{`
-        @keyframes floatBarSlideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes ctaPulse { 0%,100%{box-shadow:0 4px 20px rgba(37,99,235,0.4)} 50%{box-shadow:0 4px 36px rgba(37,99,235,0.7)} }
-        @keyframes ctaShake { 0%,100%{transform:translateX(0)} 15%{transform:translateX(-4px)} 30%{transform:translateX(4px)} 45%{transform:translateX(-3px)} 60%{transform:translateX(3px)} 75%{transform:translateX(-2px)} 90%{transform:translateX(2px)} }
-        .float-cta-main:active { transform: scale(0.97) !important; }
-        .float-input:focus { border-color: #3B82F6 !important; background: rgba(255,255,255,0.18) !important; }
-        @media (prefers-reduced-motion: reduce) {
-          .floating-matching-bar, .float-cta-main { animation: none !important; }
-        }
-      `}</style>
-
-      {/* 최소화 상태: 눈에 띄는 파란색 탭 */}
-      {minimized ? (
-        <button
-          onClick={() => { setMinimized(false); }}
-          style={{
-            position: 'fixed', bottom: 16, right: 16, zIndex: 99,
-            padding: '14px 24px', borderRadius: 50,
-            background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-            color: '#fff', fontSize: 15, fontWeight: 700,
-            border: 'none', cursor: 'pointer',
-            boxShadow: '0 6px 28px rgba(37,99,235,0.5)',
-            animation: shakeBtn ? 'ctaShake 0.6s ease-in-out, ctaPulse 2s ease-in-out infinite' : 'ctaPulse 2s ease-in-out infinite',
-            display: 'flex', alignItems: 'center', gap: 8,
-            minHeight: 52, minWidth: 52,
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <span style={{ fontSize: 18 }}>💬</span>
-          무료 견적 상담
-        </button>
-      ) : (
-        /* 확장 상태: 밝은 배경 + 강한 대비 */
-        <div style={{
-          background: '#fff',
-          borderTop: '3px solid #2563EB',
-          boxShadow: '0 -8px 40px rgba(0,0,0,0.15), 0 -2px 8px rgba(37,99,235,0.1)',
-          padding: isMobileFloat
-            ? '20px 16px calc(16px + env(safe-area-inset-bottom, 0px))'
-            : '16px 24px 18px',
-          animation: 'floatBarSlideUp 0.4s cubic-bezier(0.22,1,0.36,1)',
-        }}>
-          {/* 닫기 버튼 */}
-          <button
-            onClick={() => setMinimized(true)}
-            aria-label="최소화"
-            style={{
-              position: 'absolute', top: -14, right: 16,
-              width: 28, height: 28, borderRadius: '50%',
-              border: '2px solid #E2E8F0', background: '#fff',
-              color: '#94A3B8', fontSize: 14, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            }}
-          >
-            ✕
-          </button>
-
-          <div style={{ maxWidth: 880, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-            {/* 헤드라인 — 강한 가치 제안 */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: isMobileFloat ? 8 : 12,
-              marginBottom: isMobileFloat ? 14 : 12, flexWrap: 'wrap',
-            }}>
-              <div style={{
-                background: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
-                color: '#fff', fontSize: 11, fontWeight: 700,
-                padding: '4px 10px', borderRadius: 100,
-                letterSpacing: '0.02em',
-              }}>
-                무료
-              </div>
-              <h3 style={{
-                margin: 0, fontSize: isMobileFloat ? 16 : 17, fontWeight: 800,
-                color: '#0F172A', lineHeight: 1.4, wordBreak: 'keep-all',
-                flex: 1,
-              }}>
-                {isSharedView
-                  ? (isMobileFloat ? '이 프로젝트, 실제 견적 받아보세요' : '이 정의서 기반으로 실제 개발 견적을 받아보세요')
-                  : (isMobileFloat ? '이 정의서로 견적 받아보세요' : '이 정의서로 무료 견적 상담을 받아보세요')}
-              </h3>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 12, color: '#64748B', whiteSpace: 'nowrap',
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
-                평균 3일 내 견적
-              </div>
-            </div>
-
-            {/* 인풋 + CTA 영역 */}
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobileFloat ? 'column' : 'row',
-              gap: isMobileFloat ? 10 : 8,
-              alignItems: isMobileFloat ? 'stretch' : 'center',
-            }}>
-              {/* 인풋 그룹 */}
-              <div style={{
-                display: 'flex', gap: 8,
-                flex: isMobileFloat ? undefined : '1 1 auto',
-                width: '100%',
-              }}>
-                <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-                  <div style={{
-                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 15, color: '#94A3B8', pointerEvents: 'none',
-                  }}>📧</div>
-                  <input
-                    ref={emailRef}
-                    className="float-input"
-                    type="email"
-                    placeholder="이메일 주소"
-                    value={ctaEmail}
-                    onChange={(e) => setCtaEmail(e.target.value)}
-                    style={{
-                      width: '100%', minWidth: 0,
-                      padding: '12px 12px 12px 36px', borderRadius: 10,
-                      border: '2px solid #E2E8F0',
-                      background: '#F8FAFC',
-                      color: '#0F172A', fontSize: 16, outline: 'none',
-                      minHeight: 48, boxSizing: 'border-box',
-                      transition: 'border-color 0.2s, background 0.2s',
-                      WebkitTextSizeAdjust: '100%',
-                    }}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-                  <div style={{
-                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 15, color: '#94A3B8', pointerEvents: 'none',
-                  }}>📱</div>
-                  <input
-                    className="float-input"
-                    type="tel"
-                    placeholder="연락처"
-                    value={ctaPhone}
-                    onChange={(e) => setCtaPhone(e.target.value)}
-                    style={{
-                      width: '100%', minWidth: 0,
-                      padding: '12px 12px 12px 36px', borderRadius: 10,
-                      border: `2px solid ${phoneError ? '#FCA5A5' : '#E2E8F0'}`,
-                      background: phoneError ? '#FFF5F5' : '#F8FAFC',
-                      color: '#0F172A', fontSize: 16, outline: 'none',
-                      minHeight: 48, boxSizing: 'border-box',
-                      transition: 'border-color 0.2s, background 0.2s',
-                      WebkitTextSizeAdjust: '100%',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* CTA 버튼 — 눈에 확 띄는 파란색 */}
-              <button
-                className="float-cta-main"
-                onClick={onSubmit}
-                disabled={ctaSubmitting || !canSubmit}
-                style={{
-                  width: isMobileFloat ? '100%' : 'auto',
-                  flexShrink: 0,
-                  padding: isMobileFloat ? '16px 24px' : '12px 28px',
-                  borderRadius: 12, border: 'none',
-                  background: canSubmit
-                    ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'
-                    : '#E2E8F0',
-                  color: canSubmit ? '#fff' : '#94A3B8',
-                  fontSize: isMobileFloat ? 16 : 15, fontWeight: 700,
-                  cursor: ctaSubmitting ? 'wait' : canSubmit ? 'pointer' : 'not-allowed',
-                  transition: 'all 0.2s',
-                  boxShadow: canSubmit ? '0 4px 16px rgba(37,99,235,0.35)' : 'none',
-                  minHeight: 52,
-                  letterSpacing: '-0.01em',
-                  animation: canSubmit ? 'ctaPulse 2.5s ease-in-out infinite' : 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                {ctaSubmitting ? '신청 중...' : '무료 견적 상담 →'}
-              </button>
-            </div>
-
-            {/* 신뢰 보조 문구 */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: isMobileFloat ? 12 : 20, marginTop: 10,
-              flexWrap: 'wrap',
-            }}>
-              {['상담 비용 0원', '위시켓 검증 파트너', '정의서 기반 정확한 견적'].map(t => (
-                <span key={t} style={{
-                  fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4,
-                  whiteSpace: 'nowrap',
-                }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  {t}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// FloatingMatchingBar 제거됨 — PRD 잠금 게이트로 대체 (2026-04-21)
 
 // ━━━━━ A-3: Section Header with Anchor Link ━━━━━
 function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string; title: string; subtitle?: string; id?: string }) {
@@ -1363,21 +1118,13 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // ── Task 1: Download Gating Modal State ──
-  const [showDownloadGate, setShowDownloadGate] = useState(false);
-  const [downloadGateEmail, setDownloadGateEmail] = useState(email || '');
-  const [downloadGateType, setDownloadGateType] = useState<'pdf' | 'docx' | null>(null);
-  const [marketingConsent, setMarketingConsent] = useState(false);
-  const [downloadGateSubmitting, setDownloadGateSubmitting] = useState(false);
-  const downloadGateCompletedRef = useRef(false); // 게이트 통과 완료 여부 (취소 시 우회 방지)
+  // 다운로드 게이트 제거됨 — PRD 잠금 게이트로 대체 (2026-04-21)
+  const downloadGateCompletedRef = useRef(true); // 항상 통과 상태
 
   // ── Task 2: Exit Prevention Modal State ──
   const hasEngagedRef = useRef(false);
   const exitModalShownRef = useRef(false);
-  const [showExitModal, setShowExitModal] = useState(false);
-  const [exitModalEmail, setExitModalEmail] = useState('');
-  const [exitModalPhone, setExitModalPhone] = useState('');
-  const [exitModalSubmitting, setExitModalSubmitting] = useState(false);
+  // 이탈 방지 모달 제거됨 — PRD 잠금 게이트로 대체 (2026-04-21)
   const [downloadGateErrorMsg, setDownloadGateErrorMsg] = useState('');
 
   // ── 공통 CTA 제출 핸들러 (플로팅 바 + 하단 폼 공유) ──
@@ -1426,17 +1173,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
     return () => observer.disconnect();
   }, [loading, prdData]);
 
-  // ── Task 2: Exit Prevention Modal (30s delay, shows once) ──
-  useEffect(() => {
-    if (loading || !prdData || readOnly || exitModalShownRef.current) return;
-    const timer = setTimeout(() => {
-      if (!hasEngagedRef.current && !exitModalShownRef.current) {
-        setShowExitModal(true);
-        exitModalShownRef.current = true;
-      }
-    }, 30000);
-    return () => clearTimeout(timer);
-  }, [loading, prdData, readOnly]);
+  // 이탈 방지 모달 useEffect 제거됨 — PRD 잠금 게이트로 대체
 
   // ── Track beforeunload for exit prevention ──
   useEffect(() => {
@@ -1647,17 +1384,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const handlePDF = useCallback(async () => {
     if (!prdData) return;
-    // 게이트 완료 여부 체크 (이메일 입력 후 취소해도 우회 불가)
-    if (downloadGateCompletedRef.current || readOnly) {
-      setPdfGenerating(true);
-      await generatePDF();
-      setPdfGenerating(false);
-    } else {
-      setDownloadGateType('pdf');
-      setShowDownloadGate(true);
-      setDownloadGateErrorMsg('');
-    }
-  }, [prdData, generatePDF, readOnly]);
+    // 다운로드 게이트 제거됨 — 바로 다운로드
+    setPdfGenerating(true);
+    await generatePDF();
+    setPdfGenerating(false);
+  }, [prdData, generatePDF]);
 
   // ── Task 1: DOCX generation logic extracted ──
   const generateDOCX = useCallback(async () => {
@@ -1976,17 +1707,11 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [docxGenerating, setDocxGenerating] = useState(false);
   const handleDOCX = useCallback(async () => {
     if (!prdData) return;
-    // 게이트 완료 여부 체크 (이메일 입력 후 취소해도 우회 불가)
-    if (downloadGateCompletedRef.current || readOnly) {
-      setDocxGenerating(true);
-      await generateDOCX();
-      setDocxGenerating(false);
-    } else {
-      setDownloadGateType('docx');
-      setShowDownloadGate(true);
-      setDownloadGateErrorMsg('');
-    }
-  }, [prdData, generateDOCX, readOnly]);
+    // 다운로드 게이트 제거됨 — 바로 다운로드
+    setDocxGenerating(true);
+    await generateDOCX();
+    setDocxGenerating(false);
+  }, [prdData, generateDOCX]);
 
   // Generate markdown for copy
   const generateMarkdown = useCallback((d: PRDResult): string => {
@@ -2353,14 +2078,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
       <div className="floating-toc-wrap">
         <FloatingTOC sections={tocSections} activeSection={activeSection} />
       </div>
-      {/* B-8: Floating Matching CTA Bar — 공유 링크에서도 노출 */}
-      <FloatingMatchingBar
-        ctaEmail={ctaEmail} setCtaEmail={setCtaEmail}
-        ctaPhone={ctaPhone} setCtaPhone={setCtaPhone}
-        ctaSubmitting={ctaSubmitting} ctaSubmitted={ctaSubmitted}
-        onSubmit={handleCtaSubmit}
-        isSharedView={!!readOnly}
-      />
+      {/* FloatingMatchingBar 제거됨 — PRD 잠금 게이트로 대체 */}
       {/* ━━ Header — Dark Hero with glassmorphism ━━ */}
       <div className="prd-hero-header" style={{
         background: C.gradientDark, color: '#fff', padding: '56px 20px 48px', position: 'relative', overflow: 'hidden',
@@ -3985,99 +3703,47 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           </button>
         </div>
 
-        {/* ━━ Wishket CTA Section ━━ */}
-        <div className="no-print wishket-cta-section" style={{
+        {/* ━━ Wishket CTA Section (간소화) ━━ */}
+        <div className="no-print" style={{
           background: C.gradientCTA,
-          borderRadius: 20,
-          padding: '40px 36px',
+          borderRadius: 16,
+          padding: '32px 28px',
           marginTop: 24,
           marginBottom: 40,
+          textAlign: 'center',
           position: 'relative',
           overflow: 'hidden',
         }}>
-          <style>{`@keyframes ctaPulse { 0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.15); } 50% { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 20px rgba(255,255,255,0.1); } }`}</style>
-          <div style={{ position: 'absolute', top: -80, right: -60, width: 280, height: 280, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -60, left: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
-          {ctaSubmitted ? (
-            <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
-                신청이 완료되었습니다!
-              </h3>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.6 }}>
-                위시켓 전문 매니저가 정의서를 검토한 뒤,<br />
-                검증된 개발사의 실제 견적을 보내드리겠습니다.
-              </p>
+          <div style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
+              이 정의서로 위시켓에서 견적 받기
+            </h3>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 20px 0', lineHeight: 1.6 }}>
+              검증된 개발 파트너로부터 무료 견적을 받아보세요.
+            </p>
+            <a
+              href="https://www.wishket.com/project/post/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '14px 32px', borderRadius: 12, border: 'none',
+                background: '#fff', color: C.blue,
+                fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                textDecoration: 'none',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                transition: 'all 0.2s',
+              }}
+            >
+              위시켓에서 프로젝트 등록하기 →
+            </a>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.6)', justifyContent: 'center', marginTop: 16 }}>
+              <span>✓ 무료 견적</span>
+              <span>✓ 평균 3일 내</span>
+              <span>✓ 검증 파트너</span>
             </div>
-          ) : (
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: 'rgba(255,255,255,0.15)', padding: '5px 12px', borderRadius: 20,
-                fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5, marginBottom: 16,
-              }}>
-                ⚡ 무료 · 평균 3일 이내 견적
-              </div>
-              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.3 }}>
-                {readOnly
-                  ? '이 프로젝트, 다음 단계로 넘어가 볼까요?'
-                  : '이 정의서 기반, 실제 견적을 받아보세요'}
-              </h3>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 24px 0', lineHeight: 1.6 }}>
-                {readOnly
-                  ? <>정의서는 완성되었습니다. 이제 위시켓에서<br />검증된 개발 파트너의 실제 견적을 받아보세요.</>
-                  : <>이 정의서를 위시켓에 등록하면, 검증된 개발사로부터<br />실제 견적을 무료로 받아보실 수 있습니다.</>}
-              </p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-                <input
-                  type="email"
-                  placeholder="이메일 주소"
-                  value={ctaEmail}
-                  onChange={(e) => setCtaEmail(e.target.value)}
-                  style={{
-                    flex: '1 1 200px', padding: '12px 16px', borderRadius: 10,
-                    border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)',
-                    color: '#fff', fontSize: 14, outline: 'none',
-                  }}
-                />
-                <input
-                  type="tel"
-                  placeholder="연락처 (필수) *"
-                  value={ctaPhone}
-                  onChange={(e) => setCtaPhone(e.target.value)}
-                  style={{
-                    flex: '1 1 160px', padding: '12px 16px', borderRadius: 10,
-                    border: `1.5px solid ${ctaPhone.trim().length > 0 && ctaPhone.replace(/[^0-9]/g, '').length < 7 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                    background: 'rgba(255,255,255,0.1)',
-                    color: '#fff', fontSize: 14, outline: 'none',
-                  }}
-                />
-                <button
-                  onClick={handleCtaSubmit}
-                  disabled={ctaSubmitting || !ctaEmail.includes('@') || ctaPhone.replace(/[^0-9]/g, '').length < 7}
-                  style={{
-                    padding: '13px 28px', borderRadius: 12, border: 'none',
-                    background: ctaSubmitting ? 'rgba(255,255,255,0.3)' : '#fff',
-                    color: ctaSubmitting ? '#fff' : C.blue,
-                    fontSize: 14, fontWeight: 700, cursor: ctaSubmitting ? 'wait' : 'pointer',
-                    flexShrink: 0, transition: C.ease,
-                    boxShadow: ctaSubmitting ? 'none' : '0 4px 16px rgba(0,0,0,0.15)',
-                    animation: ctaSubmitting ? 'none' : 'ctaPulse 2.5s infinite',
-                  }}
-                  onMouseEnter={(e) => { (e.target as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={(e) => { (e.target as HTMLElement).style.transform = 'translateY(0)'; }}
-                >
-                  {ctaSubmitting ? '신청 중...' : '무료 견적 신청'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-                <span>✓ 정의서 자동 첨부</span>
-                <span>✓ 평균 3건 견적</span>
-                <span>✓ 수수료 0원</span>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* ━━ Footer ━━ */}
@@ -4095,229 +3761,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         </div>
       </div>
 
-      {/* ━━ Task 1: Download Gating Modal ━━ */}
-      {showDownloadGate && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, backdropFilter: 'blur(4px)', padding: '16px',
-        }} onClick={() => { setShowDownloadGate(false); setDownloadGateEmail(''); setDownloadGateErrorMsg(''); }}>
-          <div style={{
-            background: '#0B1120', borderRadius: 20, padding: isMobile ? 24 : 32, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid #1E293B',
-            animation: 'slideUp 0.3s ease-out',
-          }} onClick={(e) => e.stopPropagation()}>
-            <style>{`@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8, margin: 0 }}>
-              📥 문서 다운로드
-            </h2>
-            <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 20, margin: '8px 0 20px 0' }}>
-              다운로드 전 이메일을 입력해 주세요.
-            </p>
-            <input
-              type="email"
-              placeholder="이메일 주소"
-              value={downloadGateEmail}
-              onChange={(e) => setDownloadGateEmail(e.target.value)}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: `1.5px solid ${downloadGateEmail && !downloadGateEmail.includes('@') ? '#f87171' : '#1E293B'}`,
-                background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
-                outline: 'none', boxSizing: 'border-box', marginBottom: 12,
-              }}
-            />
-            <label style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20,
-              fontSize: 13, color: '#CBD5E1', cursor: 'pointer',
-            }}>
-              <input
-                type="checkbox"
-                checked={marketingConsent}
-                onChange={(e) => setMarketingConsent(e.target.checked)}
-                style={{ width: 16, height: 16, cursor: 'pointer' }}
-              />
-              마케팅 정보 수신 동의 (선택)
-            </label>
-            {downloadGateErrorMsg && (
-              <div style={{
-                fontSize: 12, color: '#f87171', marginBottom: 12, padding: '8px 12px',
-                background: 'rgba(248,113,113,0.1)', borderRadius: 8,
-              }}>
-                {downloadGateErrorMsg}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setShowDownloadGate(false)}
-                style={{
-                  flex: 1, padding: '12px 16px', borderRadius: 10,
-                  border: '1px solid #1E293B', background: 'transparent',
-                  color: '#94A3B8', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#1F2937'; }}
-                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
-              >
-                취소
-              </button>
-              <button
-                onClick={async () => {
-                  if (!downloadGateEmail.includes('@')) {
-                    setDownloadGateErrorMsg('올바른 이메일 주소를 입력해 주세요.');
-                    return;
-                  }
-                  setDownloadGateSubmitting(true);
-                  try {
-                    // Save email + consent to CTA leads
-                    await fetch('/api/cta-lead', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        email: downloadGateEmail,
-                        projectName: prdData?.projectName || '',
-                        projectType: rfpData?.overview ? 'detected' : 'unknown',
-                        featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
-                        sessionId,
-                        marketing_consent: marketingConsent,
-                      }),
-                    });
-                    // 게이트 통과 완료 마킹 (이후 다운로드는 바로 진행)
-                    downloadGateCompletedRef.current = true;
-                    hasEngagedRef.current = true;
-                    setShowDownloadGate(false);
-                    // Execute the pending download immediately
-                    if (downloadGateType === 'pdf') {
-                      setPdfGenerating(true);
-                      await generatePDF();
-                      setPdfGenerating(false);
-                    } else if (downloadGateType === 'docx') {
-                      setDocxGenerating(true);
-                      await generateDOCX();
-                      setDocxGenerating(false);
-                    }
-                  } catch (err) {
-                    console.error('Download gate error:', err);
-                    setDownloadGateErrorMsg('오류가 발생했습니다. 다시 시도해 주세요.');
-                  }
-                  setDownloadGateSubmitting(false);
-                }}
-                disabled={downloadGateSubmitting || !downloadGateEmail.includes('@')}
-                style={{
-                  flex: 1, padding: '12px 16px', borderRadius: 10,
-                  border: 'none', background: '#2563EB',
-                  color: '#fff', fontSize: 13, fontWeight: 600,
-                  cursor: downloadGateSubmitting ? 'wait' : 'pointer',
-                  opacity: downloadGateSubmitting || !downloadGateEmail.includes('@') ? 0.6 : 1,
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { if (!downloadGateSubmitting) (e.target as HTMLElement).style.background = '#1D4ED8'; }}
-                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = '#2563EB'; }}
-              >
-                {downloadGateSubmitting ? '처리 중...' : '다운로드'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 다운로드 게이트 모달 제거됨 — PRD 잠금 게이트로 대체 */}
 
-      {/* ━━ Task 2: Exit Prevention Modal ━━ */}
-      {showExitModal && !readOnly && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9998, backdropFilter: 'blur(4px)', padding: '16px',
-        }} onClick={() => setShowExitModal(false)}>
-          <div style={{
-            background: '#0B1120', borderRadius: 20, padding: isMobile ? 24 : 32, maxWidth: 420, width: '100%', maxHeight: '90vh', overflowY: 'auto',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid #1E293B',
-            animation: 'slideUp 0.3s ease-out',
-          }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8, margin: 0 }}>
-              🎯 무료 견적 상담
-            </h2>
-            <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 20, margin: '8px 0 20px 0' }}>
-              이 정의서로 무료 견적 상담을 받아보시겠어요?
-            </p>
-            <input
-              type="email"
-              placeholder="이메일 주소"
-              value={exitModalEmail}
-              onChange={(e) => setExitModalEmail(e.target.value)}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: `1.5px solid ${exitModalEmail && !exitModalEmail.includes('@') ? '#f87171' : '#1E293B'}`,
-                background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
-                outline: 'none', boxSizing: 'border-box', marginBottom: 10,
-              }}
-            />
-            <input
-              type="tel"
-              placeholder="연락처 (10자 이상)"
-              value={exitModalPhone}
-              onChange={(e) => setExitModalPhone(e.target.value)}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: `1.5px solid ${exitModalPhone && exitModalPhone.replace(/[^0-9]/g, '').length < 7 ? '#f87171' : '#1E293B'}`,
-                background: '#1F2937', color: '#fff', fontSize: isMobile ? 16 : 13,
-                outline: 'none', boxSizing: 'border-box', marginBottom: 20,
-              }}
-            />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setShowExitModal(false)}
-                style={{
-                  flex: 1, padding: '12px 16px', borderRadius: 10,
-                  border: '1px solid #1E293B', background: 'transparent',
-                  color: '#94A3B8', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#1F2937'; }}
-                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
-              >
-                나중에 할게요
-              </button>
-              <button
-                onClick={async () => {
-                  if (!exitModalEmail.includes('@') || exitModalPhone.replace(/[^0-9]/g, '').length < 7) return;
-                  setExitModalSubmitting(true);
-                  try {
-                    await fetch('/api/cta-lead', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        email: exitModalEmail,
-                        phone: exitModalPhone,
-                        projectName: prdData?.projectName || '',
-                        projectType: rfpData?.overview ? 'detected' : 'unknown',
-                        featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
-                        sessionId,
-                      }),
-                    });
-                    hasEngagedRef.current = true;
-                    setShowExitModal(false);
-                  } catch (err) {
-                    console.error('Exit modal CTA error:', err);
-                  }
-                  setExitModalSubmitting(false);
-                }}
-                disabled={exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.replace(/[^0-9]/g, '').length < 7}
-                style={{
-                  flex: 1, padding: '12px 16px', borderRadius: 10,
-                  border: 'none', background: '#2563EB',
-                  color: '#fff', fontSize: 13, fontWeight: 600,
-                  cursor: exitModalSubmitting ? 'wait' : 'pointer',
-                  opacity: exitModalSubmitting || !exitModalEmail.includes('@') || exitModalPhone.replace(/[^0-9]/g, '').length < 7 ? 0.6 : 1,
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { if (!exitModalSubmitting) (e.target as HTMLElement).style.background = '#1D4ED8'; }}
-                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = '#2563EB'; }}
-              >
-                {exitModalSubmitting ? '신청 중...' : '신청하기'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 이탈 방지 모달 제거됨 — PRD 잠금 게이트로 대체 */}
     </div>
     </ReadOnlyContext.Provider>
   );
