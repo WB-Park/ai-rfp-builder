@@ -1310,6 +1310,50 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   const [ctaSubmitted, setCtaSubmitted] = useState(false);
   const [ctaSubmitting, setCtaSubmitting] = useState(false);
 
+  // ── PRD 잠금 게이트 (Executive Summary 이후 블러) ──
+  const [prdUnlocked, setPrdUnlocked] = useState(false);
+  const [unlockName, setUnlockName] = useState('');
+  const [unlockEmail, setUnlockEmail] = useState(email || '');
+  const [unlockPhone, setUnlockPhone] = useState('');
+  const [unlockConsent, setUnlockConsent] = useState(false);
+  const [unlockPrivacy, setUnlockPrivacy] = useState(false);
+  const [unlockSubmitting, setUnlockSubmitting] = useState(false);
+  const [unlockError, setUnlockError] = useState('');
+
+  const handleUnlockSubmit = useCallback(async () => {
+    if (!unlockName.trim()) { setUnlockError('이름을 입력해 주세요.'); return; }
+    if (!unlockEmail.includes('@')) { setUnlockError('올바른 이메일을 입력해 주세요.'); return; }
+    if (unlockPhone.replace(/[^0-9]/g, '').length < 7) { setUnlockError('올바른 연락처를 입력해 주세요.'); return; }
+    if (!unlockConsent) { setUnlockError('상담 안내 수신에 동의해 주세요.'); return; }
+    if (!unlockPrivacy) { setUnlockError('개인정보처리방침에 동의해 주세요.'); return; }
+    setUnlockError('');
+    setUnlockSubmitting(true);
+    try {
+      await fetch('/api/cta-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: unlockName.trim(),
+          email: unlockEmail,
+          phone: unlockPhone,
+          projectName: prdData?.projectName || '',
+          projectType: rfpData?.overview ? 'detected' : 'unknown',
+          featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
+          sessionId,
+          source: 'prd_unlock_gate',
+          marketing_consent: unlockConsent,
+        }),
+      });
+    } catch { /* fire and forget */ }
+    setPrdUnlocked(true);
+    setUnlockSubmitting(false);
+    hasEngagedRef.current = true;
+    // 플로팅바/이탈모달도 비활성화
+    setCtaSubmitted(true);
+    exitModalShownRef.current = true;
+    downloadGateCompletedRef.current = true;
+  }, [unlockName, unlockEmail, unlockPhone, unlockConsent, unlockPrivacy, prdData, rfpData, sessionId]);
+
   // ── Mobile Detection ──
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -2670,6 +2714,150 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
         <SectionDivider />
 
+        {/* ━━ PRD 잠금 게이트: Executive Summary 이후 블러 처리 ━━ */}
+        {!prdUnlocked && !readOnly && (
+          <div style={{ position: 'relative', zIndex: 20, margin: '0 -20px', padding: '0 20px' }}>
+            {/* 블러된 미리보기 (장식용) */}
+            <div style={{ filter: 'blur(8px)', opacity: 0.4, pointerEvents: 'none', userSelect: 'none', maxHeight: 220, overflow: 'hidden' }}>
+              <Card style={{ marginBottom: 16 }}>
+                <div style={{ height: 20, background: '#e2e8f0', borderRadius: 4, marginBottom: 10, width: '60%' }} />
+                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, marginBottom: 8, width: '90%' }} />
+                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, marginBottom: 8, width: '75%' }} />
+                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, width: '85%' }} />
+              </Card>
+              <Card>
+                <div style={{ height: 20, background: '#e2e8f0', borderRadius: 4, marginBottom: 10, width: '50%' }} />
+                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, marginBottom: 8, width: '80%' }} />
+                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, width: '70%' }} />
+              </Card>
+            </div>
+
+            {/* 리드 수집 폼 오버레이 */}
+            <div style={{
+              position: 'relative', marginTop: -180, zIndex: 30,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 15%, #fff 25%)',
+              paddingTop: 60, paddingBottom: 8,
+            }}>
+              <Card style={{
+                maxWidth: 520, margin: '0 auto',
+                border: `2px solid ${C.blue}`,
+                borderRadius: 16,
+                padding: '36px 32px 28px',
+                background: 'linear-gradient(135deg, rgba(37,99,235,0.03) 0%, #fff 50%)',
+                boxShadow: '0 8px 32px rgba(37,99,235,0.12)',
+              }}>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+                  <h3 style={{ fontSize: 20, fontWeight: 800, color: C.textPrimary, margin: '0 0 6px', lineHeight: 1.4 }}>
+                    전체 리포트 확인 +<br />무료 전문가 상담 받기
+                  </h3>
+                  <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>
+                    나머지 {tocSections.length - 1}개 섹션의 상세 분석 결과를 확인하고,<br />
+                    위시켓 전문가의 맞춤 제안서를 받아보세요.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 20, justifyContent: 'center' }}>
+                  {[
+                    { icon: '📄', text: '전체 정의서 열람' },
+                    { icon: '💰', text: '무료 견적 상담' },
+                    { icon: '🤝', text: '검증된 파트너 매칭' },
+                  ].map((b, i) => (
+                    <div key={i} style={{
+                      padding: '6px 12px', background: C.blueBg, borderRadius: 8,
+                      fontSize: 12, fontWeight: 600, color: C.blue, display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <span>{b.icon}</span>{b.text}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <input
+                    type="text" placeholder="이름" value={unlockName}
+                    onChange={e => setUnlockName(e.target.value)}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, fontSize: 14,
+                      border: `1.5px solid ${C.border}`, outline: 'none', width: '100%', boxSizing: 'border-box',
+                      background: '#f8fafc',
+                    }}
+                    onFocus={e => e.target.style.borderColor = C.blue}
+                    onBlur={e => e.target.style.borderColor = C.border}
+                  />
+                  <input
+                    type="email" placeholder="이메일" value={unlockEmail}
+                    onChange={e => setUnlockEmail(e.target.value)}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, fontSize: 14,
+                      border: `1.5px solid ${C.border}`, outline: 'none', width: '100%', boxSizing: 'border-box',
+                      background: '#f8fafc',
+                    }}
+                    onFocus={e => e.target.style.borderColor = C.blue}
+                    onBlur={e => e.target.style.borderColor = C.border}
+                  />
+                  <input
+                    type="tel" placeholder="연락처 (예: 010-1234-5678)" value={unlockPhone}
+                    onChange={e => setUnlockPhone(e.target.value)}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, fontSize: 14,
+                      border: `1.5px solid ${C.border}`, outline: 'none', width: '100%', boxSizing: 'border-box',
+                      background: '#f8fafc',
+                    }}
+                    onFocus={e => e.target.style.borderColor = C.blue}
+                    onBlur={e => e.target.style.borderColor = C.border}
+                  />
+                </div>
+
+                {/* 동의 체크박스 */}
+                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 13, color: C.textSecondary }}>
+                    <input type="checkbox" checked={unlockConsent} onChange={e => setUnlockConsent(e.target.checked)}
+                      style={{ marginTop: 2, accentColor: C.blue, width: 16, height: 16, flexShrink: 0 }} />
+                    <span>맞춤 제안서 발송 및 프로젝트 상담 안내에 동의합니다. <span style={{ color: C.blue }}>*</span></span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 13, color: C.textSecondary }}>
+                    <input type="checkbox" checked={unlockPrivacy} onChange={e => setUnlockPrivacy(e.target.checked)}
+                      style={{ marginTop: 2, accentColor: C.blue, width: 16, height: 16, flexShrink: 0 }} />
+                    <span>
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.blue, textDecoration: 'underline' }}>개인정보처리방침</a>에 동의합니다. <span style={{ color: C.blue }}>*</span>
+                    </span>
+                  </label>
+                </div>
+
+                {unlockError && (
+                  <div style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, fontSize: 13, color: '#dc2626' }}>
+                    {unlockError}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleUnlockSubmit}
+                  disabled={unlockSubmitting}
+                  style={{
+                    marginTop: 16, width: '100%', padding: '14px 0',
+                    background: unlockSubmitting ? '#94a3b8' : C.blue, color: '#fff',
+                    border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700,
+                    cursor: unlockSubmitting ? 'wait' : 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { if (!unlockSubmitting) (e.target as HTMLElement).style.background = '#1D4ED8'; }}
+                  onMouseLeave={e => { if (!unlockSubmitting) (e.target as HTMLElement).style.background = C.blue; }}
+                >
+                  {unlockSubmitting ? '처리 중...' : '전체 리포트 확인 + 무료 상담 받기'}
+                </button>
+
+                <p style={{ fontSize: 11, color: C.textTertiary, textAlign: 'center', margin: '12px 0 0', lineHeight: 1.5 }}>
+                  🔒 입력하신 정보는 암호화되어 안전하게 보관됩니다.<br />
+                  상담 안내 외 다른 용도로 사용되지 않습니다.
+                </p>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* ━━ 잠금 해제 후에만 보이는 상세 섹션들 ━━ */}
+        {(prdUnlocked || readOnly) && (<>
+
         {/* ━━ Deep Mode Exclusive Sections ━━ */}
         {isDeepMode && prdData.deepModeInsights?.strategicNarrative && (
           <>
@@ -3695,6 +3883,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
             <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.7, margin: 0 }}>{prdData.additionalRequirements}</p>
           </Card>
         )}
+
+        {/* ━━ 잠금 블록 닫기 ━━ */}
+        </>)}
 
         {/* ━━ Share URL Banner (shown after sharing) ━━ */}
         {shareUrl && (

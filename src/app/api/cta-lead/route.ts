@@ -9,6 +9,7 @@ const supabase = createClient(
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL || '';
 
 async function sendSlackNotification(data: {
+  name?: string;
   email: string;
   phone?: string;
   projectName?: string;
@@ -24,10 +25,12 @@ async function sendSlackNotification(data: {
       : data.source === 'download_gate' ? '📥 다운로드 게이팅'
       : data.source === 'exit_modal' ? '🚪 이탈 방지 모달'
       : data.source === 'prd_complete' ? '✅ PRD 완성 페이지'
+      : data.source === 'prd_unlock_gate' ? '🔓 리포트 잠금 해제'
       : `🔗 ${data.source || '알 수 없음'}`;
     const text = [
       '🔔 *새 매칭 신청이 들어왔습니다!*',
       '',
+      ...(data.name ? [`👤 이름: ${data.name}`] : []),
       `📧 이메일: ${data.email}`,
       `📱 연락처: ${data.phone || '미입력'}`,
       `📋 프로젝트: ${data.projectName || '미입력'}`,
@@ -50,6 +53,7 @@ async function sendSlackNotification(data: {
 
 // ━━ 강화 Slack 알림 (Block Kit) ━━
 async function sendStrongSlackNotification(data: {
+  name?: string;
   email: string;
   phone?: string;
   projectName?: string;
@@ -84,7 +88,7 @@ async function sendStrongSlackNotification(data: {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '🚨 새 리드 수집! 즉시 확인 필요',
+          text: data.source === 'prd_unlock_gate' ? '🚨 리포트 잠금 해제! 세일즈 동의 리드' : '🚨 새 리드 수집! 즉시 확인 필요',
           emoji: true,
         },
       },
@@ -92,21 +96,27 @@ async function sendStrongSlackNotification(data: {
       {
         type: 'section',
         fields: [
+          { type: 'mrkdwn', text: `*👤 이름*\n${data.name || '미입력'}` },
           { type: 'mrkdwn', text: `*📧 이메일*\n${data.email}` },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
           { type: 'mrkdwn', text: `*📱 연락처*\n${data.phone || '미입력'}` },
-        ],
-      },
-      {
-        type: 'section',
-        fields: [
           { type: 'mrkdwn', text: `*📋 프로젝트명*\n${data.projectName || '미입력'}` },
-          { type: 'mrkdwn', text: `*📊 프로젝트 규모*\n${scaleEmoji} (${featureText})` },
         ],
       },
       {
         type: 'section',
         fields: [
+          { type: 'mrkdwn', text: `*📊 프로젝트 규모*\n${scaleEmoji} (${featureText})` },
           { type: 'mrkdwn', text: `*🏷️ 유입 경로*\n${sourceLabel}` },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
           { type: 'mrkdwn', text: `*🕐 수집 시각*\n${now}` },
         ],
       },
@@ -137,13 +147,13 @@ async function sendStrongSlackNotification(data: {
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, phone, projectName, projectType, featureCount, sessionId, source, marketing_consent } = await req.json();
+    const { name, email, phone, projectName, projectType, featureCount, sessionId, source, marketing_consent } = await req.json();
 
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: '이메일이 필요합니다.' }, { status: 400 });
     }
 
-    const { error } = await supabase.from('cta_leads').insert({
+    const insertData: Record<string, unknown> = {
       email,
       phone: phone || null,
       project_name: projectName || '미입력',
@@ -153,7 +163,11 @@ export async function POST(req: NextRequest) {
       marketing_consent: marketing_consent || false,
       source: source || 'unknown',
       created_at: new Date().toISOString(),
-    });
+    };
+    // name 컬럼이 있으면 저장 (없어도 에러 무시)
+    if (name) insertData.name = name;
+
+    const { error } = await supabase.from('cta_leads').insert(insertData);
 
     if (error) {
       console.error('CTA lead save error:', error);
@@ -161,8 +175,8 @@ export async function POST(req: NextRequest) {
 
     // Slack #알림_PRD 채널로 노티 (기존 알림 + 강화 알림 동시 발송)
     await Promise.all([
-      sendSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId, source }),
-      sendStrongSlackNotification({ email, phone, projectName, projectType, featureCount, sessionId, source }),
+      sendSlackNotification({ name, email, phone, projectName, projectType, featureCount, sessionId, source }),
+      sendStrongSlackNotification({ name, email, phone, projectName, projectType, featureCount, sessionId, source }),
     ]);
 
     return NextResponse.json({ success: true });
