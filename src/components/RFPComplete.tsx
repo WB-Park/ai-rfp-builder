@@ -2435,20 +2435,54 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         {/* ━━ PRD 잠금 게이트: Executive Summary 이후 블러 처리 ━━ */}
         {!prdUnlocked && !readOnly && (
           <div style={{ position: 'relative', zIndex: 20, margin: '0 -20px', padding: '0 20px' }}>
-            {/* 블러된 미리보기 (장식용) */}
-            <div style={{ filter: 'blur(8px)', opacity: 0.4, pointerEvents: 'none', userSelect: 'none', maxHeight: 220, overflow: 'hidden' }}>
-              <Card style={{ marginBottom: 16 }}>
-                <div style={{ height: 20, background: '#e2e8f0', borderRadius: 4, marginBottom: 10, width: '60%' }} />
-                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, marginBottom: 8, width: '90%' }} />
-                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, marginBottom: 8, width: '75%' }} />
-                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, width: '85%' }} />
-              </Card>
-              <Card>
-                <div style={{ height: 20, background: '#e2e8f0', borderRadius: 4, marginBottom: 10, width: '50%' }} />
-                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, marginBottom: 8, width: '80%' }} />
-                <div style={{ height: 14, background: '#e2e8f0', borderRadius: 4, width: '70%' }} />
-              </Card>
-            </div>
+            {/* 잠긴 콘텐츠 미리보기 — 실제 PRD 데이터 기반 */}
+            {(() => {
+              const totalFeats = prdData.featureModules?.reduce((s, m) => s + (m.features?.length || 0), 0) || 0;
+              const totalDur = prdData.timeline?.reduce((s, t) => { const m = t.duration.match(/(\d+)/); return s + (m ? parseInt(m[1]) : 0); }, 0) || 0;
+              const apiCount = prdData.apiEndpoints?.length || 0;
+              const nfrCount = prdData.nonFunctionalRequirements?.reduce((s, n) => s + (n.items?.length || 0), 0) || 0;
+              const phaseCount = prdData.timeline?.length || 0;
+              const riskCount = prdData.risks?.length || 0;
+              const moduleNames = prdData.featureModules?.slice(0, 3).map(m => m.name) || [];
+
+              const previewItems = [
+                totalFeats > 0 && { icon: '⚙️', label: '기능 상세 설계', value: `${totalFeats}개 기능 명세서`, detail: moduleNames.length > 0 ? moduleNames.join(', ') + ' 등' : '' },
+                totalDur > 0 && { icon: '📅', label: '개발 로드맵', value: `${totalDur}~${Math.round(totalDur * 1.4)}주 / ${phaseCount}단계`, detail: 'MVP → 확장 단계별 일정' },
+                apiCount > 0 && { icon: '🔗', label: 'API 설계서', value: `${apiCount}개 엔드포인트 정의`, detail: 'RESTful API 명세 포함' },
+                nfrCount > 0 && { icon: '🛡️', label: '비기능 요구사항', value: `${nfrCount}개 품질 기준`, detail: '보안, 성능, 확장성 분석' },
+                riskCount > 0 && { icon: '⚠️', label: '리스크 분석', value: `${riskCount}개 리스크 식별`, detail: '대응 전략 포함' },
+                { icon: '💡', label: 'AI 전문가 인사이트', value: '성공/실패 요인 분석', detail: '위시켓 데이터 기반' },
+              ].filter(Boolean) as { icon: string; label: string; value: string; detail: string }[];
+
+              return (
+                <div style={{ position: 'relative', overflow: 'hidden', maxHeight: 280 }}>
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10,
+                    filter: 'blur(6px)', opacity: 0.5, pointerEvents: 'none', userSelect: 'none',
+                  }}>
+                    {previewItems.slice(0, 6).map((item, i) => (
+                      <div key={i} style={{
+                        background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12,
+                        padding: '14px 16px', borderLeft: `3px solid ${C.blue}`,
+                      }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>
+                          {item.icon} {item.label}
+                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: C.blue, marginBottom: 2 }}>
+                          {item.value}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.textSecondary }}>{item.detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* 하단 페이드 그라디언트 */}
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0, height: 120,
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, #fff 100%)',
+                  }} />
+                </div>
+              );
+            })()}
 
             {/* 리드 수집 폼 오버레이 */}
             <div style={{
