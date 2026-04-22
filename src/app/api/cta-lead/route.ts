@@ -41,11 +41,16 @@ async function sendSlackNotification(data: {
       `👉 <${adminUrl}|어드민에서 확인하기>`,
     ].join('\n');
 
-    await fetch(SLACK_WEBHOOK_URL, {
+    const resp = await fetch(SLACK_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
+    if (!resp.ok) {
+      console.error(`Slack notification failed: ${resp.status} ${resp.statusText}`, await resp.text().catch(() => ''));
+    } else {
+      console.log(`[Slack CTA] ✅ 기본 알림 전송 완료 (${data.source}, ${data.email})`);
+    }
   } catch (slackErr) {
     console.error('Slack notification error:', slackErr);
   }
@@ -71,6 +76,7 @@ async function sendStrongSlackNotification(data: {
       : data.source === 'download_gate' ? '다운로드 게이팅'
       : data.source === 'exit_modal' ? '이탈 방지 모달'
       : data.source === 'prd_complete' ? 'PRD 완성 페이지'
+      : data.source === 'prd_unlock_gate' ? '🔓 리포트 잠금 해제 (세일즈 동의)'
       : data.source || '직접 유입';
 
     const featureText = data.featureCount && data.featureCount > 0
@@ -132,7 +138,7 @@ async function sendStrongSlackNotification(data: {
       },
     ];
 
-    await fetch(SLACK_WEBHOOK_URL, {
+    const resp = await fetch(SLACK_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -140,6 +146,11 @@ async function sendStrongSlackNotification(data: {
         blocks,
       }),
     });
+    if (!resp.ok) {
+      console.error(`Strong Slack notification failed: ${resp.status} ${resp.statusText}`, await resp.text().catch(() => ''));
+    } else {
+      console.log(`[Slack CTA] ✅ Block Kit 알림 전송 완료 (${data.source}, ${data.email})`);
+    }
   } catch (slackErr) {
     console.error('Strong Slack notification error:', slackErr);
   }
