@@ -26,6 +26,7 @@ async function sendSlackNotification(data: {
       : data.source === 'exit_modal' ? '🚪 이탈 방지 모달'
       : data.source === 'prd_complete' ? '✅ PRD 완성 페이지'
       : data.source === 'prd_unlock_gate' ? '🔓 리포트 잠금 해제'
+      : data.source === 'shared_prd_unlock' ? '🔗🔓 공유 PRD 잠금 해제'
       : `🔗 ${data.source || '알 수 없음'}`;
     const text = [
       '🔔 *새 매칭 신청이 들어왔습니다!*',
@@ -77,6 +78,7 @@ async function sendStrongSlackNotification(data: {
       : data.source === 'exit_modal' ? '이탈 방지 모달'
       : data.source === 'prd_complete' ? 'PRD 완성 페이지'
       : data.source === 'prd_unlock_gate' ? '🔓 리포트 잠금 해제 (세일즈 동의)'
+      : data.source === 'shared_prd_unlock' ? '🔗🔓 공유 PRD 잠금 해제 (세일즈 동의)'
       : data.source || '직접 유입';
 
     const featureText = data.featureCount && data.featureCount > 0

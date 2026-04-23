@@ -12,9 +12,10 @@ export default function SharePageClient({ rfpDocument, projectName }: SharePageC
   return (
     <RFPComplete
       rfpData={emptyRFPData}
-      email={`shared-${projectName}`}
+      email=""
       preloadedPrd={rfpDocument}
       readOnly={true}
+      sharedView={true}
     />
   );
 }

@@ -13,6 +13,7 @@ interface RFPCompleteProps {
   sessionId?: string;
   preloadedPrd?: string; // JSON string of PRDResult — skips API call, renders directly
   readOnly?: boolean; // Hide editing features for share page
+  sharedView?: boolean; // 공유 페이지에서도 잠금 게이트 적용 (readOnly는 유지하되 게이트는 표시)
   chatMessages?: { role: string; content: string }[]; // 대화 히스토리 → PRD 생성에 활용
   chatMode?: 'quick' | 'deep'; // 대화 모드 → PRD 스타일 분기
   onBack?: () => void; // 홈으로 돌아가기
@@ -1034,7 +1035,7 @@ function SectionHeaderAnchored({ number, title, subtitle, id }: { number: string
 }
 
 // ━━━━━ Main Component ━━━━━
-export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, chatMessages, chatMode, onBack }: RFPCompleteProps) {
+export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, readOnly, sharedView, chatMessages, chatMode, onBack }: RFPCompleteProps) {
   // preloadedPrd가 있으면 바로 파싱해서 사용 (share 페이지)
   const initialPrd = useMemo(() => {
     if (preloadedPrd) {
@@ -1068,7 +1069,9 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
   // ── PRD 잠금 게이트 (Executive Summary 이후 블러) ──
   const [prdUnlocked, setPrdUnlocked] = useState(false);
   const [unlockName, setUnlockName] = useState('');
-  const [unlockEmail, setUnlockEmail] = useState(email || '');
+  const [unlockEmail, setUnlockEmail] = useState(
+    email && email !== 'guest@anonymous.user' ? email : ''
+  );
   const [unlockPhone, setUnlockPhone] = useState('');
   const [unlockConsent, setUnlockConsent] = useState(false);
   const [unlockPrivacy, setUnlockPrivacy] = useState(false);
@@ -1077,7 +1080,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
 
   const handleUnlockSubmit = useCallback(async () => {
     if (!unlockName.trim()) { setUnlockError('이름을 입력해 주세요.'); return; }
-    if (!unlockEmail.includes('@')) { setUnlockError('올바른 이메일을 입력해 주세요.'); return; }
+    if (!unlockEmail.includes('@') || unlockEmail === 'guest@anonymous.user') { setUnlockError('올바른 이메일을 입력해 주세요.'); return; }
     if (unlockPhone.replace(/[^0-9]/g, '').length < 7) { setUnlockError('올바른 연락처를 입력해 주세요.'); return; }
     if (!unlockConsent) { setUnlockError('상담 안내 수신에 동의해 주세요.'); return; }
     if (!unlockPrivacy) { setUnlockError('개인정보처리방침에 동의해 주세요.'); return; }
@@ -1095,7 +1098,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
           projectType: rfpData?.overview ? 'detected' : 'unknown',
           featureCount: prdData?.featureModules?.reduce((s: number, m: { features?: unknown[] }) => s + (m.features?.length || 0), 0) || 0,
           sessionId,
-          source: 'prd_unlock_gate',
+          source: sharedView ? 'shared_prd_unlock' : 'prd_unlock_gate',
           marketing_consent: unlockConsent,
         }),
       });
@@ -2433,7 +2436,8 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         <SectionDivider />
 
         {/* ━━ PRD 잠금 게이트: Executive Summary 이후 블러 처리 ━━ */}
-        {!prdUnlocked && !readOnly && (
+        {/* 공유 페이지(sharedView)에서도 잠금 게이트 적용 */}
+        {!prdUnlocked && (!readOnly || sharedView) && (
           <div style={{ position: 'relative', zIndex: 20, margin: '0 -20px', padding: '0 20px' }}>
             {/* 잠긴 콘텐츠 미리보기 — 실제 PRD 데이터 기반 */}
             {(() => {
@@ -2537,7 +2541,7 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
                     onBlur={e => e.target.style.borderColor = C.border}
                   />
                   <input
-                    type="email" placeholder="이메일" value={unlockEmail}
+                    type="email" placeholder="이메일 (예: name@company.com)" value={unlockEmail}
                     onChange={e => setUnlockEmail(e.target.value)}
                     style={{
                       padding: '12px 14px', borderRadius: 10, fontSize: 14,
@@ -2608,7 +2612,8 @@ export default function RFPComplete({ rfpData, email, sessionId, preloadedPrd, r
         )}
 
         {/* ━━ 잠금 해제 후에만 보이는 상세 섹션들 ━━ */}
-        {(prdUnlocked || readOnly) && (<>
+        {/* sharedView에서는 잠금 해제 후에만 표시 (readOnly이지만 게이트 적용) */}
+        {(prdUnlocked || (readOnly && !sharedView)) && (<>
 
         {/* ━━ Deep Mode Exclusive Sections ━━ */}
         {isDeepMode && prdData.deepModeInsights?.strategicNarrative && (
